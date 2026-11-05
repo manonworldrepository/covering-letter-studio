@@ -16,62 +16,29 @@ has_java_25() {
   java -version 2>&1 | head -n 1 | grep -Eq '"25([.]|")'
 }
 
-has_native_image() {
-  command -v native-image >/dev/null 2>&1
-}
-
-confirm_graalvm_install() {
-  local answer
-  read -r -p "GraalVM 25 with Native Image is required. Install it with Homebrew now? [y/N]: " answer
-  [[ "$answer" == "y" || "$answer" == "Y" ]]
+has_graalvm_25() {
+  local java_version image_version
+  command -v native-image >/dev/null 2>&1 || return 1
+  java_version="$(java -version 2>&1)" || return 1
+  image_version="$(native-image --version 2>&1)" || return 1
+  [[ "$java_version" == *GraalVM* ]] || return 1
+  grep -Eq 'native-image (25|2[6-9]|[3-9][0-9])([.]| )' <<< "$image_version"
 }
 
 echo "Cover Letter Studio setup for macOS"
 if [[ "$RUN_MODE" == "native" ]]; then
-  if ! has_java_25 || ! has_native_image; then
-    if ! confirm_graalvm_install; then
-      echo "GraalVM installation declined. Install GraalVM 25 or later with Native Image, then rerun." >&2
-      exit 1
-    fi
-    if ! command -v brew >/dev/null 2>&1; then
-      echo "Homebrew is required for automatic GraalVM installation." >&2
-      echo "Install Homebrew from https://brew.sh, then rerun this script." >&2
-      exit 1
-    fi
-    brew install --cask graalvm-jdk
-    if [[ -x /usr/libexec/java_home ]]; then
-      java_home_25="$(/usr/libexec/java_home -v 25 2>/dev/null || true)"
-      if [[ -n "$java_home_25" && -x "$java_home_25/bin/java" ]]; then
-        export JAVA_HOME="$java_home_25"
-        export PATH="$JAVA_HOME/bin:$PATH"
-      fi
-    fi
-  fi
-  if ! has_java_25 || ! has_native_image; then
-    echo "GraalVM 25 with Native Image is still unavailable. Check your PATH and JAVA_HOME." >&2
+  if ! has_java_25 || ! has_graalvm_25; then
+    echo "GraalVM 25 or later with Native Image was not found or is not configured for Java." >&2
+    echo "Install it manually, set JAVA_HOME to its installation directory, and add its bin directory to PATH." >&2
     exit 1
   fi
 elif ! has_java_25; then
-  if ! command -v brew >/dev/null 2>&1; then
-    echo "Java 25 and Homebrew were not found." >&2
-    echo "Install Homebrew from https://brew.sh, then run this script again." >&2
-    exit 1
-  fi
-
-  echo "Java 25 was not found. Installing Eclipse Temurin 25 with Homebrew..."
-  brew install --cask temurin@25
-
-  if ! has_java_25 && [[ -x /usr/libexec/java_home ]]; then
-    java_home_25="$(/usr/libexec/java_home -v 25 2>/dev/null || true)"
-    if [[ -n "$java_home_25" && -x "$java_home_25/bin/java" ]]; then
-      export JAVA_HOME="$java_home_25"
-      export PATH="$JAVA_HOME/bin:$PATH"
-    fi
-  fi
+  echo "Java 25 was not found. Install a Java 25 JDK manually and make sure java is on PATH." >&2
+  exit 1
 fi
 
 if ! has_java_25; then
-  echo "Java 25 is still unavailable. Open a new terminal and run this script again." >&2
+  echo "Java 25 is still unavailable. Check JAVA_HOME and PATH, then rerun this script." >&2
   exit 1
 fi
 echo "Java 25 is available."

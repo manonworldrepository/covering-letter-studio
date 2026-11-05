@@ -41,9 +41,9 @@ Open [http://localhost:8080](http://localhost:8080). Press `Ctrl+C` in the termi
 
 ### Build and run a native executable
 
-Install and configure GraalVM 25 or later with Native Image before building. The native-image plugin compiles with the JDK running Gradle, so verify that `java -version` reports the GraalVM JDK.
+Install and configure GraalVM 25 or later with Native Image before building. The native-image plugin compiles with the JDK running Gradle, so make sure `JAVA_HOME`, `PATH`, and `java -version` all refer to that GraalVM installation.
 
-On Windows, install Visual Studio 2022 version 17.6 or later with the **Desktop development with C++** workload and x64/x86 build tools. Native Image needs this Microsoft C/C++ toolchain to compile the executable.
+Native compilation also needs the platform's C/C++ build tools. On Windows, install Visual Studio 2022 version 17.6 or later with the **Desktop development with C++** workload and x64/x86 build tools. On Linux, install the C compiler, linker, and required system development libraries for your distribution. On macOS, install the Xcode Command Line Tools.
 
 Build the executable:
 
@@ -75,9 +75,9 @@ Run it from the project root so it finds `.env` and stores files in the expected
 
 Open [http://localhost:8080](http://localhost:8080). Native executables are platform-specific; build separately on each target operating system. Native compilation may require additional platform C/C++ build tools provided by GraalVM’s Native Image setup.
 
-## Optional automatic setup and launch scripts
+## Setup and launch scripts
 
-The scripts create a starter `.env` file if missing and start the application. All platforms accept an optional mode argument: `bootRun` (the default) or `native`.
+The scripts create a starter `.env` file if missing and start the application. They do not install Java, GraalVM, Native Image, or platform build tools; install the prerequisites manually before running them. All platforms accept an optional mode argument: `bootRun` (the default) or `native`.
 
 **Windows (PowerShell or Command Prompt):**
 
@@ -85,13 +85,13 @@ The scripts create a starter `.env` file if missing and start the application. A
 .\install-and-run-windows.bat
 ```
 
-By default, the script starts with Spring Boot `bootRun`. If Java 25 is missing, it tries `winget` or Chocolatey. To build and run a native executable instead, use:
+By default, the script starts with Spring Boot `bootRun`; Java 25 must already be installed and available on `PATH`. To build and run a native executable instead, use:
 
 ```powershell
-.\install-and-run-windows.bat
+.\install-and-run-windows.bat native
 ```
 
-Native mode requires GraalVM 25 or later with Native Image and Visual Studio 2022 version 17.6 or later with the **Desktop development with C++** workload. The script checks for both prerequisites and selects GraalVM’s matching JDK for Gradle (even if `JAVA_HOME` points to an older JDK). If no compatible GraalVM is found, it asks before attempting installation with Chocolatey (`graalvm` package). Install Chocolatey first if needed. If Chocolatey reports a NuGet package-feed resolution error, the script stops and recommends retrying later or installing GraalVM manually. The script builds with `nativeCompile` and runs the generated executable. To explicitly select JVM mode, use `.\install-and-run-windows.bat bootRun`.
+Native mode requires GraalVM 25 or later with Native Image and Visual Studio 2022 version 17.6 or later with the **Desktop development with C++** workload. The script detects a compatible GraalVM under the standard GraalVM installation directory or on `PATH`, selects its JDK for Gradle, and checks for Visual Studio. Configure `JAVA_HOME` and `PATH` manually if the installation is elsewhere. The script builds with `nativeCompile` and runs the generated executable. To explicitly select JVM mode, use `.\install-and-run-windows.bat bootRun`.
 
 **Linux:**
 
@@ -100,7 +100,7 @@ chmod +x ./install-and-run-linux.sh
 ./install-and-run-linux.sh
 ```
 
-By default, the script starts with Spring Boot `bootRun`. To build and run a native executable, use `./install-and-run-linux.sh native` as your regular user (do not use `sudo`). If GraalVM is missing, the script asks before installing GraalVM 25 with SDKMAN; SDKMAN must already be installed for that user. It tries the current GraalVM Oracle candidate and falls back to GraalVM CE if needed. Native mode requires GraalVM with Native Image and Java 25 available on `PATH`. The Linux script supports apt, dnf, zypper, and pacman package managers for installing a Java 25 JDK in `bootRun` mode.
+By default, the script starts with Spring Boot `bootRun`; install Java 25 manually first. To build and run a native executable, use `./install-and-run-linux.sh native` as your regular user (do not use `sudo`). Native mode requires GraalVM 25 or later and its Native Image component; set `JAVA_HOME` to that GraalVM installation and put its `bin` directory on `PATH`. The script selects Java 25 from installed JDKs or `PATH` for JVM mode and verifies that the native-image command belongs to the selected GraalVM in native mode. If the GraalVM JDK is present but Native Image is missing, install that component manually for your distribution.
 
 **macOS (Terminal):**
 
@@ -109,9 +109,9 @@ chmod +x ./install-and-run-macos.sh
 ./install-and-run-macos.sh
 ```
 
-By default, the script starts with Spring Boot `bootRun`. To build and run a native executable, use `./install-and-run-macos.sh native`. If GraalVM is missing, the script asks before installing the GraalVM JDK with Homebrew. Native mode requires GraalVM 25 or later with Native Image and Java 25 available on `PATH`. In `bootRun` mode, the macOS script uses an existing Java 25 or attempts to install Eclipse Temurin 25 with Homebrew. Install Homebrew first if needed.
+By default, the script starts with Spring Boot `bootRun`; install Java 25 manually first and make it available on `PATH`. To build and run a native executable, use `./install-and-run-macos.sh native`. Native mode requires GraalVM 25 or later with Native Image configured as the active Java toolchain.
 
-These scripts require internet access; installing Java may require administrator privileges. If a package manager cannot provide Java 25, install a Java 25 JDK manually and rerun the script.
+The Gradle wrapper downloads Gradle and project dependencies on first use, so an internet connection is required. The setup scripts do not install system prerequisites.
 
 ## Use the application
 

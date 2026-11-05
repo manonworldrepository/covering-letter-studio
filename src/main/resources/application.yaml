@@ -8,8 +8,7 @@ spring:
       max-in-memory-size: 30MB
       max-disk-usage-per-part: 10MB
 
-server:
-  address: 127.0.0.1
+web:
   error:
     include-message: always
 
