@@ -23,7 +23,12 @@ class GeminiCoverLetterService(
 		.baseUrl("https://generativelanguage.googleapis.com")
 		.build()
 
-	fun generate(jobDescription: String, resume: String, supportingDocuments: String): Mono<GeneratedCoverLetter> {
+	fun generate(
+		jobDescription: String,
+		resume: String,
+		supportingDocuments: String,
+		format: GenerationFormat = GenerationFormat.COVER_LETTER
+	): Mono<GeneratedCoverLetter> {
 		val apiKey = settings.apiKey()
 		val model = settings.model()
 		val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH))
@@ -36,23 +41,36 @@ class GeminiCoverLetterService(
 			)
 		}
 
+		val formatInstructions = when (format) {
+			GenerationFormat.COVER_LETTER -> """
+				Write a tailored, professional cover letter. Connect relevant evidence to the job
+				requirements, use a natural first-person voice, and avoid generic claims. Format it
+				as a polished business letter: include the applicant's name at the top, then the
+				current date ($currentDate), recipient/company details only when available from the
+				provided documents or job description, and a concise subject line for the identified role.
+				Never invent missing contact details. Follow with a greeting, several clearly separated
+				body paragraphs, a professional sign-off, and the applicant's name. Use plain text with
+				blank lines between sections; do not use markdown or add commentary.
+			""".trimIndent()
+			GenerationFormat.MOTIVATION_MESSAGE -> """
+				Write a concise motivation message suitable for pasting into a job application's
+				motivation or supporting-information field. Keep it to 80-120 words, in one compact
+				paragraph, with no address, date, subject line, greeting, sign-off, markdown, or
+				commentary. Explain why the applicant is interested in this role and connect their
+				most relevant experience or strengths to the job. Make it personal and specific,
+				not a complete covering letter.
+			""".trimIndent()
+		}
 		val prompt = """
-			Identify the primary job title from the job description and write a tailored,
-			professional cover letter for that role.
+			Identify the primary job title from the job description and write a tailored response
+			for that role.
 			Use only facts present in the resume and supporting documents; never invent experience,
 			qualifications, metrics, names, or contact details. Extract the applicant's full name
-			exactly as it appears in the resume; do not infer or invent a name. Connect relevant evidence to the job
-			requirements, use a natural first-person voice, and avoid generic claims. Format the letter
-			as a polished business cover letter: include the applicant's name at the top, then the
-			current date ($currentDate), recipient/company details only when available from the
-			provided documents or job description, and a concise subject line for the identified role.
-			Never invent missing contact details.
-			Follow with a greeting, several clearly separated body paragraphs, a professional sign-off,
-			and the applicant's name. Use plain text with blank lines between sections; do not use
-			markdown or add commentary.
+			exactly as it appears in the resume; do not infer or invent a name.
+			$formatInstructions
 			Return a JSON object with exactly three string properties: "applicantName" (the full
 			name as printed in the resume), "jobTitle" (the concise role title identified in the
-			job description, without company/location), and "letter" (the complete cover letter body).
+			job description, without company/location), and "letter" (the generated response).
 
 			<Job description>
 			$jobDescription
@@ -178,3 +196,8 @@ class GeminiCoverLetterService(
 }
 
 data class GeneratedCoverLetter(val letter: String, val jobTitle: String, val applicantName: String)
+
+enum class GenerationFormat {
+	COVER_LETTER,
+	MOTIVATION_MESSAGE
+}

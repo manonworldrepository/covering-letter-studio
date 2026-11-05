@@ -148,18 +148,25 @@
 
       <form class="card" id="generator" style="margin-top:20px">
         <div class="field">
+          <label for="generation-format">What would you like to generate?</label>
+          <select id="generation-format" name="format">
+            <option value="cover-letter">Complete covering letter</option>
+            <option value="motivation-message">Short motivation message for an application form</option>
+          </select>
+        </div>
+        <div class="field">
           <label for="job">Job description <span class="required">*</span></label>
           <textarea id="job" name="jobDescription" required maxlength="20000" placeholder="Paste the job description here..."></textarea>
-          <p class="hint">Your full name will be read from your saved resume, and the job title identified from this description. Both are used in your PDF filename.</p>
+          <p class="hint">Your full name will be read from your saved resume, and the job title identified from this description. Both are used in your PDF filename when you generate a covering letter.</p>
         </div>
         <div class="actions">
-          <button class="primary" id="generate" type="submit">Generate cover letter</button>
+          <button class="primary" id="generate" type="submit">Generate covering letter</button>
           <span class="status" id="status" role="status" aria-live="polite"></span>
         </div>
         <div class="privacy">Your resumes and supporting files stay in the local <code>.data</code> directory and are not committed to Git. Only the selected resume and supporting documents, plus the job description, are sent to Google Gemini to draft the letter. This app is configured for single-user local use.</div>
       </form>
       <section class="card" id="result" aria-labelledby="result-heading" hidden>
-        <label id="result-heading" for="letter">Your draft (you can edit before downloading)</label>
+        <label id="result-heading" for="letter">Your draft (you can edit before copying or downloading)</label>
         <p class="detected-title" id="detected-details"></p>
         <textarea id="letter" spellcheck="true"></textarea>
         <div class="actions">
@@ -213,6 +220,7 @@
     const status = document.querySelector("#status");
     const result = document.querySelector("#result");
     const letter = document.querySelector("#letter");
+    const generationFormat = document.querySelector("#generation-format");
     let activeModel = "";
     let setupApiKeyConfigured = false;
     let setupModelConfigured = false;
@@ -220,6 +228,17 @@
     let detectedJobTitle = "";
     let detectedApplicantName = "";
     let lastLogSignature = "";
+
+    generationFormat.addEventListener("change", () => {
+      const motivationMessage = generationFormat.value === "motivation-message";
+      result.hidden = true;
+      document.querySelector("#generate").textContent =
+        motivationMessage ? "Generate motivation message" : "Generate covering letter";
+      document.querySelector("#download").hidden = motivationMessage;
+      document.querySelector("#result-heading").textContent = motivationMessage
+        ? "Your motivation message (edit before copying)"
+        : "Your covering letter (edit before copying or downloading)";
+    });
 
     async function responseError(response, fallback) {
       const text = await response.text();
@@ -794,10 +813,14 @@
       event.preventDefault();
       const data = new FormData();
       data.append("jobDescription", document.querySelector("#job").value);
+      data.append("format", generationFormat.value);
       const button = document.querySelector("#generate");
       button.disabled = true;
       status.classList.remove("error");
-      status.textContent = "Reading documents and drafting your letter...";
+      const motivationMessage = generationFormat.value === "motivation-message";
+      status.textContent = motivationMessage
+        ? "Reading documents and drafting your motivation message..."
+        : "Reading documents and drafting your covering letter...";
       result.hidden = true;
       try {
         const body = await requestJson("/api/generate", { method: "POST", body: data });
@@ -807,7 +830,9 @@
         document.querySelector("#detected-details").textContent =
           `Resume name: ${detectedApplicantName} · Detected job title: ${detectedJobTitle}`;
         result.hidden = false;
-        status.textContent = "Draft ready. Review and edit it before downloading.";
+        status.textContent = motivationMessage
+          ? "Message ready. Review and edit it before copying."
+          : "Letter ready. Review and edit it before downloading.";
       } catch (error) {
         status.textContent = error.message || "Something went wrong. Please try again.";
         status.classList.add("error");
@@ -852,7 +877,9 @@
     document.querySelector("#copy").addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(letter.value);
-        status.textContent = "Letter copied to clipboard.";
+        status.textContent = generationFormat.value === "motivation-message"
+          ? "Motivation message copied to clipboard."
+          : "Covering letter copied to clipboard.";
         status.classList.remove("error");
       } catch {
         status.textContent = "Clipboard access was denied by your browser.";

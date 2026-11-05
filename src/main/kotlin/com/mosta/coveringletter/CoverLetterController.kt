@@ -96,8 +96,14 @@ class CoverLetterController(
 
 	@PostMapping("/api/generate", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
 	fun generate(
-		@RequestPart("jobDescription") jobDescription: String
+		@RequestPart("jobDescription") jobDescription: String,
+		@RequestPart("format", required = false) requestedFormat: String?
 	): Mono<GeneratedCoverLetter> {
+		val format = when (requestedFormat?.trim()?.lowercase()) {
+			null, "", "cover-letter" -> GenerationFormat.COVER_LETTER
+			"motivation-message" -> GenerationFormat.MOTIVATION_MESSAGE
+			else -> throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a valid generation format.")
+		}
 		if (jobDescription.isBlank()) {
 			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter the job description.")
 		}
@@ -129,8 +135,16 @@ class CoverLetterController(
 						)
 					)
 				}
-				generator.generate(jobDescription.trim(), resumeContent, contents.t2)
-					.doOnSuccess { logs.record("Generated a cover letter") }
+				generator.generate(jobDescription.trim(), resumeContent, contents.t2, format)
+					.doOnSuccess {
+						logs.record(
+							if (format == GenerationFormat.MOTIVATION_MESSAGE) {
+								"Generated a motivation message"
+							} else {
+								"Generated a cover letter"
+							}
+						)
+					}
 			}
 	}
 
