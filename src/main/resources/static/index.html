@@ -46,7 +46,7 @@
     .privacy { margin-top: 18px; padding: 13px 15px; background: #f6f8fc; border-radius: 9px; color: #59667e; font-size: 12px; line-height: 1.55; }
     .step { margin: 22px 0; padding: 18px; border: 1px solid #e6e8ed; border-radius: 12px; }
     .step-number { color: #3158d5; font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
-    .file-current { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 16px; border: 1px solid #e6e8ed; border-radius: 10px; }
+    .file-current { padding: 14px 16px; border: 1px solid #e6e8ed; border-radius: 10px; }
     .detected-title { margin: 0 0 12px; color: #59667e; font-size: 14px; }
     .modal-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #121a2dcc; }
     .modal { width: min(100%, 560px); max-height: min(90vh, 760px); overflow: auto; }
@@ -68,7 +68,7 @@
     .log-entry { margin: 0 0 4px; }
     .log-entry.ERROR { color: #ff9a9a; }
     .log-entry.WARN { color: #ffd580; }
-    @media (max-width: 580px) { header { padding-top: 14px; padding-bottom: 14px; } main { margin-top: 30px; } .actions > button { width: 100%; } .file-current > button { width: auto; } }
+    @media (max-width: 580px) { header { padding-top: 14px; padding-bottom: 14px; } main { margin-top: 30px; } .actions > button { width: 100%; } }
   </style>
 </head>
 <body>
@@ -112,6 +112,8 @@
         <h2 id="resume-heading">Your resumes</h2>
         <div class="file-current">
           <span id="resume-status">No resume saved yet.</span>
+        </div>
+        <div class="actions" style="margin-top:12px">
           <button class="primary" id="replace-resume-button" type="button">Choose resume</button>
           <button class="danger" id="clear-resumes" type="button" disabled>Clear all resumes</button>
         </div>
@@ -136,7 +138,7 @@
             <input id="documents" name="documents" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
           </div>
           <div class="actions">
-            <button class="primary" id="save-supporting" type="submit" disabled>Save selected files</button>
+            <button class="primary" id="save-supporting" type="submit" disabled>Save supporting file</button>
             <button class="danger" id="clear-supporting" type="button" disabled>Clear all supporting files</button>
           </div>
         </form>
