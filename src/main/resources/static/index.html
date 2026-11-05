@@ -102,6 +102,52 @@
           <button class="primary" id="setup-save" type="button">Save and continue</button>
         </div>
       </div>
+      <div class="step" id="setup-resume-step" hidden>
+        <div class="step-number">Step 3</div>
+        <label for="setup-resume-file">Add one or more resumes <span class="required">*</span></label>
+        <input id="setup-resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
+        <div class="actions" style="margin-top:12px">
+          <button class="secondary" id="setup-upload-resumes" type="button" disabled>Upload resumes</button>
+        </div>
+        <p class="hint">Choose one saved resume to use for generation. PDF or DOCX, up to 10 MB each.</p>
+        <ul class="document-list" id="setup-resume-list" aria-label="Select the required resume"></ul>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" id="setup-resume-next" type="button" disabled>Next: supporting documents</button>
+        </div>
+      </div>
+      <div class="step" id="setup-supporting-step" hidden>
+        <div class="step-number">Step 4</div>
+        <label for="setup-supporting-file">Add supporting documents <span class="optional">(optional)</span></label>
+        <input id="setup-supporting-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
+        <div class="actions" style="margin-top:12px">
+          <button class="secondary" id="setup-upload-supporting" type="button" disabled>Upload documents</button>
+        </div>
+        <p class="hint">Choose which files to include with each application. PDF or DOCX, up to five files and 10 MB each. You can continue without any.</p>
+        <ul class="document-list" id="setup-supporting-list" aria-label="Select optional supporting documents"></ul>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" id="setup-supporting-next" type="button">Next: choose what to generate</button>
+        </div>
+      </div>
+      <div class="step" id="setup-format-step" hidden>
+        <div class="step-number">Step 5</div>
+        <label for="setup-format">What would you like to generate?</label>
+        <select id="setup-format">
+          <option value="cover-letter">Complete covering letter</option>
+          <option value="motivation-message">Short motivation note for an application form</option>
+        </select>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" id="setup-format-next" type="button">Next: enter job description</button>
+        </div>
+      </div>
+      <div class="step" id="setup-job-step" hidden>
+        <div class="step-number">Step 6</div>
+        <label for="setup-job">Job description <span class="required">*</span></label>
+        <textarea id="setup-job" maxlength="20000" required placeholder="Paste the job description here..."></textarea>
+        <p class="hint">This is required to create your first draft. You can edit it or enter another description in the application form afterwards.</p>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" id="setup-generate" type="button">Generate first draft</button>
+        </div>
+      </div>
       <div class="status" id="setup-status" role="status" aria-live="polite"></div>
     </section>
 
@@ -174,6 +220,7 @@
         <div class="actions">
           <button class="primary" id="download" type="button">Download PDF</button>
           <button class="secondary" id="copy" type="button">Copy text</button>
+          <button class="secondary" id="start-over" type="button">Start a new application</button>
         </div>
       </section>
     </section>
@@ -263,33 +310,129 @@
     async function refreshApp() {
       const config = await requestJson("/api/settings");
       const settingsConfigured = config.apiKeyConfigured === true && config.modelConfigured === true;
-      settingsOpen.hidden = !settingsConfigured;
       activeModel = config.model;
-      if (!settingsConfigured) {
-        setupApiKeyConfigured = config.apiKeyConfigured;
-        setupModelConfigured = config.modelConfigured;
-        const keyStep = document.querySelector("#setup-key-step");
-        const modelStep = document.querySelector("#setup-model-step");
-        const keyLoadButton = document.querySelector("#setup-load-models");
-        const modelLoadButton = document.querySelector("#setup-load-models-existing-key");
-        keyStep.hidden = setupApiKeyConfigured;
-        modelStep.hidden = !setupApiKeyConfigured || setupModelConfigured;
-        keyLoadButton.hidden = setupApiKeyConfigured;
-        modelLoadButton.hidden = !setupApiKeyConfigured || setupModelConfigured;
-        document.querySelector("#setup-status").textContent = "";
+      setupApiKeyConfigured = config.apiKeyConfigured === true;
+      setupModelConfigured = config.modelConfigured === true;
+      if (!settingsConfigured || config.resumeConfigured !== true) {
+        settingsOpen.hidden = true;
         workspace.hidden = true;
         setup.hidden = false;
+        document.querySelector("#setup-key-step").hidden = setupApiKeyConfigured;
+        document.querySelector("#setup-model-step").hidden = !setupApiKeyConfigured || setupModelConfigured;
+        document.querySelector("#setup-load-models").hidden = setupApiKeyConfigured;
+        document.querySelector("#setup-load-models-existing-key").hidden =
+          !setupApiKeyConfigured || setupModelConfigured;
+        document.querySelector("#setup-status").textContent = "";
+        document.querySelector("#setup-status").classList.remove("error");
         if (!setupApiKeyConfigured) {
+          showSetupStep("setup-key-step");
           document.querySelector("#setup-key").focus();
+        } else if (!setupModelConfigured) {
+          showSetupStep("setup-model-step");
+          if (config.apiKeyConfigured) document.querySelector("#setup-load-models-existing-key").focus();
         } else {
-          document.querySelector("#setup-load-models-existing-key").focus();
+          showSetupStep(config.resumeConfigured ? "setup-supporting-step" : "setup-resume-step");
+          await refreshSetupResumes();
+          await refreshSetupSupportingDocuments();
         }
         return;
       }
+      settingsOpen.hidden = false;
       setup.hidden = true;
       workspace.hidden = false;
       await refreshResume();
       await refreshSupportingDocuments();
+    }
+
+    function showSetupStep(stepId) {
+      ["setup-key-step", "setup-model-step", "setup-resume-step", "setup-supporting-step", "setup-format-step", "setup-job-step"]
+        .forEach((id) => {
+          document.querySelector(`#${id}`).hidden = id !== stepId;
+        });
+    }
+
+    async function refreshSetupResumes() {
+      const resume = await requestJson("/api/resume");
+      const list = document.querySelector("#setup-resume-list");
+      list.replaceChildren();
+      resume.resumes.forEach((savedResume) => {
+        const item = document.createElement("li");
+        const label = document.createElement("label");
+        label.className = "document-choice";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "setup-selected-resume";
+        radio.value = savedResume.id;
+        radio.checked = savedResume.selected;
+        radio.addEventListener("change", async () => {
+          radio.disabled = true;
+          try {
+            await requestJson("/api/resume/select", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: savedResume.id })
+            });
+            await refreshSetupResumes();
+          } catch (error) {
+            await refreshSetupResumes();
+            showSetupError(error);
+          }
+        });
+        label.append(radio, document.createTextNode(savedResume.filename));
+        item.append(label);
+        list.append(item);
+      });
+      if (resume.resumes.length === 0) {
+        const item = document.createElement("li");
+        item.textContent = "No resumes added yet. Add at least one to continue.";
+        list.append(item);
+      }
+      document.querySelector("#setup-resume-next").disabled = !resume.configured;
+    }
+
+    async function refreshSetupSupportingDocuments() {
+      const documents = await requestJson("/api/supporting-documents");
+      const list = document.querySelector("#setup-supporting-list");
+      list.replaceChildren();
+      documents.forEach((supportingDocument) => {
+        const item = document.createElement("li");
+        const label = document.createElement("label");
+        label.className = "document-choice";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = supportingDocument.selected;
+        checkbox.addEventListener("change", async () => {
+          checkbox.disabled = true;
+          const ids = [...list.querySelectorAll('input[type="checkbox"]:checked')]
+            .map((selected) => selected.dataset.documentId);
+          try {
+            await requestJson("/api/supporting-documents/selection", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ids })
+            });
+            await refreshSetupSupportingDocuments();
+          } catch (error) {
+            await refreshSetupSupportingDocuments();
+            showSetupError(error);
+          }
+        });
+        checkbox.dataset.documentId = supportingDocument.id;
+        label.append(checkbox, document.createTextNode(supportingDocument.filename));
+        item.append(label);
+        list.append(item);
+      });
+      if (documents.length === 0) {
+        const item = document.createElement("li");
+        item.textContent = "No supporting documents added. This step is optional.";
+        list.append(item);
+      }
+    }
+
+    function showSetupError(error) {
+      const message = document.querySelector("#setup-status");
+      message.textContent = error.message;
+      message.classList.add("error");
     }
 
     async function refreshResume() {
@@ -559,7 +702,7 @@
         event.currentTarget
       );
       if (success) {
-        document.querySelector("#setup-model-step").hidden = false;
+        showSetupStep("setup-model-step");
         document.querySelector("#setup-model").focus();
       }
     });
@@ -585,6 +728,106 @@
       if (await saveSettings(key, model, document.querySelector("#setup-status"), event.currentTarget)) {
         document.querySelector("#setup-key").value = "";
         await refreshApp();
+      }
+    });
+
+    document.querySelector("#setup-resume-file").addEventListener("change", (event) => {
+      document.querySelector("#setup-upload-resumes").disabled = event.currentTarget.files.length === 0;
+    });
+    document.querySelector("#setup-upload-resumes").addEventListener("click", async (event) => {
+      const input = document.querySelector("#setup-resume-file");
+      if (!input.files.length) return;
+      const data = new FormData();
+      [...input.files].forEach((file) => data.append("resume", file));
+      const button = event.currentTarget;
+      button.disabled = true;
+      const message = document.querySelector("#setup-status");
+      message.classList.remove("error");
+      message.textContent = "Validating and saving resumes...";
+      try {
+        await requestJson("/api/resume", { method: "POST", body: data });
+        input.value = "";
+        message.textContent = "Resumes saved. Select the one to use.";
+        await refreshSetupResumes();
+      } catch (error) {
+        showSetupError(error);
+      } finally {
+        button.disabled = input.files.length === 0;
+      }
+    });
+    document.querySelector("#setup-resume-next").addEventListener("click", async () => {
+      try {
+        const resume = await requestJson("/api/resume");
+        if (!resume.configured) {
+          const message = document.querySelector("#setup-status");
+          message.textContent = "Add and select a resume before continuing.";
+          message.classList.add("error");
+          return;
+        }
+        showSetupStep("setup-supporting-step");
+        await refreshSetupSupportingDocuments();
+        document.querySelector("#setup-supporting-file").focus();
+      } catch (error) {
+        showSetupError(error);
+      }
+    });
+    document.querySelector("#setup-supporting-file").addEventListener("change", (event) => {
+      document.querySelector("#setup-upload-supporting").disabled = event.currentTarget.files.length === 0;
+    });
+    document.querySelector("#setup-upload-supporting").addEventListener("click", async (event) => {
+      const input = document.querySelector("#setup-supporting-file");
+      if (!input.files.length) return;
+      const data = new FormData();
+      [...input.files].forEach((file) => data.append("documents", file));
+      const button = event.currentTarget;
+      button.disabled = true;
+      const message = document.querySelector("#setup-status");
+      message.classList.remove("error");
+      message.textContent = "Validating and saving supporting documents...";
+      try {
+        await requestJson("/api/supporting-documents", { method: "POST", body: data });
+        input.value = "";
+        message.textContent = "Supporting documents saved. Choose which ones to include.";
+        await refreshSetupSupportingDocuments();
+      } catch (error) {
+        showSetupError(error);
+      } finally {
+        button.disabled = input.files.length === 0;
+      }
+    });
+    document.querySelector("#setup-supporting-next").addEventListener("click", () => {
+      showSetupStep("setup-format-step");
+      document.querySelector("#setup-format").focus();
+    });
+    document.querySelector("#setup-format-next").addEventListener("click", () => {
+      showSetupStep("setup-job-step");
+      document.querySelector("#setup-job").focus();
+    });
+    document.querySelector("#setup-generate").addEventListener("click", async () => {
+      const setupJob = document.querySelector("#setup-job");
+      if (!setupJob.reportValidity()) return;
+      if (!setupJob.value.trim()) {
+        setupJob.setCustomValidity("Enter the job description.");
+        setupJob.reportValidity();
+        setupJob.setCustomValidity("");
+        return;
+      }
+      try {
+        const resume = await requestJson("/api/resume");
+        if (!resume.configured) {
+          showSetupStep("setup-resume-step");
+          const message = document.querySelector("#setup-status");
+          message.textContent = "Add and select a resume before generating.";
+          message.classList.add("error");
+          return;
+        }
+        generationFormat.value = document.querySelector("#setup-format").value;
+        generationFormat.dispatchEvent(new Event("change"));
+        document.querySelector("#job").value = setupJob.value;
+        await refreshApp();
+        document.querySelector("#generator").requestSubmit();
+      } catch (error) {
+        showSetupError(error);
       }
     });
 
@@ -839,6 +1082,18 @@
       } finally {
         button.disabled = false;
       }
+    });
+
+    document.querySelector("#start-over").addEventListener("click", () => {
+      document.querySelector("#job").value = "";
+      document.querySelector("#setup-job").value = "";
+      letter.value = "";
+      document.querySelector("#detected-details").textContent = "";
+      result.hidden = true;
+      status.textContent = "";
+      status.classList.remove("error");
+      document.querySelector("#generator").scrollIntoView({ behavior: "smooth", block: "start" });
+      document.querySelector("#job").focus();
     });
 
     document.querySelector("#download").addEventListener("click", async () => {

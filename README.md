@@ -11,7 +11,7 @@ Cover Letter Studio is a single-user, localhost-only application that uses Googl
 
 ## Start the application
 
-Run commands from the project root. On first launch, the setup wizard asks for a Gemini API key, then lets you select a model available to that key. Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`), the app's default model, is recommended and preselected when available. Saving the settings creates or updates the root `.env` file. You can also create `.env` before starting:
+Run commands from the project root. On first launch, the setup wizard asks for a Gemini API key and a model available to that key, then guides you through adding and selecting a required resume, optionally adding and selecting supporting documents, and choosing whether to generate a complete cover letter or a short motivation note. Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`), the app's default model, is recommended and preselected when available. After reviewing a draft, choose **Start a new application** to clear it and enter another job description while keeping your saved documents and selections. Saving the settings creates or updates the root `.env` file. You can also create `.env` before starting:
 
 ```dotenv
 GEMINI_API_KEY=your-api-key
