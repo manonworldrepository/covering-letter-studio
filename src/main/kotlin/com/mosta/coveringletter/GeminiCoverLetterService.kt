@@ -9,6 +9,9 @@ import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Service
 class GeminiCoverLetterService(
@@ -23,6 +26,7 @@ class GeminiCoverLetterService(
 	fun generate(jobDescription: String, resume: String, supportingDocuments: String): Mono<GeneratedCoverLetter> {
 		val apiKey = settings.apiKey()
 		val model = settings.model()
+		val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH))
 		if (apiKey.isBlank()) {
 			return Mono.error(
 				ResponseStatusException(
@@ -38,9 +42,14 @@ class GeminiCoverLetterService(
 			Use only facts present in the resume and supporting documents; never invent experience,
 			qualifications, metrics, names, or contact details. Extract the applicant's full name
 			exactly as it appears in the resume; do not infer or invent a name. Connect relevant evidence to the job
-			requirements, use a natural first-person voice, and avoid generic claims. Do not include
-			an address, date, subject line, markdown, or commentary. Return the complete letter body,
-			with a greeting and sign-off, using the applicant's name when appropriate.
+			requirements, use a natural first-person voice, and avoid generic claims. Format the letter
+			as a polished business cover letter: include the applicant's name at the top, then the
+			current date ($currentDate), recipient/company details only when available from the
+			provided documents or job description, and a concise subject line for the identified role.
+			Never invent missing contact details.
+			Follow with a greeting, several clearly separated body paragraphs, a professional sign-off,
+			and the applicant's name. Use plain text with blank lines between sections; do not use
+			markdown or add commentary.
 			Return a JSON object with exactly three string properties: "applicantName" (the full
 			name as printed in the resume), "jobTitle" (the concise role title identified in the
 			job description, without company/location), and "letter" (the complete cover letter body).
