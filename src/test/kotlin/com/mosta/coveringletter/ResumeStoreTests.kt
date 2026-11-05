@@ -25,25 +25,48 @@ class ResumeStoreTests {
 
 		val saved = store.saveBytes(filename, bytes)
 
-		assertEquals(ResumeStatus(true, filename), saved)
 		assertEquals(saved, store.status())
-		assertTrue(Files.isRegularFile(temporaryDirectory.resolve("data").resolve(filename)))
+		assertEquals(filename, saved.filename)
+		assertTrue(saved.resumes.single().selected)
+		assertTrue(Files.isRegularFile(
+			temporaryDirectory.resolve("data").resolve("resumes").resolve("${saved.resumes.single().id}__$filename")
+		))
 		assertTrue(store.extractStored().block()!!.contains("Alex Morgan"))
 	}
 
 	@Test
-	fun `replacing resume preserves new upload name and removes prior saved resume`() {
+	fun `keeps multiple resumes and generates from the selected resume`() {
 		val store = store()
 		val first = "First Resume.pdf"
 		val second = "Updated Resume.pdf"
-		store.saveBytes(first, pdfGenerator.create("First resume content."))
-
+		val firstSaved = store.saveBytes(first, pdfGenerator.create("First resume content."))
 		val saved = store.saveBytes(second, pdfGenerator.create("Updated resume content."))
 
-		assertEquals(ResumeStatus(true, second), saved)
-		assertEquals(saved, store.status())
-		assertFalse(Files.exists(temporaryDirectory.resolve("data").resolve(first)))
+		assertEquals(second, saved.filename)
+		assertEquals(2, saved.resumes.size)
+		assertTrue(saved.resumes.single { it.filename == second }.selected)
+		assertTrue(Files.exists(temporaryDirectory.resolve("data").resolve("resumes")
+			.resolve("${firstSaved.resumes.single().id}__$first")))
 		assertTrue(store.extractStored().block()!!.contains("Updated resume content"))
+
+		val selected = store.select(firstSaved.resumes.single().id)
+		assertEquals(first, selected.filename)
+		assertTrue(store().extractStored().block()!!.contains("First resume content"))
+	}
+
+	@Test
+	fun `continues using a resume saved by the previous storage format`() {
+		val directory = temporaryDirectory.resolve("data")
+		Files.createDirectories(directory)
+		val filename = "Existing Resume.pdf"
+		Files.write(directory.resolve(filename), pdfGenerator.create("Existing resume content."))
+		Files.writeString(directory.resolve(".resume-filename"), filename)
+
+		val status = store().status()
+
+		assertEquals(filename, status.filename)
+		assertTrue(status.resumes.single().selected)
+		assertTrue(store().extractStored().block()!!.contains("Existing resume content"))
 	}
 
 	@Test

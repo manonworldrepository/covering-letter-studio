@@ -54,7 +54,9 @@
     .close { padding: 6px 10px; background: transparent; color: #657087; font-size: 22px; }
     .document-list { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
     .document-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; overflow-wrap: anywhere; }
-    .document-list li > span { min-width: 0; overflow-wrap: anywhere; }
+    .document-list li > span, .document-list li > label { min-width: 0; overflow-wrap: anywhere; }
+    .document-list input[type="radio"], .document-list input[type="checkbox"] { width: auto; margin: 0 9px 0 0; }
+    .document-choice { display: flex; align-items: center; margin: 0; font-weight: 500; cursor: pointer; }
     .document-list .remove-document { flex: 0 0 auto; padding: 7px 10px; color: #ad2938; background: #fff; border: 1px solid #e6e8ed; }
     .log-panel { position: fixed; right: 18px; bottom: 18px; z-index: 4; display: flex; flex-direction: column; width: min(390px, calc(100vw - 36px)); height: 210px; min-width: 260px; min-height: 130px; max-width: calc(100vw - 36px); max-height: 80vh; padding: 12px; overflow: hidden; resize: both; border: 1px solid #303c55; border-radius: 12px; background: #172033; color: #e6ebf4; box-shadow: 0 10px 34px #10182840; }
     .log-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: var(--log-font-size, 13px); font-weight: 700; }
@@ -104,28 +106,29 @@
     <section id="workspace" hidden>
       <div class="intro">
         <h1>Make your next application personal.</h1>
-        <p>Add the role and supporting documents. Your saved resume is reused until you replace it.</p>
+        <p>Upload your resumes and supporting documents, then choose which files should inform each letter.</p>
       </div>
       <section class="card" aria-labelledby="resume-heading">
-        <h2 id="resume-heading">Your saved resume</h2>
+        <h2 id="resume-heading">Your resumes</h2>
         <div class="file-current">
           <span id="resume-status">No resume saved yet.</span>
-          <button class="secondary" id="replace-resume-button" type="button">Choose resume</button>
+          <button class="primary" id="replace-resume-button" type="button">Choose resume</button>
         </div>
+        <ul class="document-list" id="resume-list" aria-label="Choose the resume used for generation"></ul>
         <form id="resume-form" hidden>
-          <input id="resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+          <input id="resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple required>
           <div class="actions" style="margin-top:12px">
-            <button class="primary" id="save-resume" type="submit">Save resume</button>
+            <button class="primary" id="save-resume" type="submit" disabled>Upload resumes</button>
             <button class="secondary" id="cancel-resume" type="button">Cancel</button>
           </div>
-          <p class="hint">PDF or DOCX, up to 10 MB. Saving a new file replaces the previously saved resume.</p>
+          <p class="hint">Choose one or more PDF or DOCX files, up to 10 MB each. Select one saved resume to use when generating a letter.</p>
         </form>
         <div class="status" id="resume-message" role="status" aria-live="polite"></div>
       </section>
 
       <section class="card" style="margin-top:20px" aria-labelledby="supporting-heading">
         <h2 id="supporting-heading">Supporting documents</h2>
-        <p class="hint">Store certificates and other useful PDFs or DOCX files for reuse. Up to five files, 10 MB each.</p>
+        <p class="hint">Store up to five certificates and other useful PDFs or DOCX files (10 MB each). Choose which documents should contribute to each generated letter.</p>
         <form id="supporting-form">
           <div class="field">
             <label for="documents">Add supporting files</label>
@@ -150,7 +153,7 @@
           <button class="primary" id="generate" type="submit">Generate cover letter</button>
           <span class="status" id="status" role="status" aria-live="polite"></span>
         </div>
-        <div class="privacy">Your saved resume and supporting files stay in the local <code>.data</code> directory and are not committed to Git. Extracted document text and the job description are sent to Google Gemini to draft the letter. This app is configured for single-user local use.</div>
+        <div class="privacy">Your resumes and supporting files stay in the local <code>.data</code> directory and are not committed to Git. Only the selected resume and supporting documents, plus the job description, are sent to Google Gemini to draft the letter. This app is configured for single-user local use.</div>
       </form>
       <section class="card" id="result" aria-labelledby="result-heading" hidden>
         <label id="result-heading" for="letter">Your draft (you can edit before downloading)</label>
@@ -263,21 +266,58 @@
       }
       setup.hidden = true;
       workspace.hidden = false;
-      await refreshResume(config);
+      await refreshResume();
       await refreshSupportingDocuments();
     }
 
-    async function refreshResume(config) {
-      const resume = config || await requestJson("/api/resume");
+    async function refreshResume() {
+      const resume = await requestJson("/api/resume");
       const resumeStatus = document.querySelector("#resume-status");
       const generatorButton = document.querySelector("#generate");
+      const list = document.querySelector("#resume-list");
+      list.replaceChildren();
       if (resume.configured) {
-        resumeStatus.textContent = `Saved resume: ${resume.resumeFilename || resume.filename}`;
+        resumeStatus.textContent = `Selected resume: ${resume.filename}`;
         generatorButton.disabled = false;
+        resume.resumes.forEach((savedResume) => {
+          const item = document.createElement("li");
+          const label = document.createElement("label");
+          label.className = "document-choice";
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = "selected-resume";
+          radio.value = savedResume.id;
+          radio.checked = savedResume.selected;
+          radio.addEventListener("change", async () => {
+            radio.disabled = true;
+            const message = document.querySelector("#resume-message");
+            message.classList.remove("error");
+            message.textContent = `Selecting ${savedResume.filename}...`;
+            try {
+              await requestJson("/api/resume/select", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: savedResume.id })
+              });
+              message.textContent = `${savedResume.filename} will be used to generate letters.`;
+              await refreshResume();
+            } catch (error) {
+              message.textContent = error.message;
+              message.classList.add("error");
+              await refreshResume();
+            }
+          });
+          label.append(radio, document.createTextNode(savedResume.filename));
+          item.append(label);
+          list.append(item);
+        });
       } else {
         resumeStatus.textContent = "No resume saved yet. Add one before generating a letter.";
         generatorButton.disabled = true;
         document.querySelector("#resume-form").hidden = false;
+        const item = document.createElement("li");
+        item.textContent = "No resumes saved.";
+        list.append(item);
       }
     }
 
@@ -287,8 +327,35 @@
       list.replaceChildren();
       documents.forEach((supportingDocument) => {
         const item = document.createElement("li");
-        const filename = document.createElement("span");
-        filename.textContent = supportingDocument.filename;
+        const label = document.createElement("label");
+        label.className = "document-choice";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = supportingDocument.selected;
+        checkbox.setAttribute("aria-label", `Include ${supportingDocument.filename} in generated letters`);
+        checkbox.addEventListener("change", async () => {
+          checkbox.disabled = true;
+          const message = document.querySelector("#supporting-message");
+          message.classList.remove("error");
+          message.textContent = "Saving supporting document selections...";
+          try {
+            const ids = [...list.querySelectorAll('input[type="checkbox"]:checked')]
+              .map((selected) => selected.dataset.documentId);
+            await requestJson("/api/supporting-documents/selection", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ids })
+            });
+            message.textContent = "Supporting document selections saved.";
+            await refreshSupportingDocuments();
+          } catch (error) {
+            message.textContent = error.message;
+            message.classList.add("error");
+            await refreshSupportingDocuments();
+          }
+        });
+        checkbox.dataset.documentId = supportingDocument.id;
+        label.append(checkbox, document.createTextNode(supportingDocument.filename));
         const remove = document.createElement("button");
         remove.className = "remove-document";
         remove.type = "button";
@@ -311,7 +378,7 @@
             remove.disabled = false;
           }
         });
-        item.append(filename, remove);
+        item.append(label, remove);
         list.append(item);
       });
       if (documents.length === 0) {
@@ -597,10 +664,11 @@
 
     document.querySelector("#replace-resume-button").addEventListener("click", () => {
       document.querySelector("#resume-form").hidden = false;
-      document.querySelector("#resume-file").focus();
+      document.querySelector("#resume-file").click();
     });
     document.querySelector("#cancel-resume").addEventListener("click", () => {
       document.querySelector("#resume-form").reset();
+      document.querySelector("#save-resume").disabled = true;
       document.querySelector("#resume-form").hidden = true;
     });
     document.querySelector("#resume-form").addEventListener("submit", async (event) => {
@@ -608,24 +676,27 @@
       const input = document.querySelector("#resume-file");
       const message = document.querySelector("#resume-message");
       const button = document.querySelector("#save-resume");
-      if (!input.files[0]) return;
+      if (!input.files.length) return;
       const data = new FormData();
-      data.append("resume", input.files[0]);
+      [...input.files].forEach((file) => data.append("resume", file));
       button.disabled = true;
       message.classList.remove("error");
-      message.textContent = "Validating and saving resume...";
+      message.textContent = "Validating and saving resumes...";
       try {
         await requestJson("/api/resume", { method: "POST", body: data });
         input.value = "";
         document.querySelector("#resume-form").hidden = true;
-        message.textContent = "Resume saved and ready to use.";
+        message.textContent = "Resumes saved. Choose which one to use for generation.";
         await refreshResume();
       } catch (error) {
         message.textContent = error.message;
         message.classList.add("error");
       } finally {
-        button.disabled = false;
+        button.disabled = input.files.length === 0;
       }
+    });
+    document.querySelector("#resume-file").addEventListener("change", (event) => {
+      document.querySelector("#save-resume").disabled = event.currentTarget.files.length === 0;
     });
     document.querySelector("#supporting-form").addEventListener("submit", async (event) => {
       event.preventDefault();

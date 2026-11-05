@@ -16,7 +16,7 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.UUID
 
-data class SupportingDocument(val id: String, val filename: String)
+data class SupportingDocument(val id: String, val filename: String, val selected: Boolean = false)
 
 @Service
 class SupportingDocumentStore(
@@ -24,9 +24,15 @@ class SupportingDocumentStore(
 	@Value("\${coverletter.storage.directory:.data}") storageDirectory: String
 ) {
 	private val directory: Path = Paths.get(storageDirectory).toAbsolutePath().normalize().resolve("supporting-documents")
+	private val selectionMetadata = directory.resolve(".selected-documents")
 
 	fun list(): List<SupportingDocument> {
 		if (!Files.isDirectory(directory)) return emptyList()
+		val selectedIds = if (Files.isRegularFile(selectionMetadata)) {
+			Files.readAllLines(selectionMetadata).toSet()
+		} else {
+			null
+		}
 		return Files.list(directory).use { paths ->
 			paths.filter(Files::isRegularFile)
 				.map { path ->
@@ -34,7 +40,8 @@ class SupportingDocumentStore(
 					val separator = storedName.indexOf("__")
 					if (separator <= 0) null else SupportingDocument(
 						storedName.substring(0, separator),
-						storedName.substring(separator + 2)
+						storedName.substring(separator + 2),
+						selected = selectedIds?.contains(storedName.substring(0, separator)) ?: true
 					)
 				}
 				.filter { it != null }
@@ -63,6 +70,14 @@ class SupportingDocumentStore(
 			Flux.fromIterable(selected)
 				.flatMap({ file -> save(file) }, 2)
 				.collectList()
+				.flatMap { saved ->
+					Mono.fromCallable {
+						synchronized(this) {
+							setSelection((list().filter { it.selected }.map { it.id } + saved.map { it.id }).toSet())
+							list()
+						}
+					}.subscribeOn(Schedulers.boundedElastic())
+				}
 		}
 
 	fun save(file: FilePart): Mono<SupportingDocument> =
@@ -82,7 +97,7 @@ class SupportingDocumentStore(
 			.switchIfEmpty(Mono.error(ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a supporting file.")))
 
 	fun extractAll(): Mono<String> =
-		Flux.fromIterable(list())
+		Flux.fromIterable(list().filter { it.selected })
 			.flatMap({ document ->
 				Mono.fromCallable {
 					val path = resolve(document)
@@ -106,6 +121,7 @@ class SupportingDocumentStore(
 		Mono.fromCallable {
 			Files.createDirectories(directory)
 			list().forEach { Files.deleteIfExists(resolve(it)) }
+			Files.deleteIfExists(selectionMetadata)
 			list()
 		}.subscribeOn(Schedulers.boundedElastic())
 
@@ -114,8 +130,31 @@ class SupportingDocumentStore(
 			val document = list().firstOrNull { it.id == id }
 				?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Supporting document was not found.")
 			Files.delete(resolve(document))
+			if (Files.isRegularFile(selectionMetadata)) {
+				setSelection(list().filter { it.selected }.map { it.id }.toSet())
+			}
 			document
 		}.subscribeOn(Schedulers.boundedElastic())
+
+	fun select(ids: Set<String>): List<SupportingDocument> = synchronized(this) {
+		val documents = list()
+		if (ids.any { id -> documents.none { it.id == id } }) {
+			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "One or more supporting documents were not found.")
+		}
+		try {
+			Files.createDirectories(directory)
+			setSelection(ids)
+			list()
+		} catch (exception: ResponseStatusException) {
+			throw exception
+		} catch (exception: Exception) {
+			throw ResponseStatusException(
+				HttpStatus.INTERNAL_SERVER_ERROR,
+				"Could not save supporting document selections. Check the application directory permissions.",
+				exception
+			)
+		}
+	}
 
 	@Synchronized
 	internal fun saveBytes(originalName: String, bytes: ByteArray): SupportingDocument {
@@ -156,7 +195,7 @@ class SupportingDocumentStore(
 			} finally {
 				Files.deleteIfExists(temporary)
 			}
-			return document
+			return list().first { it.id == document.id }
 		} catch (exception: ResponseStatusException) {
 			throw exception
 		} catch (exception: Exception) {
@@ -182,6 +221,25 @@ class SupportingDocumentStore(
 			if (!path.startsWith(directory)) {
 				throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid supporting document path.")
 			}
+		}
+	}
+
+	private fun setSelection(ids: Set<String>) {
+		val temporary = Files.createTempFile(directory, ".selected-documents-", ".tmp")
+		try {
+			Files.writeString(temporary, ids.joinToString("\n"))
+			try {
+				Files.move(
+					temporary,
+					selectionMetadata,
+					StandardCopyOption.REPLACE_EXISTING,
+					StandardCopyOption.ATOMIC_MOVE
+				)
+			} catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+				Files.move(temporary, selectionMetadata, StandardCopyOption.REPLACE_EXISTING)
+			}
+		} finally {
+			Files.deleteIfExists(temporary)
 		}
 	}
 

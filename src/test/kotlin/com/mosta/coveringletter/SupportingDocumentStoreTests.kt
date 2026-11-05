@@ -35,6 +35,22 @@ class SupportingDocumentStoreTests {
 	}
 
 	@Test
+	fun `only selected supporting documents contribute to extraction and selection persists`() {
+		val store = store()
+		val selected = store.saveBytes("selected.pdf", pdfGenerator.create("Relevant project experience."))
+		store.saveBytes("not-selected.pdf", pdfGenerator.create("Unrelated personal information."))
+
+		val updated = store.select(setOf(selected.id))
+
+		assertTrue(updated.single { it.id == selected.id }.selected)
+		assertFalse(updated.single { it.filename == "not-selected.pdf" }.selected)
+		assertTrue(store.extractAll().block()!!.contains("Relevant project experience"))
+		assertFalse(store.extractAll().block()!!.contains("Unrelated personal information"))
+		assertTrue(store().extractAll().block()!!.contains("Relevant project experience"))
+		assertFalse(store().extractAll().block()!!.contains("Unrelated personal information"))
+	}
+
+	@Test
 	fun `rejects deletion of unknown document ids`() {
 		val exception = org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException::class.java) {
 			store().delete("00000000-0000-0000-0000-000000000000").block()

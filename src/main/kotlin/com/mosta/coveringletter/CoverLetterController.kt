@@ -17,6 +17,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 data class CoverLetterRequest(val letter: String, val personName: String, val jobTitle: String)
+data class ResumeSelectionRequest(val id: String)
+data class SupportingDocumentSelectionRequest(val ids: Set<String> = emptySet())
 
 @RestController
 class CoverLetterController(
@@ -49,9 +51,14 @@ class CoverLetterController(
 	fun getResumeStatus() = resumeStore.status()
 
 	@PostMapping("/api/resume", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-	fun saveResume(@RequestPart("resume") resume: FilePart): Mono<ResumeStatus> =
-		resumeStore.save(resume)
-			.doOnSuccess { logs.record("Saved or replaced resume") }
+	fun saveResume(@RequestPart("resume") resumes: Flux<FilePart>): Mono<ResumeStatus> =
+		resumeStore.save(resumes)
+			.doOnSuccess { status -> status?.let { logs.record("Saved resume: ${it.filename}") } }
+
+	@PostMapping("/api/resume/select", consumes = [MediaType.APPLICATION_JSON_VALUE])
+	fun selectResume(@RequestBody request: ResumeSelectionRequest): ResumeStatus =
+		resumeStore.select(request.id)
+			.also { logs.record("Selected resume: ${it.filename}") }
 
 	@GetMapping("/api/supporting-documents")
 	fun getSupportingDocuments() = supportingDocumentStore.list()
@@ -60,6 +67,11 @@ class CoverLetterController(
 	fun saveSupportingDocuments(@RequestPart("documents") documents: Flux<FilePart>) =
 		supportingDocumentStore.save(documents)
 			.doOnSuccess { logs.record("Saved supporting document(s)") }
+
+	@PostMapping("/api/supporting-documents/selection", consumes = [MediaType.APPLICATION_JSON_VALUE])
+	fun selectSupportingDocuments(@RequestBody request: SupportingDocumentSelectionRequest) =
+		supportingDocumentStore.select(request.ids)
+			.also { logs.record("Updated supporting document selections") }
 
 	@DeleteMapping("/api/supporting-documents")
 	fun clearSupportingDocuments() = supportingDocumentStore.clear()

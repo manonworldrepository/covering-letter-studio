@@ -13,8 +13,14 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
+import java.util.UUID
 
-data class ResumeStatus(val configured: Boolean, val filename: String?)
+data class ResumeOption(val id: String, val filename: String, val selected: Boolean)
+data class ResumeStatus(
+	val configured: Boolean,
+	val filename: String?,
+	val resumes: List<ResumeOption> = emptyList()
+)
 
 @Service
 class ResumeStore(
@@ -22,20 +28,41 @@ class ResumeStore(
 	@Value("\${coverletter.storage.directory:.data}") storageDirectory: String
 ) {
 	private val directory: Path = Paths.get(storageDirectory).toAbsolutePath().normalize()
+	private val resumesDirectory = directory.resolve("resumes")
 	private val filenameMetadata = directory.resolve(".resume-filename")
+	private val selectionMetadata = directory.resolve(".selected-resume")
 
 	fun status(): ResumeStatus {
-		val savedFilename = if (Files.isRegularFile(filenameMetadata)) {
-			Files.readString(filenameMetadata).takeIf(::isSafeFilename)
-		} else {
-			null
+		val resumes = storedResumes().toMutableList()
+		legacyResume()?.let { legacy ->
+			if (resumes.none { it.id == legacy.id }) resumes.add(legacy)
 		}
-		val existing = savedFilename?.takeIf { Files.isRegularFile(directory.resolve(it)) }
-			?: listOf("resume.pdf", "resume.docx").firstOrNull { Files.isRegularFile(directory.resolve(it)) }
-		return ResumeStatus(existing != null, existing)
+		val selectedId = if (Files.isRegularFile(selectionMetadata)) {
+			Files.readString(selectionMetadata).trim()
+		} else {
+			legacyResume()?.id ?: resumes.firstOrNull()?.id
+		}
+		val selected = resumes.firstOrNull { it.id == selectedId } ?: resumes.firstOrNull()
+		return ResumeStatus(
+			selected != null,
+			selected?.filename,
+			resumes.map { it.copy(selected = it.id == selected?.id) }
+		)
 	}
 
-	fun save(file: FilePart): Mono<ResumeStatus> =
+	fun save(files: reactor.core.publisher.Flux<FilePart>): Mono<ResumeStatus> =
+		files.collectList().flatMap { selected ->
+			if (selected.isEmpty()) {
+				return@flatMap Mono.error(
+					ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose at least one resume file.")
+				)
+			}
+			reactor.core.publisher.Flux.fromIterable(selected)
+				.concatMap(::saveFile)
+				.then(Mono.fromCallable { status() })
+		}
+
+	private fun saveFile(file: FilePart): Mono<ResumeStatus> =
 		DataBufferUtils.join(file.content(), MAX_FILE_BYTES)
 			.flatMap { buffer ->
 				val bytes = try {
@@ -51,12 +78,27 @@ class ResumeStore(
 			}
 			.switchIfEmpty(Mono.error(ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a resume file.")))
 
+	fun select(id: String): ResumeStatus = synchronized(this) {
+		val resume = status().resumes.firstOrNull { it.id == id }
+			?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume was not found.")
+		try {
+			Files.createDirectories(directory)
+			writeAtomically(selectionMetadata, resume.id)
+		} catch (exception: Exception) {
+			throw ResponseStatusException(
+				HttpStatus.INTERNAL_SERVER_ERROR,
+				"Could not select the resume. Check the application directory permissions.",
+				exception
+			)
+		}
+		status()
+	}
+
 	fun extractStored(): Mono<String> =
 		Mono.fromCallable {
-			val filename = status().filename
-				?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload your resume before generating a letter.")
-			val path = directory.resolve(filename)
-			extractor.extractText(filename, Files.readAllBytes(path))
+			val resume = status().resumes.firstOrNull { it.selected }
+				?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload and select a resume before generating a letter.")
+			extractor.extractText(resume.filename, Files.readAllBytes(resolve(resume)))
 		}.subscribeOn(Schedulers.boundedElastic())
 
 	@Synchronized
@@ -77,41 +119,23 @@ class ResumeStore(
 		}
 
 		try {
-			Files.createDirectories(directory)
-			val previousFilename = status().filename
-			val target = directory.resolve(originalName).normalize()
-			if (!target.startsWith(directory)) {
-				throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resume filename.")
-			}
-			val temporary = Files.createTempFile(directory, "resume-", ".$extension.tmp")
-			val temporaryMetadata = Files.createTempFile(directory, ".resume-filename-", ".tmp")
+			Files.createDirectories(resumesDirectory)
+			val resume = ResumeOption(UUID.randomUUID().toString(), originalName, selected = true)
+			val target = resolve(resume)
+			val temporary = Files.createTempFile(resumesDirectory, "resume-", ".$extension.tmp")
 			try {
 				Files.write(temporary, bytes)
-				try {
-					Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-				} catch (_: java.nio.file.AtomicMoveNotSupportedException) {
-					Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING)
-				}
-				Files.writeString(temporaryMetadata, originalName)
-				try {
-					Files.move(
-						temporaryMetadata,
-						filenameMetadata,
-						StandardCopyOption.REPLACE_EXISTING,
-						StandardCopyOption.ATOMIC_MOVE
-					)
-				} catch (_: java.nio.file.AtomicMoveNotSupportedException) {
-					Files.move(temporaryMetadata, filenameMetadata, StandardCopyOption.REPLACE_EXISTING)
-				}
+				moveAtomically(temporary, target)
 			} finally {
 				Files.deleteIfExists(temporary)
-				Files.deleteIfExists(temporaryMetadata)
 			}
-			previousFilename?.takeIf { it != originalName }?.let { previous ->
-				val previousPath = directory.resolve(previous).normalize()
-				if (previousPath.startsWith(directory)) Files.deleteIfExists(previousPath)
+			try {
+				writeAtomically(selectionMetadata, resume.id)
+			} catch (exception: Exception) {
+				Files.deleteIfExists(target)
+				throw exception
 			}
-			return ResumeStatus(true, originalName)
+			return status()
 		} catch (exception: ResponseStatusException) {
 			throw exception
 		} catch (exception: Exception) {
@@ -121,7 +145,75 @@ class ResumeStore(
 				exception
 			)
 		}
+	}
 
+	private fun storedResumes(): List<ResumeOption> {
+		if (!Files.isDirectory(resumesDirectory)) return emptyList()
+		return Files.list(resumesDirectory).use { paths ->
+			paths.filter(Files::isRegularFile)
+				.map { path ->
+					val storedName = path.fileName.toString()
+					val separator = storedName.indexOf("__")
+					if (separator <= 0) null else {
+						val id = storedName.substring(0, separator)
+						val filename = storedName.substring(separator + 2)
+						if (!id.matches(UUID_PATTERN) || !isSafeFilename(filename)) null
+						else ResumeOption(id, filename, selected = false)
+					}
+				}
+				.filter { it != null }
+				.map { it!! }
+				.sorted(compareBy(String.CASE_INSENSITIVE_ORDER) { it.filename })
+				.toList()
+		}
+	}
+
+	private fun legacyResume(): ResumeOption? {
+		val savedFilename = if (Files.isRegularFile(filenameMetadata)) {
+			Files.readString(filenameMetadata).takeIf(::isSafeFilename)
+		} else {
+			null
+		}
+		val filename = savedFilename?.takeIf { Files.isRegularFile(directory.resolve(it)) }
+			?: listOf("resume.pdf", "resume.docx").firstOrNull { Files.isRegularFile(directory.resolve(it)) }
+			?: return null
+		return ResumeOption("legacy:$filename", filename, selected = false)
+	}
+
+	private fun resolve(resume: ResumeOption): Path {
+		if (resume.id.startsWith("legacy:")) {
+			val filename = resume.id.removePrefix("legacy:")
+			if (filename != resume.filename || !isSafeFilename(filename)) {
+				throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resume.")
+			}
+			return directory.resolve(filename).normalize().also { path ->
+				if (!path.startsWith(directory)) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resume path.")
+			}
+		}
+		if (!resume.id.matches(UUID_PATTERN) || !isSafeFilename(resume.filename)) {
+			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resume.")
+		}
+		return resumesDirectory.resolve("${resume.id}__${resume.filename}").normalize().also { path ->
+			if (!path.startsWith(resumesDirectory)) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid resume path.")
+		}
+	}
+
+	private fun writeAtomically(target: Path, value: String) {
+		val temporary = Files.createTempFile(directory, ".resume-selection-", ".tmp")
+		try {
+			Files.writeString(temporary, value)
+			moveAtomically(temporary, target)
+		} finally {
+			Files.deleteIfExists(temporary)
+		}
+	}
+
+	private fun moveAtomically(source: Path, target: Path) {
+		try {
+			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+		} catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING)
+		}
 	}
 
 	private fun isSafeFilename(filename: String): Boolean =
@@ -145,5 +237,6 @@ class ResumeStore(
 	private companion object {
 		const val MAX_FILE_BYTES = 10 * 1024 * 1024
 		const val MAX_FILENAME_LENGTH = 180
+		val UUID_PATTERN = Regex("[0-9a-fA-F-]{36}")
 	}
 }
