@@ -16,14 +16,39 @@ has_java_25() {
   java -version 2>&1 | head -n 1 | grep -Eq '"25([.]|")'
 }
 
+has_native_image() {
+  command -v native-image >/dev/null 2>&1
+}
+
+confirm_graalvm_install() {
+  local answer
+  read -r -p "GraalVM 25 with Native Image is required. Install it with Homebrew now? [y/N]: " answer
+  [[ "$answer" == "y" || "$answer" == "Y" ]]
+}
+
 echo "Cover Letter Studio setup for macOS"
 if [[ "$RUN_MODE" == "native" ]]; then
-  if ! has_java_25; then
-    echo "Native mode requires GraalVM 25 or later with Native Image and Java 25 available on PATH." >&2
-    exit 1
+  if ! has_java_25 || ! has_native_image; then
+    if ! confirm_graalvm_install; then
+      echo "GraalVM installation declined. Install GraalVM 25 or later with Native Image, then rerun." >&2
+      exit 1
+    fi
+    if ! command -v brew >/dev/null 2>&1; then
+      echo "Homebrew is required for automatic GraalVM installation." >&2
+      echo "Install Homebrew from https://brew.sh, then rerun this script." >&2
+      exit 1
+    fi
+    brew install --cask graalvm-jdk
+    if [[ -x /usr/libexec/java_home ]]; then
+      java_home_25="$(/usr/libexec/java_home -v 25 2>/dev/null || true)"
+      if [[ -n "$java_home_25" && -x "$java_home_25/bin/java" ]]; then
+        export JAVA_HOME="$java_home_25"
+        export PATH="$JAVA_HOME/bin:$PATH"
+      fi
+    fi
   fi
-  if ! command -v native-image >/dev/null 2>&1; then
-    echo "The native-image command was not found. Install GraalVM Native Image and ensure it is on PATH." >&2
+  if ! has_java_25 || ! has_native_image; then
+    echo "GraalVM 25 with Native Image is still unavailable. Check your PATH and JAVA_HOME." >&2
     exit 1
   fi
 elif ! has_java_25; then

@@ -16,6 +16,49 @@ has_java_25() {
   java -version 2>&1 | head -n 1 | grep -Eq '"25([.]|")'
 }
 
+has_native_image() {
+  command -v native-image >/dev/null 2>&1
+}
+
+confirm_graalvm_install() {
+  local answer
+  read -r -p "GraalVM 25 with Native Image is required. Install it with SDKMAN now? [y/N]: " answer
+  [[ "$answer" == "y" || "$answer" == "Y" ]]
+}
+
+install_graalvm() {
+  local sdkman_init="$HOME/.sdkman/bin/sdkman-init.sh"
+  local version
+  local installed=false
+
+  if [[ ! -f "$sdkman_init" ]]; then
+    echo "SDKMAN is required for automatic GraalVM installation on Linux." >&2
+    echo "Install SDKMAN from https://sdkman.io/install, then rerun this script." >&2
+    return 1
+  fi
+
+  # SDKMAN initialization references optional variables that are unset under `set -u`.
+  set +u
+  if source "$sdkman_init"; then
+    :
+  else
+    set -u
+    return 1
+  fi
+
+  for version in 25.4.4.1+1-graal 25.4.4.1+1-graalce; do
+    echo "Attempting SDKMAN GraalVM candidate: $version"
+    if sdk install java "$version" && sdk use java "$version"; then
+      installed=true
+      break
+    fi
+    echo "SDKMAN could not install $version; trying the next available GraalVM candidate." >&2
+  done
+
+  set -u
+  [[ "$installed" == true ]]
+}
+
 install_java_25() {
   if command -v apt-get >/dev/null 2>&1; then
     if [[ "${EUID}" -eq 0 ]]; then
@@ -52,12 +95,23 @@ install_java_25() {
 
 echo "Cover Letter Studio setup"
 if [[ "$RUN_MODE" == "native" ]]; then
-  if ! has_java_25; then
-    echo "Native mode requires GraalVM 25 or later with Native Image and Java 25 available on PATH." >&2
+  if [[ "${EUID}" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+    echo "Do not run native mode with sudo; SDKMAN and Gradle need your regular user environment." >&2
+    echo "Run: ./install-and-run-linux.sh native" >&2
     exit 1
   fi
-  if ! command -v native-image >/dev/null 2>&1; then
-    echo "The native-image command was not found. Install GraalVM Native Image and ensure it is on PATH." >&2
+  if ! has_java_25 || ! has_native_image; then
+    if ! confirm_graalvm_install; then
+      echo "GraalVM installation declined. Install GraalVM 25 or later with Native Image, then rerun." >&2
+      exit 1
+    fi
+    if ! install_graalvm; then
+      echo "Automatic GraalVM installation failed. Check your network and SDKMAN, or install GraalVM 25+ with Native Image manually." >&2
+      exit 1
+    fi
+  fi
+  if ! has_java_25 || ! has_native_image; then
+    echo "GraalVM 25 with Native Image is still unavailable. Check your PATH and JAVA_HOME." >&2
     exit 1
   fi
 elif ! has_java_25; then

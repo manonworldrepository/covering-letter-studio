@@ -43,6 +43,8 @@ Open [http://localhost:8080](http://localhost:8080). Press `Ctrl+C` in the termi
 
 Install and configure GraalVM 25 or later with Native Image before building. The native-image plugin compiles with the JDK running Gradle, so verify that `java -version` reports the GraalVM JDK.
 
+On Windows, install Visual Studio 2022 version 17.6 or later with the **Desktop development with C++** workload and x64/x86 build tools. Native Image needs this Microsoft C/C++ toolchain to compile the executable.
+
 Build the executable:
 
 **Windows:**
@@ -86,10 +88,10 @@ The scripts create a starter `.env` file if missing and start the application. A
 By default, the script starts with Spring Boot `bootRun`. If Java 25 is missing, it tries `winget` or Chocolatey. To build and run a native executable instead, use:
 
 ```powershell
-.\install-and-run-windows.bat native
+.\install-and-run-windows.bat
 ```
 
-Native mode requires GraalVM 25 or later with Native Image installed and available on `PATH`, plus Java 25. The script builds with `nativeCompile` and runs the generated executable. To explicitly select JVM mode, use `.\install-and-run-windows.bat bootRun`.
+Native mode requires GraalVM 25 or later with Native Image and Visual Studio 2022 version 17.6 or later with the **Desktop development with C++** workload. The script checks for both prerequisites and selects GraalVM’s matching JDK for Gradle (even if `JAVA_HOME` points to an older JDK). If no compatible GraalVM is found, it asks before attempting installation with Chocolatey (`graalvm` package). Install Chocolatey first if needed. If Chocolatey reports a NuGet package-feed resolution error, the script stops and recommends retrying later or installing GraalVM manually. The script builds with `nativeCompile` and runs the generated executable. To explicitly select JVM mode, use `.\install-and-run-windows.bat bootRun`.
 
 **Linux:**
 
@@ -98,7 +100,7 @@ chmod +x ./install-and-run-linux.sh
 ./install-and-run-linux.sh
 ```
 
-By default, the script starts with Spring Boot `bootRun`. To build and run a native executable, use `./install-and-run-linux.sh native`. Native mode requires GraalVM 25 or later with Native Image and Java 25 available on `PATH`. The Linux script supports apt, dnf, zypper, and pacman package managers for installing Java 25 in `bootRun` mode.
+By default, the script starts with Spring Boot `bootRun`. To build and run a native executable, use `./install-and-run-linux.sh native` as your regular user (do not use `sudo`). If GraalVM is missing, the script asks before installing GraalVM 25 with SDKMAN; SDKMAN must already be installed for that user. It tries the current GraalVM Oracle candidate and falls back to GraalVM CE if needed. Native mode requires GraalVM with Native Image and Java 25 available on `PATH`. The Linux script supports apt, dnf, zypper, and pacman package managers for installing a Java 25 JDK in `bootRun` mode.
 
 **macOS (Terminal):**
 
@@ -107,7 +109,7 @@ chmod +x ./install-and-run-macos.sh
 ./install-and-run-macos.sh
 ```
 
-By default, the script starts with Spring Boot `bootRun`. To build and run a native executable, use `./install-and-run-macos.sh native`. Native mode requires GraalVM 25 or later with Native Image and Java 25 available on `PATH`. In `bootRun` mode, the macOS script uses an existing Java 25 or attempts to install Eclipse Temurin 25 with Homebrew. Install Homebrew first if needed.
+By default, the script starts with Spring Boot `bootRun`. To build and run a native executable, use `./install-and-run-macos.sh native`. If GraalVM is missing, the script asks before installing the GraalVM JDK with Homebrew. Native mode requires GraalVM 25 or later with Native Image and Java 25 available on `PATH`. In `bootRun` mode, the macOS script uses an existing Java 25 or attempts to install Eclipse Temurin 25 with Homebrew. Install Homebrew first if needed.
 
 These scripts require internet access; installing Java may require administrator privileges. If a package manager cannot provide Java 25, install a Java 25 JDK manually and rerun the script.
 
