@@ -88,12 +88,14 @@
         <label for="setup-key">Gemini API key <span class="required">*</span></label>
         <input id="setup-key" type="password" autocomplete="new-password" placeholder="Paste your Gemini API key">
         <p class="hint">The key is sent to Google to list models and generate letters. It is not sent back to this page after saving.</p>
-        <button class="secondary" id="setup-load-models" type="button" hidden>Load available models</button>
-        <button class="primary" id="setup-save-key" type="button" hidden>Save API key and continue</button>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" id="setup-load-models" type="button" hidden>Next: select a model</button>
+        </div>
       </div>
       <div class="step" id="setup-model-step" hidden>
         <div class="step-number">Step 2</div>
         <label for="setup-model">Gemini model <span class="required">*</span></label>
+        <p class="hint">Recommended: Gemini 3.1 Flash-Lite (gemini-3.1-flash-lite), the model this app uses by default. It will stay selected when available.</p>
         <button class="secondary" id="setup-load-models-existing-key" type="button" hidden>Load available models</button>
         <select id="setup-model"></select>
         <div class="actions" style="margin-top:16px">
@@ -221,6 +223,7 @@
     const result = document.querySelector("#result");
     const letter = document.querySelector("#letter");
     const generationFormat = document.querySelector("#generation-format");
+    const recommendedModel = "gemini-3.1-flash-lite";
     let activeModel = "";
     let setupApiKeyConfigured = false;
     let setupModelConfigured = false;
@@ -269,13 +272,10 @@
         const modelStep = document.querySelector("#setup-model-step");
         const keyLoadButton = document.querySelector("#setup-load-models");
         const modelLoadButton = document.querySelector("#setup-load-models-existing-key");
-        const saveKeyButton = document.querySelector("#setup-save-key");
         keyStep.hidden = setupApiKeyConfigured;
-        modelStep.hidden = setupModelConfigured;
-        keyLoadButton.hidden = setupApiKeyConfigured || setupModelConfigured;
+        modelStep.hidden = !setupApiKeyConfigured || setupModelConfigured;
+        keyLoadButton.hidden = setupApiKeyConfigured;
         modelLoadButton.hidden = !setupApiKeyConfigured || setupModelConfigured;
-        saveKeyButton.hidden = setupModelConfigured;
-        document.querySelector("#setup-save").hidden = setupModelConfigured;
         document.querySelector("#setup-status").textContent = "";
         workspace.hidden = true;
         setup.hidden = false;
@@ -489,11 +489,14 @@
       models.forEach((model) => {
         const option = document.createElement("option");
         option.value = model.id;
-        option.textContent = `${model.name} (${model.id})`;
+        option.textContent = `${model.name} (${model.id})${model.id === recommendedModel ? " — Recommended" : ""}`;
         option.selected = model.id === selected;
         select.append(option);
       });
-      if (!models.some((model) => model.id === selected) && models.length) select.selectedIndex = 0;
+      if (!models.some((model) => model.id === selected) && models.length) {
+        const recommendedIndex = models.findIndex((model) => model.id === recommendedModel);
+        select.selectedIndex = recommendedIndex >= 0 ? recommendedIndex : 0;
+      }
     }
 
     async function loadModels(key, select, message, button) {
@@ -501,12 +504,13 @@
       message.classList.remove("error");
       message.textContent = "Loading models available for this API key...";
       try {
+        const selectedModel = select.value || activeModel || recommendedModel;
         const models = await requestJson("/api/settings/models", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ apiKey: key })
         });
-        setModelOptions(select, models, activeModel || "gemini-3.1-flash-lite");
+        setModelOptions(select, models, selectedModel);
         message.textContent = `${models.length} text-generation models available.`;
         return true;
       } catch (error) {
@@ -541,13 +545,23 @@
     }
 
     document.querySelector("#setup-load-models").addEventListener("click", async (event) => {
+      const key = document.querySelector("#setup-key").value;
+      if (!key.trim()) {
+        const message = document.querySelector("#setup-status");
+        message.textContent = "Enter your Gemini API key.";
+        message.classList.add("error");
+        return;
+      }
       const success = await loadModels(
-        document.querySelector("#setup-key").value,
+        key,
         document.querySelector("#setup-model"),
         document.querySelector("#setup-status"),
         event.currentTarget
       );
-      if (success) document.querySelector("#setup-model-step").hidden = false;
+      if (success) {
+        document.querySelector("#setup-model-step").hidden = false;
+        document.querySelector("#setup-model").focus();
+      }
     });
 
     document.querySelector("#setup-load-models-existing-key").addEventListener("click", async (event) => {
@@ -557,20 +571,6 @@
         document.querySelector("#setup-status"),
         event.currentTarget
       );
-    });
-
-    document.querySelector("#setup-save-key").addEventListener("click", async (event) => {
-      const key = document.querySelector("#setup-key").value;
-      if (!key.trim()) {
-        const message = document.querySelector("#setup-status");
-        message.textContent = "Enter your Gemini API key.";
-        message.classList.add("error");
-        return;
-      }
-      if (await saveSettings(key, activeModel, document.querySelector("#setup-status"), event.currentTarget)) {
-        document.querySelector("#setup-key").value = "";
-        await refreshApp();
-      }
     });
 
     document.querySelector("#setup-save").addEventListener("click", async (event) => {
