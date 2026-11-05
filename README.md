@@ -91,7 +91,7 @@ By default, the script starts with Spring Boot `bootRun`; Java 25 must already b
 .\install-and-run-windows.bat native
 ```
 
-Native mode requires GraalVM 25 or later with Native Image and Visual Studio 2022 version 17.6 or later with the **Desktop development with C++** workload. The script detects a compatible GraalVM under the standard GraalVM installation directory or on `PATH`, selects its JDK for Gradle, and checks for Visual Studio. Configure `JAVA_HOME` and `PATH` manually if the installation is elsewhere. The script builds with `nativeCompile` and runs the generated executable. To explicitly select JVM mode, use `.\install-and-run-windows.bat bootRun`.
+Native mode uses the Java/GraalVM and Visual Studio configuration already available to Gradle; the script does not pre-check Native Image or Visual Studio. `nativeCompile` reports any missing compiler or build-tool prerequisites. The script then runs the generated executable. To explicitly select JVM mode, use `.\install-and-run-windows.bat bootRun`.
 
 **Linux:**
 
@@ -100,7 +100,7 @@ chmod +x ./install-and-run-linux.sh
 ./install-and-run-linux.sh
 ```
 
-By default, the script starts with Spring Boot `bootRun`; install Java 25 manually first. To build and run a native executable, use `./install-and-run-linux.sh native` as your regular user (do not use `sudo`). Native mode requires GraalVM 25 or later and its Native Image component; set `JAVA_HOME` to that GraalVM installation and put its `bin` directory on `PATH`. The script selects Java 25 from installed JDKs or `PATH` for JVM mode and verifies that the native-image command belongs to the selected GraalVM in native mode. If the GraalVM JDK is present but Native Image is missing, install that component manually for your distribution.
+By default, the script starts with Spring Boot `bootRun`; install Java 25 manually first. To build and run a native executable, use `./install-and-run-linux.sh native` as your regular user (do not use `sudo`). Native mode uses the Java/GraalVM configuration already available to Gradle and does not pre-check Native Image; `nativeCompile` reports missing compiler or platform build-tool prerequisites. For JVM mode, the script selects Java 25 from installed JDKs or `PATH`.
 
 **macOS (Terminal):**
 
@@ -109,7 +109,7 @@ chmod +x ./install-and-run-macos.sh
 ./install-and-run-macos.sh
 ```
 
-By default, the script starts with Spring Boot `bootRun`; install Java 25 manually first and make it available on `PATH`. To build and run a native executable, use `./install-and-run-macos.sh native`. Native mode requires GraalVM 25 or later with Native Image configured as the active Java toolchain.
+By default, the script starts with Spring Boot `bootRun`; install Java 25 manually first and make it available on `PATH`. To build and run a native executable, use `./install-and-run-macos.sh native`. Native mode uses the Java/GraalVM configuration already available to Gradle and does not pre-check Native Image; `nativeCompile` reports missing compiler or platform build-tool prerequisites.
 
 The Gradle wrapper downloads Gradle and project dependencies on first use, so an internet connection is required. The setup scripts do not install system prerequisites.
 
