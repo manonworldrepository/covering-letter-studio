@@ -94,6 +94,62 @@ class ResumeStore(
 		status()
 	}
 
+	@Synchronized
+	fun delete(id: String): ResumeOption {
+		val resume = status().resumes.firstOrNull { it.id == id }
+			?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume was not found.")
+		return try {
+			Files.delete(resolve(resume))
+			if (resume.id.startsWith("legacy:") &&
+				Files.isRegularFile(filenameMetadata) &&
+				Files.readString(filenameMetadata).trim() == resume.filename
+			) {
+				Files.deleteIfExists(filenameMetadata)
+			}
+			if (resume.selected) {
+				val remaining = status().resumes.firstOrNull()
+				if (remaining == null) {
+					Files.deleteIfExists(selectionMetadata)
+				} else {
+					Files.createDirectories(directory)
+					writeAtomically(selectionMetadata, remaining.id)
+				}
+			}
+			resume
+		} catch (exception: ResponseStatusException) {
+			throw exception
+		} catch (exception: Exception) {
+			throw ResponseStatusException(
+				HttpStatus.INTERNAL_SERVER_ERROR,
+				"Could not remove the resume. Check the application directory permissions.",
+				exception
+			)
+		}
+	}
+
+	@Synchronized
+	fun clear(): List<ResumeOption> {
+		val resumes = status().resumes.toMutableList()
+		legacyResumeCandidates().forEach { filename ->
+			val legacy = ResumeOption("legacy:$filename", filename, selected = false)
+			if (resumes.none { it.id == legacy.id }) resumes.add(legacy)
+		}
+		return try {
+			resumes.forEach { Files.deleteIfExists(resolve(it)) }
+			Files.deleteIfExists(selectionMetadata)
+			Files.deleteIfExists(filenameMetadata)
+			resumes
+		} catch (exception: ResponseStatusException) {
+			throw exception
+		} catch (exception: Exception) {
+			throw ResponseStatusException(
+				HttpStatus.INTERNAL_SERVER_ERROR,
+				"Could not clear resumes. Check the application directory permissions.",
+				exception
+			)
+		}
+	}
+
 	fun extractStored(): Mono<String> =
 		Mono.fromCallable {
 			val resume = status().resumes.firstOrNull { it.selected }
@@ -178,6 +234,17 @@ class ResumeStore(
 			?: listOf("resume.pdf", "resume.docx").firstOrNull { Files.isRegularFile(directory.resolve(it)) }
 			?: return null
 		return ResumeOption("legacy:$filename", filename, selected = false)
+	}
+
+	private fun legacyResumeCandidates(): List<String> {
+		val metadataFilename = if (Files.isRegularFile(filenameMetadata)) {
+			Files.readString(filenameMetadata).takeIf(::isSafeFilename)
+		} else {
+			null
+		}
+		return (listOfNotNull(metadataFilename) + listOf("resume.pdf", "resume.docx"))
+			.distinct()
+			.filter { Files.isRegularFile(directory.resolve(it)) }
 	}
 
 	private fun resolve(resume: ResumeOption): Path {

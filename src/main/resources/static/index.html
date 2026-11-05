@@ -113,6 +113,7 @@
         <div class="file-current">
           <span id="resume-status">No resume saved yet.</span>
           <button class="primary" id="replace-resume-button" type="button">Choose resume</button>
+          <button class="danger" id="clear-resumes" type="button" disabled>Clear all resumes</button>
         </div>
         <ul class="document-list" id="resume-list" aria-label="Choose the resume used for generation"></ul>
         <form id="resume-form" hidden>
@@ -276,6 +277,7 @@
       const generatorButton = document.querySelector("#generate");
       const list = document.querySelector("#resume-list");
       list.replaceChildren();
+      document.querySelector("#clear-resumes").disabled = resume.resumes.length === 0;
       if (resume.configured) {
         resumeStatus.textContent = `Selected resume: ${resume.filename}`;
         generatorButton.disabled = false;
@@ -308,7 +310,29 @@
             }
           });
           label.append(radio, document.createTextNode(savedResume.filename));
-          item.append(label);
+          const remove = document.createElement("button");
+          remove.className = "remove-document";
+          remove.type = "button";
+          remove.textContent = "Remove";
+          remove.setAttribute("aria-label", `Remove ${savedResume.filename}`);
+          remove.addEventListener("click", async () => {
+            remove.disabled = true;
+            const message = document.querySelector("#resume-message");
+            message.classList.remove("error");
+            message.textContent = `Removing ${savedResume.filename}...`;
+            try {
+              await requestJson(`/api/resume/${encodeURIComponent(savedResume.id)}`, {
+                method: "DELETE"
+              });
+              message.textContent = `Removed ${savedResume.filename}.`;
+              await refreshResume();
+            } catch (error) {
+              message.textContent = error.message;
+              message.classList.add("error");
+              remove.disabled = false;
+            }
+          });
+          item.append(label, remove);
           list.append(item);
         });
       } else {
@@ -697,6 +721,22 @@
     });
     document.querySelector("#resume-file").addEventListener("change", (event) => {
       document.querySelector("#save-resume").disabled = event.currentTarget.files.length === 0;
+    });
+    document.querySelector("#clear-resumes").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const message = document.querySelector("#resume-message");
+      button.disabled = true;
+      message.classList.remove("error");
+      message.textContent = "Clearing saved resumes...";
+      try {
+        await requestJson("/api/resume", { method: "DELETE" });
+        message.textContent = "All resumes cleared.";
+        await refreshResume();
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add("error");
+        button.disabled = false;
+      }
     });
     document.querySelector("#supporting-form").addEventListener("submit", async (event) => {
       event.preventDefault();

@@ -115,7 +115,7 @@ The Gradle wrapper downloads Gradle and project dependencies on first use, so an
 
 ## Use the application
 
-1. Upload one or more PDF or DOCX resumes. Choose one saved resume as the source for each generated letter; uploaded resumes remain available for later use.
+1. Upload one or more PDF or DOCX resumes. Choose one saved resume as the source for each generated letter; remove individual resumes or clear all saved resumes from the Your resumes section.
 2. Optionally save up to five supporting PDF or DOCX documents. Select which documents should contribute to generation, and remove individual files or clear all saved files from the Supporting documents section.
 3. Paste the job description. Gemini identifies the applicant’s full name from the selected resume and the job title from the description, then drafts the letter. Make sure the resume contains the applicant’s name.
 4. Review and edit the draft, then download the PDF. The filename combines the title-cased applicant name, detected job title, and current date, separated by underscores.

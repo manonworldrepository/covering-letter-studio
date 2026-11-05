@@ -60,6 +60,15 @@ class CoverLetterController(
 		resumeStore.select(request.id)
 			.also { logs.record("Selected resume: ${it.filename}") }
 
+	@DeleteMapping("/api/resume")
+	fun clearResumes() = resumeStore.clear()
+		.also { logs.record("Cleared resumes") }
+
+	@DeleteMapping("/api/resume/{id}")
+	fun deleteResume(@org.springframework.web.bind.annotation.PathVariable id: String) =
+		resumeStore.delete(id)
+			.also { logs.record("Removed resume: ${it.filename}") }
+
 	@GetMapping("/api/supporting-documents")
 	fun getSupportingDocuments() = supportingDocumentStore.list()
 

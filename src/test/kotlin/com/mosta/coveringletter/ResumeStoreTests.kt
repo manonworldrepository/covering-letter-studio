@@ -55,6 +55,44 @@ class ResumeStoreTests {
 	}
 
 	@Test
+	fun `removing a selected resume selects and persists another saved resume`() {
+		val store = store()
+		val first = store.saveBytes("First Resume.pdf", pdfGenerator.create("First resume content."))
+		val selected = store.saveBytes("Selected Resume.pdf", pdfGenerator.create("Selected resume content."))
+		val selectedOption = selected.resumes.first { it.selected }
+
+		assertEquals(selectedOption, store.delete(selectedOption.id))
+
+		val updated = store().status()
+		assertEquals(1, updated.resumes.size)
+		assertEquals("First Resume.pdf", updated.filename)
+		assertTrue(updated.resumes.single().selected)
+		assertTrue(store().extractStored().block()!!.contains("First resume content"))
+		assertFalse(Files.exists(
+			temporaryDirectory.resolve("data").resolve("resumes")
+				.resolve("${selectedOption.id}__${selectedOption.filename}")
+		))
+		assertEquals(first.resumes.single().id, updated.resumes.single().id)
+	}
+
+	@Test
+	fun `clears stored and legacy resumes`() {
+		val store = store()
+		store.saveBytes("Saved Resume.pdf", pdfGenerator.create("Saved resume content."))
+		val directory = temporaryDirectory.resolve("data")
+		val legacyFilename = "Legacy Resume.pdf"
+		Files.write(directory.resolve(legacyFilename), pdfGenerator.create("Legacy resume content."))
+		Files.writeString(directory.resolve(".resume-filename"), legacyFilename)
+
+		assertEquals(2, store.clear().size)
+		assertFalse(store.status().configured)
+		assertTrue(store.status().resumes.isEmpty())
+		assertFalse(Files.exists(directory.resolve(".resume-filename")))
+		assertFalse(Files.exists(directory.resolve(legacyFilename)))
+		assertTrue(Files.list(directory.resolve("resumes")).use { paths -> !paths.findAny().isPresent })
+	}
+
+	@Test
 	fun `continues using a resume saved by the previous storage format`() {
 		val directory = temporaryDirectory.resolve("data")
 		Files.createDirectories(directory)
