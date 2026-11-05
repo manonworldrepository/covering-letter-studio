@@ -180,17 +180,21 @@
       <section class="card" style="margin-top:20px" aria-labelledby="supporting-heading">
         <h2 id="supporting-heading">Supporting documents</h2>
         <p class="hint">Store up to five certificates and other useful PDFs or DOCX files (10 MB each). Choose which documents should contribute to each generated letter.</p>
-        <form id="supporting-form">
+        <div class="actions" style="margin-top:12px">
+          <button class="primary" id="replace-supporting-button" type="button">Choose supporting file</button>
+          <button class="danger" id="clear-supporting" type="button" hidden>Clear all supporting files</button>
+        </div>
+        <ul class="document-list" id="supporting-list" aria-live="polite"></ul>
+        <form id="supporting-form" hidden>
           <div class="field">
-            <label for="documents">Add supporting files</label>
+            <label for="documents">Choose one or more PDF or DOCX files, up to 10 MB each</label>
             <input id="documents" name="documents" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
           </div>
-          <div class="actions">
-            <button class="primary" id="save-supporting" type="submit" disabled>Save supporting file</button>
-            <button class="danger" id="clear-supporting" type="button" disabled>Clear all supporting files</button>
+          <div class="actions" style="margin-top:12px">
+            <button class="primary" id="save-supporting" type="submit" disabled>Upload supporting files</button>
+            <button class="secondary" id="cancel-supporting" type="button">Cancel</button>
           </div>
         </form>
-        <ul class="document-list" id="supporting-list" aria-live="polite"></ul>
         <div class="status" id="supporting-message" role="status" aria-live="polite"></div>
       </section>
 
@@ -576,6 +580,7 @@
         item.append(filename);
         list.append(item);
       }
+      document.querySelector("#clear-supporting").hidden = documents.length === 0;
       document.querySelector("#clear-supporting").disabled = documents.length === 0;
       document.querySelector("#save-supporting").disabled =
         document.querySelector("#documents").files.length === 0;
@@ -1020,6 +1025,7 @@
       try {
         await requestJson("/api/supporting-documents", { method: "POST", body: data });
         input.value = "";
+        document.querySelector("#supporting-form").hidden = true;
         message.textContent = "Supporting documents saved.";
         await refreshSupportingDocuments();
       } catch (error) {
@@ -1031,6 +1037,15 @@
     });
     document.querySelector("#documents").addEventListener("change", (event) => {
       document.querySelector("#save-supporting").disabled = event.currentTarget.files.length === 0;
+    });
+    document.querySelector("#replace-supporting-button").addEventListener("click", () => {
+      document.querySelector("#supporting-form").hidden = false;
+      document.querySelector("#documents").click();
+    });
+    document.querySelector("#cancel-supporting").addEventListener("click", () => {
+      document.querySelector("#supporting-form").reset();
+      document.querySelector("#save-supporting").disabled = true;
+      document.querySelector("#supporting-form").hidden = true;
     });
     document.querySelector("#clear-supporting").addEventListener("click", async (event) => {
       const button = event.currentTarget;
