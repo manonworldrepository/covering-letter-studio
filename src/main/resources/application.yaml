@@ -1,0 +1,28 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  application:
+    name: coveringletter
+  webflux:
+    multipart:
+      max-in-memory-size: 30MB
+      max-disk-usage-per-part: 10MB
+
+server:
+  address: 127.0.0.1
+  error:
+    include-message: always
+
+logging:
+  level:
+    org.apache.pdfbox.pdmodel.font.PDSimpleFont: ERROR
+    org.apache.pdfbox.pdmodel.font.PDType0Font: ERROR
+    org.apache.fontbox.ttf.PostScriptTable: ERROR
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
+
+coverletter:
+  storage:
+    directory: ${COVERLETTER_STORAGE_DIR:.data}

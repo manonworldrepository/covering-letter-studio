@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f8">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>Cover Letter Studio</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #172033; background: #f5f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 18px max(24px, calc((100% - 1040px) / 2)); background: #fff; border-bottom: 1px solid #e6e8ed; }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 720; letter-spacing: -.3px; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #3158d5; color: white; }
+    main { width: min(100% - 32px, 920px); margin: 44px auto 72px; }
+    .intro { margin-bottom: 28px; }
+    h1 { margin: 0 0 9px; font-size: clamp(28px, 5vw, 38px); letter-spacing: -1.2px; }
+    h2 { margin: 0 0 12px; font-size: 20px; }
+    .intro p, .hint { color: #657087; line-height: 1.6; }
+    .card { padding: clamp(20px, 4vw, 32px); background: white; border: 1px solid #e6e8ed; border-radius: 16px; box-shadow: 0 8px 24px #17203308; }
+    .field { margin-bottom: 23px; }
+    label, .label { display: block; margin-bottom: 9px; font-weight: 650; font-size: 14px; }
+    .required { color: #ba3947; }
+    textarea, input[type="file"], input[type="password"], input[type="text"], select { width: 100%; font: inherit; }
+    textarea { min-height: 138px; resize: vertical; padding: 13px 14px; border: 1px solid #d5dae4; border-radius: 9px; line-height: 1.5; }
+    input[type="password"], input[type="text"], select { padding: 12px 13px; border: 1px solid #d5dae4; border-radius: 9px; background: #fff; }
+    textarea:focus, input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #3158d544; outline-offset: 2px; }
+    input[type="file"] { padding: 12px; background: #fafbfc; border: 1px dashed #cbd1dd; border-radius: 9px; }
+    .hint { margin: 7px 0 0; font-size: 12px; }
+    .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    button { border: 0; border-radius: 9px; padding: 12px 18px; font: inherit; font-weight: 650; cursor: pointer; }
+    button.primary { background: #3158d5; color: #fff; }
+    button.primary:hover { background: #2448bd; }
+    button.secondary { background: #eff2f8; color: #263552; }
+    button.danger { background: #ad2938; color: #fff; }
+    button.danger:hover { background: #8f1f2c; }
+    button.tertiary { background: transparent; color: #3158d5; padding: 9px 10px; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .status { min-height: 22px; color: #657087; font-size: 14px; }
+    .status.error { color: #ad2938; }
+    #result { margin-top: 20px; }
+    #result[hidden], [hidden] { display: none !important; }
+    #letter { min-height: 300px; margin: 6px 0 16px; font-family: Georgia, serif; font-size: 16px; line-height: 1.7; }
+    .privacy { margin-top: 18px; padding: 13px 15px; background: #f6f8fc; border-radius: 9px; color: #59667e; font-size: 12px; line-height: 1.55; }
+    .step { margin: 22px 0; padding: 18px; border: 1px solid #e6e8ed; border-radius: 12px; }
+    .step-number { color: #3158d5; font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .file-current { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 16px; border: 1px solid #e6e8ed; border-radius: 10px; }
+    .detected-title { margin: 0 0 12px; color: #59667e; font-size: 14px; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #121a2dcc; }
+    .modal { width: min(100%, 560px); max-height: min(90vh, 760px); overflow: auto; }
+    .modal-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .close { padding: 6px 10px; background: transparent; color: #657087; font-size: 22px; }
+    .document-list { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
+    .document-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; overflow-wrap: anywhere; }
+    .document-list li > span { min-width: 0; overflow-wrap: anywhere; }
+    .document-list .remove-document { flex: 0 0 auto; padding: 7px 10px; color: #ad2938; background: #fff; border: 1px solid #e6e8ed; }
+    .log-panel { position: fixed; right: 18px; bottom: 18px; z-index: 4; display: flex; flex-direction: column; width: min(390px, calc(100vw - 36px)); height: 210px; min-width: 260px; min-height: 130px; max-width: calc(100vw - 36px); max-height: 80vh; padding: 12px; overflow: hidden; resize: both; border: 1px solid #303c55; border-radius: 12px; background: #172033; color: #e6ebf4; box-shadow: 0 10px 34px #10182840; }
+    .log-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: var(--log-font-size, 13px); font-weight: 700; }
+    .log-heading button { padding: 4px 8px; border: 1px solid #66728a; background: transparent; color: inherit; font-size: 11px; }
+    #log-entries { flex: 1; min-height: 0; overflow-y: auto; font: var(--log-font-size, 11px)/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+    .log-panel.is-minimized { height: 46px; min-height: 46px; resize: none; }
+    .log-panel.is-minimized .log-heading { margin-bottom: 0; }
+    .log-panel.is-minimized #log-entries { display: none; }
+    .log-entry { margin: 0 0 4px; }
+    .log-entry.ERROR { color: #ff9a9a; }
+    .log-entry.WARN { color: #ffd580; }
+    @media (max-width: 580px) { header { padding-top: 14px; padding-bottom: 14px; } main { margin-top: 30px; } .actions > button { width: 100%; } .file-current > button { width: auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">C</span> Cover Letter Studio</div>
+      <button class="tertiary" id="settings-open" type="button" aria-haspopup="dialog" hidden>Settings</button>
+    </div>
+  </header>
+  <main>
+    <section class="card" id="setup" hidden aria-labelledby="setup-title">
+      <div class="step-number">First-time setup</div>
+      <h1 id="setup-title">Connect your Gemini account</h1>
+      <p class="hint">Your API key and selected model are saved in the local, Git-ignored <code>.env</code> file.</p>
+      <div class="step" id="setup-key-step" hidden>
+        <div class="step-number">Step 1</div>
+        <label for="setup-key">Gemini API key <span class="required">*</span></label>
+        <input id="setup-key" type="password" autocomplete="new-password" placeholder="Paste your Gemini API key">
+        <p class="hint">The key is sent to Google to list models and generate letters. It is not sent back to this page after saving.</p>
+        <button class="secondary" id="setup-load-models" type="button" hidden>Load available models</button>
+        <button class="primary" id="setup-save-key" type="button" hidden>Save API key and continue</button>
+      </div>
+      <div class="step" id="setup-model-step" hidden>
+        <div class="step-number">Step 2</div>
+        <label for="setup-model">Gemini model <span class="required">*</span></label>
+        <button class="secondary" id="setup-load-models-existing-key" type="button" hidden>Load available models</button>
+        <select id="setup-model"></select>
+        <div class="actions" style="margin-top:16px">
+          <button class="primary" id="setup-save" type="button">Save and continue</button>
+        </div>
+      </div>
+      <div class="status" id="setup-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="workspace" hidden>
+      <div class="intro">
+        <h1>Make your next application personal.</h1>
+        <p>Add the role and supporting documents. Your saved resume is reused until you replace it.</p>
+      </div>
+      <section class="card" aria-labelledby="resume-heading">
+        <h2 id="resume-heading">Your saved resume</h2>
+        <div class="file-current">
+          <span id="resume-status">No resume saved yet.</span>
+          <button class="secondary" id="replace-resume-button" type="button">Choose resume</button>
+        </div>
+        <form id="resume-form" hidden>
+          <input id="resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+          <div class="actions" style="margin-top:12px">
+            <button class="primary" id="save-resume" type="submit">Save resume</button>
+            <button class="secondary" id="cancel-resume" type="button">Cancel</button>
+          </div>
+          <p class="hint">PDF or DOCX, up to 10 MB. Saving a new file replaces the previously saved resume.</p>
+        </form>
+        <div class="status" id="resume-message" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card" style="margin-top:20px" aria-labelledby="supporting-heading">
+        <h2 id="supporting-heading">Supporting documents</h2>
+        <p class="hint">Store certificates and other useful PDFs or DOCX files for reuse. Up to five files, 10 MB each.</p>
+        <form id="supporting-form">
+          <div class="field">
+            <label for="documents">Add supporting files</label>
+            <input id="documents" name="documents" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
+          </div>
+          <div class="actions">
+            <button class="primary" id="save-supporting" type="submit" disabled>Save selected files</button>
+            <button class="danger" id="clear-supporting" type="button" disabled>Clear all supporting files</button>
+          </div>
+        </form>
+        <ul class="document-list" id="supporting-list" aria-live="polite"></ul>
+        <div class="status" id="supporting-message" role="status" aria-live="polite"></div>
+      </section>
+
+      <form class="card" id="generator" style="margin-top:20px">
+        <div class="field">
+          <label for="job">Job description <span class="required">*</span></label>
+          <textarea id="job" name="jobDescription" required maxlength="20000" placeholder="Paste the job description here..."></textarea>
+          <p class="hint">Your full name will be read from your saved resume, and the job title identified from this description. Both are used in your PDF filename.</p>
+        </div>
+        <div class="actions">
+          <button class="primary" id="generate" type="submit">Generate cover letter</button>
+          <span class="status" id="status" role="status" aria-live="polite"></span>
+        </div>
+        <div class="privacy">Your saved resume and supporting files stay in the local <code>.data</code> directory and are not committed to Git. Extracted document text and the job description are sent to Google Gemini to draft the letter. This app is configured for single-user local use.</div>
+      </form>
+      <section class="card" id="result" aria-labelledby="result-heading" hidden>
+        <label id="result-heading" for="letter">Your draft (you can edit before downloading)</label>
+        <p class="detected-title" id="detected-details"></p>
+        <textarea id="letter" spellcheck="true"></textarea>
+        <div class="actions">
+          <button class="primary" id="download" type="button">Download PDF</button>
+          <button class="secondary" id="copy" type="button">Copy text</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="settings-modal" hidden>
+    <section class="card modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-heading">
+        <h2 id="settings-title">Settings</h2>
+        <button class="close" id="settings-close" type="button" aria-label="Close settings">&times;</button>
+      </div>
+      <div class="field">
+        <label for="settings-current-key">Gemini API key</label>
+        <div class="actions">
+          <input id="settings-current-key" type="password" autocomplete="off" aria-describedby="settings-current-key-hint">
+          <button class="secondary" id="settings-key-visibility" type="button" aria-pressed="false">Show</button>
+        </div>
+        <p class="hint" id="settings-current-key-hint">Edit this value to change the saved API key. Keep it private.</p>
+        <button class="primary" id="settings-update-key" type="button" hidden>Update API key</button>
+      </div>
+      <div class="field">
+        <label for="settings-model">Gemini model</label>
+        <p class="hint" id="settings-current-model">Currently selected: loading...</p>
+        <select id="settings-model"></select>
+      </div>
+      <div class="actions">
+        <button class="secondary" id="settings-load-models" type="button">Load available models</button>
+        <button class="primary" id="settings-save" type="button">Save settings</button>
+      </div>
+      <div class="status" id="settings-status" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+  <aside class="log-panel" aria-label="User activity" title="Drag the bottom-right corner to resize">
+    <div class="log-heading">
+      <span>User activity</span>
+      <span id="log-state">Live</span>
+      <button id="log-toggle" type="button" aria-expanded="true" aria-controls="log-entries">Minimize</button>
+    </div>
+    <div id="log-entries" role="log" aria-live="off"><p class="log-entry">Waiting for user actions...</p></div>
+  </aside>
+  <script>
+    const setup = document.querySelector("#setup");
+    const workspace = document.querySelector("#workspace");
+    const settingsOpen = document.querySelector("#settings-open");
+    const settingsModal = document.querySelector("#settings-modal");
+    const status = document.querySelector("#status");
+    const result = document.querySelector("#result");
+    const letter = document.querySelector("#letter");
+    let activeModel = "";
+    let setupApiKeyConfigured = false;
+    let setupModelConfigured = false;
+    let savedApiKey = "";
+    let detectedJobTitle = "";
+    let detectedApplicantName = "";
+    let lastLogSignature = "";
+
+    async function responseError(response, fallback) {
+      const text = await response.text();
+      if (!text.trim()) return `${fallback} (HTTP ${response.status}).`;
+      try {
+        const body = JSON.parse(text);
+        return body.message || body.detail || body.title || body.error?.message || `${fallback} (HTTP ${response.status}).`;
+      } catch {
+        return text.trim().slice(0, 500);
+      }
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, { cache: "no-store", ...options });
+      if (!response.ok) throw new Error(await responseError(response, "Request failed."));
+      return response.json();
+    }
+
+    async function refreshApp() {
+      const config = await requestJson("/api/settings");
+      const settingsConfigured = config.apiKeyConfigured === true && config.modelConfigured === true;
+      settingsOpen.hidden = !settingsConfigured;
+      activeModel = config.model;
+      if (!settingsConfigured) {
+        setupApiKeyConfigured = config.apiKeyConfigured;
+        setupModelConfigured = config.modelConfigured;
+        const keyStep = document.querySelector("#setup-key-step");
+        const modelStep = document.querySelector("#setup-model-step");
+        const keyLoadButton = document.querySelector("#setup-load-models");
+        const modelLoadButton = document.querySelector("#setup-load-models-existing-key");
+        const saveKeyButton = document.querySelector("#setup-save-key");
+        keyStep.hidden = setupApiKeyConfigured;
+        modelStep.hidden = setupModelConfigured;
+        keyLoadButton.hidden = setupApiKeyConfigured || setupModelConfigured;
+        modelLoadButton.hidden = !setupApiKeyConfigured || setupModelConfigured;
+        saveKeyButton.hidden = setupModelConfigured;
+        document.querySelector("#setup-save").hidden = setupModelConfigured;
+        document.querySelector("#setup-status").textContent = "";
+        workspace.hidden = true;
+        setup.hidden = false;
+        if (!setupApiKeyConfigured) {
+          document.querySelector("#setup-key").focus();
+        } else {
+          document.querySelector("#setup-load-models-existing-key").focus();
+        }
+        return;
+      }
+      setup.hidden = true;
+      workspace.hidden = false;
+      await refreshResume(config);
+      await refreshSupportingDocuments();
+    }
+
+    async function refreshResume(config) {
+      const resume = config || await requestJson("/api/resume");
+      const resumeStatus = document.querySelector("#resume-status");
+      const generatorButton = document.querySelector("#generate");
+      if (resume.configured) {
+        resumeStatus.textContent = `Saved resume: ${resume.resumeFilename || resume.filename}`;
+        generatorButton.disabled = false;
+      } else {
+        resumeStatus.textContent = "No resume saved yet. Add one before generating a letter.";
+        generatorButton.disabled = true;
+        document.querySelector("#resume-form").hidden = false;
+      }
+    }
+
+    async function refreshSupportingDocuments() {
+      const documents = await requestJson("/api/supporting-documents");
+      const list = document.querySelector("#supporting-list");
+      list.replaceChildren();
+      documents.forEach((supportingDocument) => {
+        const item = document.createElement("li");
+        const filename = document.createElement("span");
+        filename.textContent = supportingDocument.filename;
+        const remove = document.createElement("button");
+        remove.className = "remove-document";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.setAttribute("aria-label", `Remove ${supportingDocument.filename}`);
+        remove.addEventListener("click", async () => {
+          remove.disabled = true;
+          const message = document.querySelector("#supporting-message");
+          message.classList.remove("error");
+          message.textContent = `Removing ${supportingDocument.filename}...`;
+          try {
+            await requestJson(`/api/supporting-documents/${encodeURIComponent(supportingDocument.id)}`, {
+              method: "DELETE"
+            });
+            message.textContent = `Removed ${supportingDocument.filename}.`;
+            await refreshSupportingDocuments();
+          } catch (error) {
+            message.textContent = error.message;
+            message.classList.add("error");
+            remove.disabled = false;
+          }
+        });
+        item.append(filename, remove);
+        list.append(item);
+      });
+      if (documents.length === 0) {
+        const item = document.createElement("li");
+        const filename = document.createElement("span");
+        filename.textContent = "No supporting documents saved.";
+        item.append(filename);
+        list.append(item);
+      }
+      document.querySelector("#clear-supporting").disabled = documents.length === 0;
+      document.querySelector("#save-supporting").disabled =
+        document.querySelector("#documents").files.length === 0;
+    }
+
+    async function refreshLogs() {
+      try {
+        const entries = await requestJson("/api/logs");
+        document.querySelector("#log-state").textContent = "Live";
+        const signature = JSON.stringify(entries);
+        if (signature === lastLogSignature) return;
+        lastLogSignature = signature;
+        const container = document.querySelector("#log-entries");
+        container.replaceChildren();
+        entries.forEach((entry) => {
+          const line = document.createElement("p");
+          line.className = "log-entry";
+          line.textContent = `${entry.time} ${entry.action}`;
+          container.append(line);
+        });
+        if (entries.length === 0) {
+          const line = document.createElement("p");
+          line.className = "log-entry";
+          line.textContent = "No user actions yet.";
+          container.append(line);
+        }
+        container.scrollTop = container.scrollHeight;
+      } catch {
+        document.querySelector("#log-state").textContent = "Unavailable";
+      }
+    }
+
+    const activityPanel = document.querySelector(".log-panel");
+    const activityToggle = document.querySelector("#log-toggle");
+    activityToggle.addEventListener("click", () => {
+      const minimized = activityPanel.classList.toggle("is-minimized");
+      activityToggle.textContent = minimized ? "Expand" : "Minimize";
+      activityToggle.setAttribute("aria-expanded", String(!minimized));
+      activityPanel.title = minimized ? "Expand to view user activity" : "Drag the bottom-right corner to resize";
+    });
+    if ("ResizeObserver" in window) {
+      const baseArea = 390 * 210;
+      new ResizeObserver(([entry]) => {
+        if (activityPanel.classList.contains("is-minimized")) return;
+        const { width, height } = entry.contentRect;
+        const scale = Math.sqrt((width * height) / baseArea);
+        const fontSize = Math.min(16, Math.max(9, 11 * scale));
+        activityPanel.style.setProperty("--log-font-size", `${fontSize.toFixed(1)}px`);
+      }).observe(activityPanel);
+    }
+
+    function setModelOptions(select, models, selected = "") {
+      select.replaceChildren();
+      models.forEach((model) => {
+        const option = document.createElement("option");
+        option.value = model.id;
+        option.textContent = `${model.name} (${model.id})`;
+        option.selected = model.id === selected;
+        select.append(option);
+      });
+      if (!models.some((model) => model.id === selected) && models.length) select.selectedIndex = 0;
+    }
+
+    async function loadModels(key, select, message, button) {
+      button.disabled = true;
+      message.classList.remove("error");
+      message.textContent = "Loading models available for this API key...";
+      try {
+        const models = await requestJson("/api/settings/models", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey: key })
+        });
+        setModelOptions(select, models, activeModel || "gemini-3.1-flash-lite");
+        message.textContent = `${models.length} text-generation models available.`;
+        return true;
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add("error");
+        return false;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function saveSettings(key, model, message, button) {
+      button.disabled = true;
+      message.classList.remove("error");
+      message.textContent = "Saving settings...";
+      try {
+        await requestJson("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey: key, model })
+        });
+        activeModel = model;
+        message.textContent = "Settings saved.";
+        return true;
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add("error");
+        return false;
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    document.querySelector("#setup-load-models").addEventListener("click", async (event) => {
+      const success = await loadModels(
+        document.querySelector("#setup-key").value,
+        document.querySelector("#setup-model"),
+        document.querySelector("#setup-status"),
+        event.currentTarget
+      );
+      if (success) document.querySelector("#setup-model-step").hidden = false;
+    });
+
+    document.querySelector("#setup-load-models-existing-key").addEventListener("click", async (event) => {
+      await loadModels(
+        "",
+        document.querySelector("#setup-model"),
+        document.querySelector("#setup-status"),
+        event.currentTarget
+      );
+    });
+
+    document.querySelector("#setup-save-key").addEventListener("click", async (event) => {
+      const key = document.querySelector("#setup-key").value;
+      if (!key.trim()) {
+        const message = document.querySelector("#setup-status");
+        message.textContent = "Enter your Gemini API key.";
+        message.classList.add("error");
+        return;
+      }
+      if (await saveSettings(key, activeModel, document.querySelector("#setup-status"), event.currentTarget)) {
+        document.querySelector("#setup-key").value = "";
+        await refreshApp();
+      }
+    });
+
+    document.querySelector("#setup-save").addEventListener("click", async (event) => {
+      const key = document.querySelector("#setup-key").value;
+      const model = document.querySelector("#setup-model").value;
+      if ((!key.trim() && !setupApiKeyConfigured) || !model) {
+        const message = document.querySelector("#setup-status");
+        message.textContent = "Enter an API key and load/select a model first.";
+        message.classList.add("error");
+        return;
+      }
+      if (await saveSettings(key, model, document.querySelector("#setup-status"), event.currentTarget)) {
+        document.querySelector("#setup-key").value = "";
+        await refreshApp();
+      }
+    });
+
+    settingsOpen.addEventListener("click", async () => {
+      settingsModal.hidden = false;
+      const currentKey = document.querySelector("#settings-current-key");
+      currentKey.type = "password";
+      document.querySelector("#settings-key-visibility").textContent = "Show";
+      document.querySelector("#settings-key-visibility").setAttribute("aria-pressed", "false");
+      document.querySelector("#settings-update-key").hidden = true;
+      document.querySelector("#settings-save").disabled = false;
+      document.querySelector("#settings-status").textContent = "Loading saved settings...";
+      try {
+        const current = await requestJson("/api/settings/current");
+        activeModel = current.model;
+        currentKey.value = current.apiKey || "";
+        savedApiKey = current.apiKey || "";
+        document.querySelector("#settings-current-model").textContent =
+          `Currently selected: ${current.model}`;
+        if (!current.apiKey) {
+          document.querySelector("#settings-current-key-hint").textContent = "Enter an API key to configure Gemini.";
+        } else {
+          document.querySelector("#settings-current-key-hint").textContent =
+            "Edit this value to change the saved API key. Keep it private.";
+        }
+        await loadModels(
+          "",
+          document.querySelector("#settings-model"),
+          document.querySelector("#settings-status"),
+          document.querySelector("#settings-load-models")
+        );
+      } catch (error) {
+        document.querySelector("#settings-status").textContent = error.message;
+        document.querySelector("#settings-status").classList.add("error");
+      }
+      currentKey.focus();
+    });
+    document.querySelector("#settings-close").addEventListener("click", () => {
+      settingsModal.hidden = true;
+      document.querySelector("#settings-current-key").value = "";
+      savedApiKey = "";
+    });
+    settingsModal.addEventListener("click", (event) => {
+      if (event.target === settingsModal) {
+        settingsModal.hidden = true;
+        document.querySelector("#settings-current-key").value = "";
+        savedApiKey = "";
+      }
+    });
+    document.querySelector("#settings-current-key").addEventListener("input", (event) => {
+      const dirty = event.currentTarget.value.trim() !== savedApiKey;
+      document.querySelector("#settings-update-key").hidden = !dirty;
+      document.querySelector("#settings-save").disabled = dirty;
+      const message = document.querySelector("#settings-status");
+      if (dirty) {
+        message.classList.remove("error");
+        message.textContent = "Update the API key before saving model settings.";
+      } else {
+        message.textContent = "";
+      }
+    });
+    document.querySelector("#settings-key-visibility").addEventListener("click", (event) => {
+      const input = document.querySelector("#settings-current-key");
+      const visible = input.type === "password";
+      input.type = visible ? "text" : "password";
+      event.currentTarget.textContent = visible ? "Hide" : "Show";
+      event.currentTarget.setAttribute("aria-pressed", String(visible));
+    });
+    document.querySelector("#settings-load-models").addEventListener("click", async (event) => {
+      await loadModels(
+        document.querySelector("#settings-current-key").value,
+        document.querySelector("#settings-model"),
+        document.querySelector("#settings-status"),
+        event.currentTarget
+      );
+    });
+    document.querySelector("#settings-update-key").addEventListener("click", async (event) => {
+      const keyInput = document.querySelector("#settings-current-key");
+      const key = keyInput.value.trim();
+      const model = document.querySelector("#settings-model").value || activeModel;
+      if (!key) {
+        document.querySelector("#settings-status").textContent = "Enter a Gemini API key.";
+        document.querySelector("#settings-status").classList.add("error");
+        return;
+      }
+      if (!model) {
+        document.querySelector("#settings-status").textContent = "Load and select an available model first.";
+        document.querySelector("#settings-status").classList.add("error");
+        return;
+      }
+      if (await saveSettings(key, model, document.querySelector("#settings-status"), event.currentTarget)) {
+        savedApiKey = key;
+        keyInput.value = key;
+        document.querySelector("#settings-update-key").hidden = true;
+        document.querySelector("#settings-save").disabled = false;
+        document.querySelector("#settings-current-model").textContent = `Currently selected: ${model}`;
+        await refreshApp();
+      }
+    });
+    document.querySelector("#settings-save").addEventListener("click", async (event) => {
+      const model = document.querySelector("#settings-model").value;
+      if (!model) {
+        const message = document.querySelector("#settings-status");
+        message.textContent = "Load and select an available model first.";
+        message.classList.add("error");
+        return;
+      }
+      if (await saveSettings(
+        "",
+        model,
+        document.querySelector("#settings-status"),
+        event.currentTarget
+      )) {
+        const currentKey = document.querySelector("#settings-current-key");
+        document.querySelector("#settings-current-model").textContent = `Currently selected: ${model}`;
+        settingsModal.hidden = true;
+        currentKey.value = "";
+        savedApiKey = "";
+        await refreshApp();
+      }
+    });
+
+    document.querySelector("#replace-resume-button").addEventListener("click", () => {
+      document.querySelector("#resume-form").hidden = false;
+      document.querySelector("#resume-file").focus();
+    });
+    document.querySelector("#cancel-resume").addEventListener("click", () => {
+      document.querySelector("#resume-form").reset();
+      document.querySelector("#resume-form").hidden = true;
+    });
+    document.querySelector("#resume-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = document.querySelector("#resume-file");
+      const message = document.querySelector("#resume-message");
+      const button = document.querySelector("#save-resume");
+      if (!input.files[0]) return;
+      const data = new FormData();
+      data.append("resume", input.files[0]);
+      button.disabled = true;
+      message.classList.remove("error");
+      message.textContent = "Validating and saving resume...";
+      try {
+        await requestJson("/api/resume", { method: "POST", body: data });
+        input.value = "";
+        document.querySelector("#resume-form").hidden = true;
+        message.textContent = "Resume saved and ready to use.";
+        await refreshResume();
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add("error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+    document.querySelector("#supporting-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = document.querySelector("#documents");
+      const message = document.querySelector("#supporting-message");
+      const button = document.querySelector("#save-supporting");
+      if (!input.files.length) {
+        message.textContent = "Choose one or more PDF or DOCX files.";
+        message.classList.add("error");
+        return;
+      }
+      const data = new FormData();
+      [...input.files].forEach((file) => data.append("documents", file));
+      button.disabled = true;
+      message.classList.remove("error");
+      message.textContent = "Validating and saving files...";
+      try {
+        await requestJson("/api/supporting-documents", { method: "POST", body: data });
+        input.value = "";
+        message.textContent = "Supporting documents saved.";
+        await refreshSupportingDocuments();
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add("error");
+      } finally {
+        button.disabled = input.files.length === 0;
+      }
+    });
+    document.querySelector("#documents").addEventListener("change", (event) => {
+      document.querySelector("#save-supporting").disabled = event.currentTarget.files.length === 0;
+    });
+    document.querySelector("#clear-supporting").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const message = document.querySelector("#supporting-message");
+      button.disabled = true;
+      message.classList.remove("error");
+      message.textContent = "Clearing saved supporting files...";
+      try {
+        const response = await fetch("/api/supporting-documents", { method: "DELETE" });
+        if (!response.ok) throw new Error(await responseError(response, "Could not clear supporting files."));
+        await response.json();
+        message.textContent = "Supporting documents cleared.";
+        await refreshSupportingDocuments();
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add("error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.querySelector("#generator").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = new FormData();
+      data.append("jobDescription", document.querySelector("#job").value);
+      const button = document.querySelector("#generate");
+      button.disabled = true;
+      status.classList.remove("error");
+      status.textContent = "Reading documents and drafting your letter...";
+      result.hidden = true;
+      try {
+        const body = await requestJson("/api/generate", { method: "POST", body: data });
+        letter.value = body.letter;
+        detectedJobTitle = body.jobTitle;
+        detectedApplicantName = body.applicantName;
+        document.querySelector("#detected-details").textContent =
+          `Resume name: ${detectedApplicantName} · Detected job title: ${detectedJobTitle}`;
+        result.hidden = false;
+        status.textContent = "Draft ready. Review and edit it before downloading.";
+      } catch (error) {
+        status.textContent = error.message || "Something went wrong. Please try again.";
+        status.classList.add("error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.querySelector("#download").addEventListener("click", async () => {
+      const download = document.querySelector("#download");
+      download.disabled = true;
+      status.classList.remove("error");
+      status.textContent = "Preparing your PDF...";
+      try {
+        const response = await fetch("/api/pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            letter: letter.value,
+            personName: detectedApplicantName,
+            jobTitle: detectedJobTitle
+          })
+        });
+        if (!response.ok) throw new Error(await responseError(response, "Could not create the PDF."));
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement("a");
+        link.href = url;
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const filename = disposition.match(/filename="([^"]+)"/i)?.[1] || "cover-letter.pdf";
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+        status.textContent = "PDF downloaded.";
+      } catch (error) {
+        status.textContent = error.message || "Could not create the PDF.";
+        status.classList.add("error");
+      } finally {
+        download.disabled = false;
+      }
+    });
+
+    document.querySelector("#copy").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(letter.value);
+        status.textContent = "Letter copied to clipboard.";
+        status.classList.remove("error");
+      } catch {
+        status.textContent = "Clipboard access was denied by your browser.";
+        status.classList.add("error");
+      }
+    });
+
+    refreshApp().catch((error) => {
+      setup.hidden = false;
+      document.querySelector("#setup-title").textContent = "Could not load application settings";
+      document.querySelector("#setup-status").textContent = error.message;
+      document.querySelector("#setup-status").classList.add("error");
+    });
+    refreshLogs();
+    window.setInterval(refreshLogs, 2500);
+  </script>
+</body>
+</html>
