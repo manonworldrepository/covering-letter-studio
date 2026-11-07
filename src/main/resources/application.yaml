@@ -3,6 +3,13 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: coveringletter
+  ai:
+    mcp:
+      server:
+        protocol: STREAMABLE
+        type: ASYNC
+        annotation-scanner:
+          enabled: true
   webflux:
     multipart:
       max-in-memory-size: 30MB
@@ -25,3 +32,6 @@ gemini:
 coverletter:
   storage:
     directory: ${COVERLETTER_STORAGE_DIR:.data}
+
+server:
+  address: 127.0.0.1

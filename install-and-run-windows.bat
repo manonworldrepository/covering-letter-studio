@@ -27,6 +27,10 @@ if not exist ".env" (
     echo Created .env. You can enter the Gemini API key in the first-run setup page.
 )
 
+echo Cleaning previous build outputs...
+call ".\gradlew.bat" clean
+if errorlevel 1 exit /b %errorlevel%
+
 if /I "%RUN_MODE%"=="native" goto run_native
 
 echo Starting the application. Press Ctrl+C to stop it.

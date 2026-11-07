@@ -31,6 +31,9 @@ if [[ ! -f .env ]]; then
 fi
 
 chmod +x ./gradlew
+echo "Cleaning previous build outputs..."
+./gradlew clean
+
 if [[ "$RUN_MODE" == "native" ]]; then
   echo "Building the native executable. This may take several minutes..."
   ./gradlew nativeCompile

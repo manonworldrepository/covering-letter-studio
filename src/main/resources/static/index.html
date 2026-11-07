@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f6f8">
   <meta http-equiv="Cache-Control" content="no-store">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Cover Letter Studio</title>
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #172033; background: #f5f6f8; }
     * { box-sizing: border-box; }
     body { margin: 0; }
     header { padding: 18px max(24px, calc((100% - 1040px) / 2)); background: #fff; border-bottom: 1px solid #e6e8ed; }
-    .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
     .brand { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 720; letter-spacing: -.3px; }
     .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #3158d5; color: white; }
     main { width: min(100% - 32px, 920px); margin: 44px auto 72px; }
@@ -22,6 +23,8 @@
     .card { padding: clamp(20px, 4vw, 32px); background: white; border: 1px solid #e6e8ed; border-radius: 16px; box-shadow: 0 8px 24px #17203308; }
     .field { margin-bottom: 23px; }
     label, .label { display: block; margin-bottom: 9px; font-weight: 650; font-size: 14px; }
+    .field > button:not(.close), .step > button:not(.close) { margin-top: 12px; }
+    .step > button + select { margin-top: 12px; }
     .required { color: #ba3947; }
     textarea, input[type="file"], input[type="password"], input[type="text"], select { width: 100%; font: inherit; }
     textarea { min-height: 138px; resize: vertical; padding: 13px 14px; border: 1px solid #d5dae4; border-radius: 9px; line-height: 1.5; }
@@ -30,16 +33,20 @@
     input[type="file"] { padding: 12px; background: #fafbfc; border: 1px dashed #cbd1dd; border-radius: 9px; }
     .hint { margin: 7px 0 0; font-size: 12px; }
     .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-    button { border: 0; border-radius: 9px; padding: 12px 18px; font: inherit; font-weight: 650; cursor: pointer; }
+    .generate-button-wrap { position: relative; display: inline-flex; max-width: 100%; }
+    .generate-button-wrap.is-disabled:hover::after, .generate-button-wrap.is-disabled:focus::after { position: absolute; z-index: 3; left: 0; bottom: calc(100% + 8px); width: max-content; max-width: min(300px, calc(100vw - 40px)); padding: 8px 10px; border-radius: 6px; background: #172033; color: #fff; content: attr(data-tooltip); font-size: 12px; font-weight: 500; line-height: 1.4; white-space: normal; box-shadow: 0 4px 12px #10182840; pointer-events: none; }
+    button { width: 300px; max-width: 100%; flex: 0 0 min(300px, 100%); border: 0; border-radius: 9px; padding: 12px 12px; font: inherit; font-weight: 650; white-space: nowrap; cursor: pointer; }
     button.primary { background: #3158d5; color: #fff; }
     button.primary:hover { background: #2448bd; }
-    button.secondary { background: #eff2f8; color: #263552; }
+    button.secondary { border: 1px solid #cbd3e1; background: #eff2f8; color: #263552; box-shadow: 0 1px 2px #17203312; }
+    button.secondary:hover { border-color: #aab6cb; background: #e5eaf3; }
     button.danger { background: #ad2938; color: #fff; }
     button.danger:hover { background: #8f1f2c; }
     button.tertiary { background: transparent; color: #3158d5; padding: 9px 10px; }
     button:disabled { opacity: .6; cursor: wait; }
     .status { min-height: 22px; color: #657087; font-size: 14px; }
     .status.error { color: #ad2938; }
+    .status.success { color: #237a45; }
     #result { margin-top: 20px; }
     #result[hidden], [hidden] { display: none !important; }
     #letter { min-height: 300px; margin: 6px 0 16px; font-family: Georgia, serif; font-size: 16px; line-height: 1.7; }
@@ -51,24 +58,32 @@
     .modal-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #121a2dcc; }
     .modal { width: min(100%, 560px); max-height: min(90vh, 760px); overflow: auto; }
     .modal-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
-    .close { padding: 6px 10px; background: transparent; color: #657087; font-size: 22px; }
+    .close { width: auto; max-width: none; flex: 0 0 auto; padding: 6px 10px; background: transparent; color: #657087; font-size: 22px; }
     .document-list { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
-    .document-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; overflow-wrap: anywhere; }
+    .document-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; overflow-wrap: anywhere; }
     .document-list li > span, .document-list li > label { min-width: 0; overflow-wrap: anywhere; }
     .document-list input[type="radio"], .document-list input[type="checkbox"] { width: auto; margin: 0 9px 0 0; }
     .document-choice { display: flex; align-items: center; margin: 0; font-weight: 500; cursor: pointer; }
-    .document-list .remove-document { flex: 0 0 auto; padding: 7px 10px; color: #ad2938; background: #fff; border: 1px solid #e6e8ed; }
-    .log-panel { position: fixed; right: 18px; bottom: 18px; z-index: 4; display: flex; flex-direction: column; width: min(390px, calc(100vw - 36px)); height: 210px; min-width: 260px; min-height: 130px; max-width: calc(100vw - 36px); max-height: 80vh; padding: 12px; overflow: hidden; resize: both; border: 1px solid #303c55; border-radius: 12px; background: #172033; color: #e6ebf4; box-shadow: 0 10px 34px #10182840; }
-    .log-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: var(--log-font-size, 13px); font-weight: 700; }
-    .log-heading button { padding: 4px 8px; border: 1px solid #66728a; background: transparent; color: inherit; font-size: 11px; }
-    #log-entries { flex: 1; min-height: 0; overflow-y: auto; font: var(--log-font-size, 11px)/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
-    .log-panel.is-minimized { height: 46px; min-height: 46px; resize: none; }
+    .document-list .remove-document { color: #ad2938; background: #fff; border: 1px solid #e6e8ed; }
+    .log-panel { position: fixed; right: 18px; bottom: 18px; z-index: 4; display: flex; flex-direction: column; width: min(420px, calc(100vw - 36px)); height: 280px; min-width: min(320px, calc(100vw - 36px)); max-width: calc(100vw - 36px); max-height: 80vh; padding: 12px; overflow: hidden; resize: none; border: 1px solid #303c55; border-radius: 12px; background: #172033; color: #e6ebf4; box-shadow: 0 10px 34px #10182840; }
+    .log-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
+    .log-heading button { width: auto; max-width: none; flex: 0 0 auto; padding: 4px 8px; border: 1px solid #66728a; background: transparent; color: inherit; font-size: 11px; }
+    #log-entries { flex: 1; min-height: 0; overflow-y: auto; font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+    .log-panel.is-minimized { height: 60px; }
     .log-panel.is-minimized .log-heading { margin-bottom: 0; }
     .log-panel.is-minimized #log-entries { display: none; }
     .log-entry { margin: 0 0 4px; }
     .log-entry.ERROR { color: #ff9a9a; }
     .log-entry.WARN { color: #ffd580; }
-    @media (max-width: 580px) { header { padding-top: 14px; padding-bottom: 14px; } main { margin-top: 30px; } .actions > button { width: 100%; } }
+    .generation-overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: #10182880; backdrop-filter: blur(2px); }
+    .generation-overlay[hidden] { display: none; }
+    .generation-overlay-message { width: min(100%, 380px); padding: 22px 24px; border-radius: 12px; background: #fff; color: #172033; text-align: center; box-shadow: 0 12px 36px #10182840; }
+    .generation-overlay-title { margin: 0 0 14px; font-weight: 650; }
+    .generation-progress-track { height: 10px; overflow: hidden; border-radius: 999px; background: #e6eaf2; }
+    .generation-progress-bar { width: 0; height: 100%; border-radius: inherit; background: #3158d5; transition: width .25s ease; }
+    .generation-progress-details { display: flex; justify-content: space-between; gap: 12px; margin-top: 9px; color: #59667e; font-size: 12px; }
+    @media (max-width: 580px) { header { padding-top: 14px; padding-bottom: 14px; } main { margin-top: 30px; } }
+    @media (max-width: 455px) { #log-state { display: none; } .log-heading { flex-wrap: wrap; } .log-panel.is-minimized { height: 82px; } }
   </style>
 </head>
 <body>
@@ -87,9 +102,10 @@
         <div class="step-number">Step 1</div>
         <label for="setup-key">Gemini API key <span class="required">*</span></label>
         <input id="setup-key" type="password" autocomplete="new-password" placeholder="Paste your Gemini API key">
+        <button class="secondary" id="setup-key-visibility" type="button" aria-pressed="false">Show</button>
         <p class="hint">The key is sent to Google to list models and generate letters. It is not sent back to this page after saving.</p>
         <div class="actions" style="margin-top:16px">
-          <button class="primary" id="setup-load-models" type="button" hidden>Next: select a model</button>
+          <button class="primary" id="setup-load-models" type="button">Save key &amp; continue</button>
         </div>
       </div>
       <div class="step" id="setup-model-step" hidden>
@@ -99,6 +115,7 @@
         <button class="secondary" id="setup-load-models-existing-key" type="button" hidden>Load available models</button>
         <select id="setup-model"></select>
         <div class="actions" style="margin-top:16px">
+          <button class="secondary" type="button" data-setup-back="setup-key-step">Back</button>
           <button class="primary" id="setup-save" type="button">Save and continue</button>
         </div>
       </div>
@@ -111,7 +128,11 @@
         </div>
         <p class="hint">Choose one saved resume to use for generation. PDF or DOCX, up to 10 MB each.</p>
         <ul class="document-list" id="setup-resume-list" aria-label="Select the required resume"></ul>
+        <div class="actions" style="margin-top:12px">
+          <button class="danger" id="setup-clear-resumes" type="button" hidden>Clear all resumes</button>
+        </div>
         <div class="actions" style="margin-top:16px">
+          <button class="secondary" type="button" data-setup-back="setup-model-step">Back</button>
           <button class="primary" id="setup-resume-next" type="button" disabled>Next: supporting documents</button>
         </div>
       </div>
@@ -124,7 +145,11 @@
         </div>
         <p class="hint">Choose which files to include with each application. PDF or DOCX, up to five files and 10 MB each. You can continue without any.</p>
         <ul class="document-list" id="setup-supporting-list" aria-label="Select optional supporting documents"></ul>
+        <div class="actions" style="margin-top:12px">
+          <button class="danger" id="setup-clear-supporting" type="button" hidden>Clear all supporting documents</button>
+        </div>
         <div class="actions" style="margin-top:16px">
+          <button class="secondary" type="button" data-setup-back="setup-resume-step">Back</button>
           <button class="primary" id="setup-supporting-next" type="button">Next: choose what to generate</button>
         </div>
       </div>
@@ -136,6 +161,7 @@
           <option value="motivation-message">Short motivation note for an application form</option>
         </select>
         <div class="actions" style="margin-top:16px">
+          <button class="secondary" type="button" data-setup-back="setup-supporting-step">Back</button>
           <button class="primary" id="setup-format-next" type="button">Next: enter job description</button>
         </div>
       </div>
@@ -145,6 +171,7 @@
         <textarea id="setup-job" maxlength="20000" required placeholder="Paste the job description here..."></textarea>
         <p class="hint">This is required to create your first draft. You can edit it or enter another description in the application form afterwards.</p>
         <div class="actions" style="margin-top:16px">
+          <button class="secondary" type="button" data-setup-back="setup-format-step">Back</button>
           <button class="primary" id="setup-generate" type="button">Generate first draft</button>
         </div>
       </div>
@@ -209,10 +236,12 @@
         <div class="field">
           <label for="job">Job description <span class="required">*</span></label>
           <textarea id="job" name="jobDescription" required maxlength="20000" placeholder="Paste the job description here..."></textarea>
-          <p class="hint">Your full name will be read from your saved resume, and the job title identified from this description. Both are used in your PDF filename when you generate a covering letter.</p>
+          <p class="hint">Your name will be read from your saved resume, and the company and job title identified from this description. These are used in your PDF filename when you generate a covering letter.</p>
         </div>
         <div class="actions">
-          <button class="primary" id="generate" type="submit">Generate covering letter</button>
+          <span class="generate-button-wrap is-disabled" id="generate-tooltip" tabindex="0" data-tooltip="Upload and select a resume before generating a letter." title="Upload and select a resume before generating a letter.">
+            <button class="primary" id="generate" type="submit" disabled aria-describedby="generate-tooltip">Generate covering letter</button>
+          </span>
           <span class="status" id="status" role="status" aria-live="polite"></span>
         </div>
         <div class="privacy">Your resumes and supporting files stay in the local <code>.data</code> directory and are not committed to Git. Only the selected resume and supporting documents, plus the job description, are sent to Google Gemini to draft the letter. This app is configured for single-user local use.</div>
@@ -224,6 +253,7 @@
         <div class="actions">
           <button class="primary" id="download" type="button">Download PDF</button>
           <button class="secondary" id="copy" type="button">Copy text</button>
+          <span class="status" id="copy-status" role="status" aria-live="polite"></span>
           <button class="secondary" id="start-over" type="button">Start a new application</button>
         </div>
       </section>
@@ -257,7 +287,7 @@
       <div class="status" id="settings-status" role="status" aria-live="polite"></div>
     </section>
   </div>
-  <aside class="log-panel" aria-label="User activity" title="Drag the bottom-right corner to resize">
+  <aside class="log-panel" aria-label="User activity">
     <div class="log-heading">
       <span>User activity</span>
       <span id="log-state">Live</span>
@@ -265,13 +295,53 @@
     </div>
     <div id="log-entries" role="log" aria-live="off"><p class="log-entry">Waiting for user actions...</p></div>
   </aside>
+  <div class="generation-overlay" id="generation-overlay" role="status" aria-live="polite" hidden>
+    <div class="generation-overlay-message">
+      <p class="generation-overlay-title" id="generation-overlay-title">Generating your covering letter...</p>
+      <div
+        class="generation-progress-track"
+        id="generation-progress-track"
+        role="progressbar"
+        aria-label="Estimated generation progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      >
+        <div class="generation-progress-bar" id="generation-progress-bar"></div>
+      </div>
+      <div class="generation-progress-details">
+        <span id="generation-progress-label">Estimated progress</span>
+        <span id="generation-progress-percent">0%</span>
+      </div>
+    </div>
+  </div>
   <script>
     const setup = document.querySelector("#setup");
     const workspace = document.querySelector("#workspace");
     const settingsOpen = document.querySelector("#settings-open");
     const settingsModal = document.querySelector("#settings-modal");
     const status = document.querySelector("#status");
+    const copyStatus = document.querySelector("#copy-status");
     const result = document.querySelector("#result");
+    const generateButton = document.querySelector("#generate");
+    const generateTooltip = document.querySelector("#generate-tooltip");
+    const jobDescription = document.querySelector("#job");
+    const generationOverlay = document.querySelector("#generation-overlay");
+    const generationOverlayTitle = document.querySelector("#generation-overlay-title");
+    const generationProgressTrack = document.querySelector("#generation-progress-track");
+    const generationProgressBar = document.querySelector("#generation-progress-bar");
+    const generationProgressPercent = document.querySelector("#generation-progress-percent");
+    const generationProgressLabel = document.querySelector("#generation-progress-label");
+    const generationUiElements = [
+      document.querySelector("header"),
+      document.querySelector("main"),
+      document.querySelector("#settings-modal"),
+      document.querySelector(".log-panel")
+    ];
+    let resumeAvailable = false;
+    let generationInProgress = false;
+    let generationProgressTimer = null;
+    let generationStartedAt = 0;
     const letter = document.querySelector("#letter");
     const generationFormat = document.querySelector("#generation-format");
     const recommendedModel = "gemini-3.1-flash-lite";
@@ -281,10 +351,13 @@
     let savedApiKey = "";
     let detectedJobTitle = "";
     let detectedApplicantName = "";
+    let detectedCompanyName = "";
     let lastLogSignature = "";
 
     generationFormat.addEventListener("change", () => {
       const motivationMessage = generationFormat.value === "motivation-message";
+      copyStatus.textContent = "";
+      copyStatus.classList.remove("success", "error");
       result.hidden = true;
       document.querySelector("#generate").textContent =
         motivationMessage ? "Generate motivation message" : "Generate covering letter";
@@ -311,6 +384,60 @@
       return response.json();
     }
 
+    async function uploadFiles(url, formData, title) {
+      setBusyOverlay(true, title);
+      generationProgressLabel.textContent = "Upload progress";
+      updateGenerationProgress(0);
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", url);
+          xhr.upload.addEventListener("progress", (event) => {
+            if (!event.lengthComputable) return;
+            const percent = Math.floor((event.loaded / event.total) * 90);
+            updateGenerationProgress(percent);
+          });
+          xhr.upload.addEventListener("load", () => {
+            generationOverlayTitle.textContent = "Saving uploaded files...";
+            generationProgressLabel.textContent = "Saving files";
+            updateGenerationProgress(95);
+          });
+          xhr.addEventListener("load", () => {
+            if (xhr.status < 200 || xhr.status >= 300) {
+              const message = parseErrorMessage(xhr.responseText, `Upload failed (HTTP ${xhr.status}).`);
+              reject(new Error(message));
+              return;
+            }
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch {
+              reject(new Error("Upload succeeded but the server returned an invalid response."));
+            }
+          });
+          xhr.addEventListener("error", () => reject(new Error("Upload failed. Check your network connection and try again.")));
+          xhr.addEventListener("abort", () => reject(new Error("Upload was cancelled.")));
+          xhr.send(formData);
+        });
+        generationOverlayTitle.textContent = "Files saved.";
+        generationProgressLabel.textContent = "Upload complete";
+        updateGenerationProgress(100);
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        return result;
+      } finally {
+        setBusyOverlay(false);
+      }
+    }
+
+    function parseErrorMessage(text, fallback) {
+      if (!text.trim()) return fallback;
+      try {
+        const body = JSON.parse(text);
+        return body.message || body.detail || body.title || body.error?.message || fallback;
+      } catch {
+        return text.trim().slice(0, 500);
+      }
+    }
+
     async function refreshApp() {
       const config = await requestJson("/api/settings");
       const settingsConfigured = config.apiKeyConfigured === true && config.modelConfigured === true;
@@ -323,7 +450,7 @@
         setup.hidden = false;
         document.querySelector("#setup-key-step").hidden = setupApiKeyConfigured;
         document.querySelector("#setup-model-step").hidden = !setupApiKeyConfigured || setupModelConfigured;
-        document.querySelector("#setup-load-models").hidden = setupApiKeyConfigured;
+        document.querySelector("#setup-load-models").hidden = false;
         document.querySelector("#setup-load-models-existing-key").hidden =
           !setupApiKeyConfigured || setupModelConfigured;
         document.querySelector("#setup-status").textContent = "";
@@ -355,10 +482,46 @@
         });
     }
 
+    document.querySelectorAll("[data-setup-back]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const targetStep = button.dataset.setupBack;
+        try {
+          await withSetupTransition("Returning to the previous setup step...", async () => {
+            showSetupStep(targetStep);
+            if (targetStep === "setup-model-step" && setupApiKeyConfigured) {
+              const loadButton = document.querySelector("#setup-load-models-existing-key");
+              loadButton.hidden = false;
+              await loadModels(
+                "",
+                document.querySelector("#setup-model"),
+                document.querySelector("#setup-status"),
+                loadButton
+              );
+            } else if (targetStep === "setup-resume-step") {
+              await refreshSetupResumes();
+            }
+          });
+        } catch (error) {
+          showSetupError(error);
+          return;
+        }
+        const focusTarget = {
+          "setup-key-step": "#setup-key",
+          "setup-model-step": "#setup-model",
+          "setup-resume-step": "#setup-resume-file",
+          "setup-supporting-step": "#setup-supporting-file",
+          "setup-format-step": "#setup-format",
+          "setup-job-step": "#setup-job"
+        }[targetStep];
+        document.querySelector(focusTarget)?.focus();
+      });
+    });
+
     async function refreshSetupResumes() {
       const resume = await requestJson("/api/resume");
       const list = document.querySelector("#setup-resume-list");
       list.replaceChildren();
+      document.querySelector("#setup-clear-resumes").hidden = resume.resumes.length === 0;
       resume.resumes.forEach((savedResume) => {
         const item = document.createElement("li");
         const label = document.createElement("label");
@@ -383,7 +546,22 @@
           }
         });
         label.append(radio, document.createTextNode(savedResume.filename));
-        item.append(label);
+        const remove = document.createElement("button");
+        remove.className = "remove-document";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.setAttribute("aria-label", `Remove ${savedResume.filename}`);
+        remove.addEventListener("click", async () => {
+          remove.disabled = true;
+          try {
+            await requestJson(`/api/resume/${encodeURIComponent(savedResume.id)}`, { method: "DELETE" });
+            await refreshSetupResumes();
+          } catch (error) {
+            await refreshSetupResumes();
+            showSetupError(error);
+          }
+        });
+        item.append(label, remove);
         list.append(item);
       });
       if (resume.resumes.length === 0) {
@@ -398,6 +576,7 @@
       const documents = await requestJson("/api/supporting-documents");
       const list = document.querySelector("#setup-supporting-list");
       list.replaceChildren();
+      document.querySelector("#setup-clear-supporting").hidden = documents.length === 0;
       documents.forEach((supportingDocument) => {
         const item = document.createElement("li");
         const label = document.createElement("label");
@@ -423,7 +602,25 @@
         });
         checkbox.dataset.documentId = supportingDocument.id;
         label.append(checkbox, document.createTextNode(supportingDocument.filename));
-        item.append(label);
+        const remove = document.createElement("button");
+        remove.className = "remove-document";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.setAttribute("aria-label", `Remove ${supportingDocument.filename}`);
+        remove.addEventListener("click", async () => {
+          remove.disabled = true;
+          try {
+            await requestJson(
+              `/api/supporting-documents/${encodeURIComponent(supportingDocument.id)}`,
+              { method: "DELETE" }
+            );
+            await refreshSetupSupportingDocuments();
+          } catch (error) {
+            await refreshSetupSupportingDocuments();
+            showSetupError(error);
+          }
+        });
+        item.append(label, remove);
         list.append(item);
       });
       if (documents.length === 0) {
@@ -442,13 +639,16 @@
     async function refreshResume() {
       const resume = await requestJson("/api/resume");
       const resumeStatus = document.querySelector("#resume-status");
-      const generatorButton = document.querySelector("#generate");
       const list = document.querySelector("#resume-list");
       list.replaceChildren();
-      document.querySelector("#clear-resumes").disabled = resume.resumes.length === 0;
+      const hasResumes = resume.resumes.length > 0;
+      document.querySelector("#clear-resumes").hidden = !hasResumes;
+      document.querySelector("#replace-resume-button").hidden = !hasResumes;
+      resumeAvailable = resume.configured;
       if (resume.configured) {
+        document.querySelector("#resume-form").hidden = true;
         resumeStatus.textContent = `Selected resume: ${resume.filename}`;
-        generatorButton.disabled = false;
+        updateGenerateButtonState();
         resume.resumes.forEach((savedResume) => {
           const item = document.createElement("li");
           const label = document.createElement("label");
@@ -505,13 +705,95 @@
         });
       } else {
         resumeStatus.textContent = "No resume saved yet. Add one before generating a letter.";
-        generatorButton.disabled = true;
-        document.querySelector("#resume-form").hidden = false;
+        updateGenerateButtonState();
+        document.querySelector("#resume-form").hidden = true;
+        document.querySelector("#replace-resume-button").hidden = false;
         const item = document.createElement("li");
         item.textContent = "No resumes saved.";
         list.append(item);
       }
     }
+
+    function updateGenerateButtonState() {
+      const missingResume = !resumeAvailable;
+      const missingJobDescription = !jobDescription.value.trim();
+      const disabled = generationInProgress || missingResume || missingJobDescription;
+      const reason = generationInProgress
+        ? "Your letter is being generated."
+        : missingResume
+          ? "Upload and select a resume before generating a letter."
+          : missingJobDescription
+            ? "Enter a job description before generating a letter."
+            : "";
+      generateButton.disabled = disabled;
+      generateTooltip.classList.toggle("is-disabled", disabled);
+      generateTooltip.dataset.tooltip = reason;
+      generateTooltip.title = reason;
+    }
+
+    function setBusyOverlay(inProgress, title = "") {
+      generationOverlay.hidden = !inProgress;
+      document.body.setAttribute("aria-busy", String(inProgress));
+      generationUiElements.forEach((element) => {
+        element.inert = inProgress;
+      });
+      if (title) generationOverlayTitle.textContent = title;
+    }
+
+    async function withSetupTransition(title, action) {
+      const startedAt = Date.now();
+      let progressTimer;
+      setBusyOverlay(true, title);
+      generationProgressLabel.textContent = "Step transition";
+      updateGenerationProgress(0);
+      progressTimer = setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        updateGenerationProgress(Math.min(90, Math.floor(elapsed / 3)));
+      }, 30);
+      try {
+        await action();
+        await new Promise((resolve) => setTimeout(resolve, Math.max(0, 300 - (Date.now() - startedAt))));
+        clearInterval(progressTimer);
+        generationOverlayTitle.textContent = "Step ready.";
+        generationProgressLabel.textContent = "Transition complete";
+        updateGenerationProgress(100);
+        await new Promise((resolve) => setTimeout(resolve, 180));
+      } finally {
+        clearInterval(progressTimer);
+        setBusyOverlay(false);
+      }
+    }
+
+    function setGenerationInProgress(inProgress) {
+      generationInProgress = inProgress;
+      if (generationProgressTimer !== null) {
+        clearInterval(generationProgressTimer);
+        generationProgressTimer = null;
+      }
+      setBusyOverlay(inProgress);
+      if (inProgress) {
+        generationProgressLabel.textContent = "Estimated progress";
+        generationStartedAt = Date.now();
+        generationOverlayTitle.textContent = generationFormat.value === "motivation-message"
+          ? "Generating your motivation message..."
+          : "Generating your covering letter...";
+        updateGenerationProgress(0);
+        generationProgressTimer = setInterval(() => {
+          const elapsedSeconds = (Date.now() - generationStartedAt) / 1000;
+          const estimatedProgress = Math.min(95, Math.floor(95 * (1 - Math.exp(-elapsedSeconds / 20))));
+          updateGenerationProgress(estimatedProgress);
+        }, 250);
+      }
+      updateGenerateButtonState();
+    }
+
+    function updateGenerationProgress(percent) {
+      generationProgressBar.style.width = `${percent}%`;
+      generationProgressPercent.textContent = `${percent}%`;
+      generationProgressTrack.setAttribute("aria-valuenow", String(percent));
+    }
+
+    jobDescription.addEventListener("input", updateGenerateButtonState);
 
     async function refreshSupportingDocuments() {
       const documents = await requestJson("/api/supporting-documents");
@@ -613,24 +895,103 @@
       }
     }
 
+    async function recordUserAction(action) {
+      try {
+        await requestJson("/api/logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action })
+        });
+        await refreshLogs();
+      } catch {
+        document.querySelector("#log-state").textContent = "Unavailable";
+      }
+    }
+
+    function generationFormatAction(select) {
+      const format = select.value === "motivation-message"
+        ? "short motivation note"
+        : "complete covering letter";
+      return `Selected ${format} format`;
+    }
+
+    ["#setup-format", "#generation-format"].forEach((selector) => {
+      document.querySelector(selector).addEventListener("change", (event) => {
+        if (event.isTrusted) recordUserAction(generationFormatAction(event.currentTarget));
+      });
+    });
+
+    function describeButtonAction(button) {
+      const actions = {
+        "settings-open": "Opened settings",
+        "settings-close": "Closed settings",
+        "setup-save": "Saved initial settings",
+        "setup-load-models": "Saved the Gemini API key and loaded models during setup",
+        "setup-load-models-existing-key": "Loaded Gemini models during setup",
+        "setup-upload-resumes": "Opened resume upload during setup",
+        "setup-clear-resumes": "Started clearing all resumes during setup",
+        "setup-resume-next": "Continued setup with selected resume",
+        "setup-upload-supporting": "Opened supporting-document upload during setup",
+        "setup-clear-supporting": "Started clearing all supporting documents during setup",
+        "setup-supporting-next": "Continued setup with supporting documents",
+        "setup-format-next": "Continued to job description",
+        "setup-generate": "Started first cover-letter generation",
+        "replace-resume-button": "Opened resume upload",
+        "clear-resumes": "Started clearing all resumes",
+        "save-resume": "Started saving resumes",
+        "cancel-resume": "Cancelled resume upload",
+        "replace-supporting-button": "Opened supporting-document upload",
+        "clear-supporting": "Started clearing all supporting documents",
+        "save-supporting": "Started saving supporting documents",
+        "cancel-supporting": "Cancelled supporting-document upload",
+        "generate": "Started generating a cover letter",
+        "download": "Started downloading the cover-letter PDF",
+        "start-over": "Started a new application",
+        "settings-key-visibility": "Changed API-key visibility",
+        "settings-update-key": "Started updating the Gemini API key",
+        "settings-load-models": "Loaded Gemini models in settings",
+        "settings-save": "Saved Gemini settings"
+      };
+      if (actions[button.id]) return actions[button.id];
+      if (button.hasAttribute("data-setup-back")) {
+        const previousSteps = {
+          "setup-key-step": "API key",
+          "setup-model-step": "model selection",
+          "setup-resume-step": "resume selection",
+          "setup-supporting-step": "supporting documents",
+          "setup-format-step": "generation options"
+        };
+        const step = previousSteps[button.dataset.setupBack];
+        return step ? `Returned to ${step} setup step` : "Went back in setup";
+      }
+      if (button.classList.contains("remove-document")) {
+        const list = button.closest("#resume-list, #setup-resume-list, #supporting-list, #setup-supporting-list");
+        const kind = list && (list.id.includes("supporting") ? "supporting document" : "resume");
+        const filename = button.getAttribute("aria-label")?.replace(/^Remove\s+/, "");
+        return `Started removing ${kind || "document"}${filename ? `: ${filename}` : ""}`;
+      }
+      if (button.id === "log-toggle") {
+        return button.textContent.trim() === "Minimize" ? "Minimized the activity log" : "Expanded the activity log";
+      }
+      return `Clicked button: ${button.textContent.trim()}`;
+    }
+
+    document.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest("button");
+      if (!button || button.id === "copy") return;
+      const action = describeButtonAction(button);
+      if (action) recordUserAction(action);
+    });
+
     const activityPanel = document.querySelector(".log-panel");
     const activityToggle = document.querySelector("#log-toggle");
     activityToggle.addEventListener("click", () => {
       const minimized = activityPanel.classList.toggle("is-minimized");
       activityToggle.textContent = minimized ? "Expand" : "Minimize";
       activityToggle.setAttribute("aria-expanded", String(!minimized));
-      activityPanel.title = minimized ? "Expand to view user activity" : "Drag the bottom-right corner to resize";
+      activityPanel.title = minimized ? "Expand to view user activity" : "";
     });
-    if ("ResizeObserver" in window) {
-      const baseArea = 390 * 210;
-      new ResizeObserver(([entry]) => {
-        if (activityPanel.classList.contains("is-minimized")) return;
-        const { width, height } = entry.contentRect;
-        const scale = Math.sqrt((width * height) / baseArea);
-        const fontSize = Math.min(16, Math.max(9, 11 * scale));
-        activityPanel.style.setProperty("--log-font-size", `${fontSize.toFixed(1)}px`);
-      }).observe(activityPanel);
-    }
 
     function setModelOptions(select, models, selected = "") {
       select.replaceChildren();
@@ -694,22 +1055,59 @@
 
     document.querySelector("#setup-load-models").addEventListener("click", async (event) => {
       const key = document.querySelector("#setup-key").value;
-      if (!key.trim()) {
+      if (!key.trim() && !setupApiKeyConfigured) {
         const message = document.querySelector("#setup-status");
         message.textContent = "Enter your Gemini API key.";
         message.classList.add("error");
         return;
       }
-      const success = await loadModels(
-        key,
-        document.querySelector("#setup-model"),
-        document.querySelector("#setup-status"),
-        event.currentTarget
-      );
+      const button = event.currentTarget;
+      const modelSelect = document.querySelector("#setup-model");
+      const message = document.querySelector("#setup-status");
+      button.disabled = true;
+      message.classList.remove("error");
+      message.textContent = key.trim() ? "Validating and saving your API key..." : "Loading available models...";
+      let success = false;
+      try {
+        if (key.trim()) {
+          const selectedModel = modelSelect.value || activeModel || recommendedModel;
+          const models = await requestJson("/api/settings/api-key", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ apiKey: key })
+          });
+          setModelOptions(modelSelect, models, selectedModel);
+          setupApiKeyConfigured = true;
+          message.textContent = `API key saved. ${models.length} text-generation models available.`;
+          success = true;
+        } else {
+          success = await loadModels(
+            "",
+            modelSelect,
+            message,
+            button
+          );
+        }
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add("error");
+      } finally {
+        button.disabled = false;
+      }
       if (success) {
-        showSetupStep("setup-model-step");
+        await withSetupTransition("Preparing model selection...", async () => {
+          showSetupStep("setup-model-step");
+        });
         document.querySelector("#setup-model").focus();
       }
+    });
+
+    document.querySelector("#setup-key-visibility").addEventListener("click", (event) => {
+      const input = document.querySelector("#setup-key");
+      const visible = input.type === "password";
+      input.type = visible ? "text" : "password";
+      event.currentTarget.textContent = visible ? "Hide" : "Show";
+      event.currentTarget.setAttribute("aria-pressed", String(visible));
     });
 
     document.querySelector("#setup-load-models-existing-key").addEventListener("click", async (event) => {
@@ -731,13 +1129,27 @@
         return;
       }
       if (await saveSettings(key, model, document.querySelector("#setup-status"), event.currentTarget)) {
-        document.querySelector("#setup-key").value = "";
-        await refreshApp();
+        await withSetupTransition("Preparing your application setup...", async () => {
+          document.querySelector("#setup-key").value = "";
+          await refreshApp();
+        });
       }
     });
 
     document.querySelector("#setup-resume-file").addEventListener("change", (event) => {
       document.querySelector("#setup-upload-resumes").disabled = event.currentTarget.files.length === 0;
+    });
+    document.querySelector("#setup-clear-resumes").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await requestJson("/api/resume", { method: "DELETE" });
+        await refreshSetupResumes();
+      } catch (error) {
+        showSetupError(error);
+      } finally {
+        button.disabled = false;
+      }
     });
     document.querySelector("#setup-upload-resumes").addEventListener("click", async (event) => {
       const input = document.querySelector("#setup-resume-file");
@@ -750,7 +1162,7 @@
       message.classList.remove("error");
       message.textContent = "Validating and saving resumes...";
       try {
-        await requestJson("/api/resume", { method: "POST", body: data });
+        await uploadFiles("/api/resume", data, "Uploading and saving resumes...");
         input.value = "";
         message.textContent = "Resumes saved. Select the one to use.";
         await refreshSetupResumes();
@@ -769,8 +1181,10 @@
           message.classList.add("error");
           return;
         }
-        showSetupStep("setup-supporting-step");
-        await refreshSetupSupportingDocuments();
+        await withSetupTransition("Opening supporting documents...", async () => {
+          showSetupStep("setup-supporting-step");
+          await refreshSetupSupportingDocuments();
+        });
         document.querySelector("#setup-supporting-file").focus();
       } catch (error) {
         showSetupError(error);
@@ -778,6 +1192,18 @@
     });
     document.querySelector("#setup-supporting-file").addEventListener("change", (event) => {
       document.querySelector("#setup-upload-supporting").disabled = event.currentTarget.files.length === 0;
+    });
+    document.querySelector("#setup-clear-supporting").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await requestJson("/api/supporting-documents", { method: "DELETE" });
+        await refreshSetupSupportingDocuments();
+      } catch (error) {
+        showSetupError(error);
+      } finally {
+        button.disabled = false;
+      }
     });
     document.querySelector("#setup-upload-supporting").addEventListener("click", async (event) => {
       const input = document.querySelector("#setup-supporting-file");
@@ -790,7 +1216,7 @@
       message.classList.remove("error");
       message.textContent = "Validating and saving supporting documents...";
       try {
-        await requestJson("/api/supporting-documents", { method: "POST", body: data });
+        await uploadFiles("/api/supporting-documents", data, "Uploading and saving supporting documents...");
         input.value = "";
         message.textContent = "Supporting documents saved. Choose which ones to include.";
         await refreshSetupSupportingDocuments();
@@ -800,12 +1226,16 @@
         button.disabled = input.files.length === 0;
       }
     });
-    document.querySelector("#setup-supporting-next").addEventListener("click", () => {
-      showSetupStep("setup-format-step");
+    document.querySelector("#setup-supporting-next").addEventListener("click", async () => {
+      await withSetupTransition("Preparing generation options...", async () => {
+        showSetupStep("setup-format-step");
+      });
       document.querySelector("#setup-format").focus();
     });
-    document.querySelector("#setup-format-next").addEventListener("click", () => {
-      showSetupStep("setup-job-step");
+    document.querySelector("#setup-format-next").addEventListener("click", async () => {
+      await withSetupTransition("Preparing the job description step...", async () => {
+        showSetupStep("setup-job-step");
+      });
       document.querySelector("#setup-job").focus();
     });
     document.querySelector("#setup-generate").addEventListener("click", async () => {
@@ -820,7 +1250,9 @@
       try {
         const resume = await requestJson("/api/resume");
         if (!resume.configured) {
-          showSetupStep("setup-resume-step");
+          await withSetupTransition("Returning to resume setup...", async () => {
+            showSetupStep("setup-resume-step");
+          });
           const message = document.querySelector("#setup-status");
           message.textContent = "Add and select a resume before generating.";
           message.classList.add("error");
@@ -976,7 +1408,7 @@
       message.classList.remove("error");
       message.textContent = "Validating and saving resumes...";
       try {
-        await requestJson("/api/resume", { method: "POST", body: data });
+        await uploadFiles("/api/resume", data, "Uploading and saving resumes...");
         input.value = "";
         document.querySelector("#resume-form").hidden = true;
         message.textContent = "Resumes saved. Choose which one to use for generation.";
@@ -995,6 +1427,9 @@
       const button = event.currentTarget;
       const message = document.querySelector("#resume-message");
       button.disabled = true;
+      document.querySelector("#resume-form").hidden = true;
+      document.querySelector("#resume-form").reset();
+      document.querySelector("#save-resume").disabled = true;
       message.classList.remove("error");
       message.textContent = "Clearing saved resumes...";
       try {
@@ -1023,7 +1458,7 @@
       message.classList.remove("error");
       message.textContent = "Validating and saving files...";
       try {
-        await requestJson("/api/supporting-documents", { method: "POST", body: data });
+        await uploadFiles("/api/supporting-documents", data, "Uploading and saving supporting documents...");
         input.value = "";
         document.querySelector("#supporting-form").hidden = true;
         message.textContent = "Supporting documents saved.";
@@ -1072,8 +1507,9 @@
       const data = new FormData();
       data.append("jobDescription", document.querySelector("#job").value);
       data.append("format", generationFormat.value);
-      const button = document.querySelector("#generate");
-      button.disabled = true;
+      setGenerationInProgress(true);
+      copyStatus.textContent = "";
+      copyStatus.classList.remove("success", "error");
       status.classList.remove("error");
       const motivationMessage = generationFormat.value === "motivation-message";
       status.textContent = motivationMessage
@@ -1085,24 +1521,35 @@
         letter.value = body.letter;
         detectedJobTitle = body.jobTitle;
         detectedApplicantName = body.applicantName;
+        detectedCompanyName = body.companyName || "";
         document.querySelector("#detected-details").textContent =
-          `Resume name: ${detectedApplicantName} · Detected job title: ${detectedJobTitle}`;
+          `Resume name: ${detectedApplicantName}${detectedCompanyName ? ` · Company: ${detectedCompanyName}` : ""} · Detected job title: ${detectedJobTitle}`;
         result.hidden = false;
         status.textContent = motivationMessage
           ? "Message ready. Review and edit it before copying."
           : "Letter ready. Review and edit it before downloading.";
+        if (generationProgressTimer !== null) {
+          clearInterval(generationProgressTimer);
+          generationProgressTimer = null;
+        }
+        updateGenerationProgress(100);
+        generationOverlayTitle.textContent = motivationMessage ? "Your message is ready." : "Your letter is ready.";
+        await new Promise((resolve) => setTimeout(resolve, 450));
       } catch (error) {
         status.textContent = error.message || "Something went wrong. Please try again.";
         status.classList.add("error");
       } finally {
-        button.disabled = false;
+        setGenerationInProgress(false);
       }
     });
 
     document.querySelector("#start-over").addEventListener("click", () => {
-      document.querySelector("#job").value = "";
+      jobDescription.value = "";
+      updateGenerateButtonState();
       document.querySelector("#setup-job").value = "";
       letter.value = "";
+      copyStatus.textContent = "";
+      copyStatus.classList.remove("success", "error");
       document.querySelector("#detected-details").textContent = "";
       result.hidden = true;
       status.textContent = "";
@@ -1123,7 +1570,8 @@
           body: JSON.stringify({
             letter: letter.value,
             personName: detectedApplicantName,
-            jobTitle: detectedJobTitle
+            jobTitle: detectedJobTitle,
+            companyName: detectedCompanyName
           })
         });
         if (!response.ok) throw new Error(await responseError(response, "Could not create the PDF."));
@@ -1145,16 +1593,25 @@
     });
 
     document.querySelector("#copy").addEventListener("click", async () => {
+      copyStatus.textContent = "";
+      copyStatus.classList.remove("success", "error");
       try {
         await navigator.clipboard.writeText(letter.value);
-        status.textContent = generationFormat.value === "motivation-message"
+        copyStatus.textContent = generationFormat.value === "motivation-message"
           ? "Motivation message copied to clipboard."
           : "Covering letter copied to clipboard.";
-        status.classList.remove("error");
+        copyStatus.classList.add("success");
+        await recordUserAction(copyStatus.textContent);
       } catch {
-        status.textContent = "Clipboard access was denied by your browser.";
-        status.classList.add("error");
+        copyStatus.textContent = "Clipboard access was denied by your browser.";
+        copyStatus.classList.add("error");
+        await recordUserAction("Clipboard copy failed.");
       }
+    });
+
+    letter.addEventListener("input", () => {
+      copyStatus.textContent = "";
+      copyStatus.classList.remove("success", "error");
     });
 
     refreshApp().catch((error) => {

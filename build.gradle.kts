@@ -20,6 +20,9 @@ repositories {
 }
 
 dependencies {
+	implementation(platform("org.springframework.ai:spring-ai-bom:2.0.2"))
+	implementation("org.springframework.ai:spring-ai-starter-mcp-server-webflux")
+	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webclient")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
 	implementation("org.apache.pdfbox:pdfbox:3.0.6")

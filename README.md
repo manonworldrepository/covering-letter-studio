@@ -122,6 +122,8 @@ The Gradle wrapper downloads Gradle and project dependencies on first use, so an
 
 The app is configured for single-user local use and binds to `127.0.0.1`. The saved resume and supporting documents are stored under `.data`, which is excluded from Git. Extracted document text and the job description are sent to Google Gemini for generation. Only text-based PDFs are supported; scanned/image-only documents require OCR and cannot currently be extracted. Each file can be up to 10 MB, with extracted document text limited to 100,000 characters total.
 
+The app also exposes an MCP Streamable HTTP server at `http://127.0.0.1:8080/mcp`. It provides a `generate_cover_letter` tool that uses the same selected resume, supporting documents, and saved Gemini settings as the web app. Connect an MCP client to this endpoint to generate a covering letter or motivation message. The MCP server is unauthenticated, so keep the app bound to localhost; it sends the supplied job description and selected document text to Gemini through Gemini's API.
+
 The resizable **User activity** panel shows actions including the selected Gemini model when a request is sent and when a reply arrives. It does not show technical application logs. If Gemini reports that a model is busy or another Gemini error occurs, use **Settings** to select another available model.
 
 ## Tests
