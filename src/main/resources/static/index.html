@@ -65,7 +65,7 @@
     .document-list input[type="radio"], .document-list input[type="checkbox"] { width: auto; margin: 0 9px 0 0; }
     .document-choice { display: flex; align-items: center; margin: 0; font-weight: 500; cursor: pointer; }
     .document-list .remove-document { color: #ad2938; background: #fff; border: 1px solid #e6e8ed; }
-    .log-panel { position: fixed; right: 18px; bottom: 18px; z-index: 4; display: flex; flex-direction: column; width: min(420px, calc(100vw - 36px)); height: 280px; min-width: min(320px, calc(100vw - 36px)); max-width: calc(100vw - 36px); max-height: 80vh; padding: 12px; overflow: hidden; resize: none; border: 1px solid #303c55; border-radius: 12px; background: #172033; color: #e6ebf4; box-shadow: 0 10px 34px #10182840; }
+    .log-panel { position: fixed; right: 18px; bottom: 18px; z-index: 11; display: flex; flex-direction: column; width: min(420px, calc(100vw - 36px)); height: 280px; min-width: min(320px, calc(100vw - 36px)); max-width: calc(100vw - 36px); max-height: 80vh; padding: 12px; overflow: hidden; resize: none; border: 1px solid #303c55; border-radius: 12px; background: #172033; color: #e6ebf4; box-shadow: 0 10px 34px #10182840; }
     .log-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
     .log-heading button { width: auto; max-width: none; flex: 0 0 auto; padding: 4px 8px; border: 1px solid #66728a; background: transparent; color: inherit; font-size: 11px; }
     #log-entries { flex: 1; min-height: 0; overflow-y: auto; font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
@@ -335,8 +335,7 @@
     const generationUiElements = [
       document.querySelector("header"),
       document.querySelector("main"),
-      document.querySelector("#settings-modal"),
-      document.querySelector(".log-panel")
+      document.querySelector("#settings-modal")
     ];
     let resumeAvailable = false;
     let generationInProgress = false;
@@ -642,7 +641,10 @@
       const list = document.querySelector("#resume-list");
       list.replaceChildren();
       const hasResumes = resume.resumes.length > 0;
+      document.querySelector("#setup-clear-resumes").hidden = !hasResumes;
+      document.querySelector("#setup-clear-resumes").disabled = !hasResumes;
       document.querySelector("#clear-resumes").hidden = !hasResumes;
+      document.querySelector("#clear-resumes").disabled = !hasResumes;
       document.querySelector("#replace-resume-button").hidden = !hasResumes;
       resumeAvailable = resume.configured;
       if (resume.configured) {
