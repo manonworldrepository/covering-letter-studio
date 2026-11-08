@@ -141,3 +141,29 @@ Run the test suite with the Gradle wrapper:
 ```bash
 ./gradlew test
 ```
+
+## GitHub release builds
+
+A GitHub Actions workflow is included at `.github/workflows/release-native.yml`.
+
+It builds a native executable for:
+- Windows (`coveringletter-windows-x64.zip`)
+- Linux (`coveringletter-linux-x64.tar.gz`)
+- macOS (`coveringletter-macos-x64.tar.gz`)
+
+It publishes those files as assets on a GitHub Release when a version tag is pushed, for example:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+You can also start the workflow manually from the GitHub Actions tab with **Run workflow**.
+
+Each archive contains the native app binary. On macOS and Linux you may need to mark the binary as executable before running it:
+
+```bash
+chmod +x ./coveringletter
+```
+
+On Windows, unzip the package and run `coveringletter.exe` directly.
