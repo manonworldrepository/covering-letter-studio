@@ -53,3 +53,11 @@ kotlin {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+graalvmNative {
+	binaries {
+		named("main") {
+			buildArgs.add("--enable-url-protocols=http,https")
+		}
+	}
+}
