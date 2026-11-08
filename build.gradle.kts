@@ -57,6 +57,7 @@ tasks.withType<Test> {
 graalvmNative {
 	binaries {
 		named("main") {
+			buildArgs.add("--enable-https")
 			buildArgs.add("--enable-url-protocols=http,https")
 		}
 	}

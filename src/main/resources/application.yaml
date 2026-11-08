@@ -34,4 +34,4 @@ coverletter:
     directory: ${COVERLETTER_STORAGE_DIR:.data}
 
 server:
-  address: 127.0.0.1
+  address: ${SERVER_ADDRESS:127.0.0.1}
