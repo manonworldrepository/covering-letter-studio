@@ -83,14 +83,38 @@
     .generation-progress-bar { width: 0; height: 100%; border-radius: inherit; background: #3158d5; transition: width .25s ease; }
     .generation-progress-details { display: flex; justify-content: space-between; gap: 12px; margin-top: 9px; color: #59667e; font-size: 12px; }
     @media (max-width: 580px) { header { padding-top: 14px; padding-bottom: 14px; } main { margin-top: 30px; } }
-    @media (max-width: 455px) { #log-state { display: none; } .log-heading { flex-wrap: wrap; } .log-panel.is-minimized { height: 82px; } }
+    .nav-menu { display: flex; align-items: center; gap: 6px; }
+    .applied-jobs-search-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 16px; }
+    .applied-jobs-search-row .field { flex: 1; margin-bottom: 0; }
+    .applied-jobs-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 12px; }
+    .applied-jobs-table th { text-align: left; font-size: 13px; font-weight: 600; color: #1a56db; padding: 10px 12px; border-bottom: 2px solid #3158d5; background-color: #e8efff; }
+    .applied-jobs-table th:first-child { border-top-left-radius: 8px; }
+    .applied-jobs-table th:last-child { border-top-right-radius: 8px; }
+    .applied-jobs-table td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid #f0f4f8; transition: background-color 0.15s ease; }
+    .applied-jobs-table tbody tr:nth-child(odd) { background-color: #f0f6ff; }
+    .applied-jobs-table tbody tr:nth-child(even) { background-color: #e0edff; }
+    .applied-jobs-table tbody tr:hover { background-color: #c5d9ff; }
+    .applied-jobs-table tbody tr:focus-within { background-color: #c5d9ff; }
+    .applied-jobs-table td:hover { background-color: #b8ccff; }
+    .applied-jobs-table td:focus { background-color: #b8ccff; outline: none; }
+    .applied-jobs-table td.col-highlight { background-color: #d0dcff; }
+    .applied-jobs-table .col-title { color: #1a56db; font-weight: 600; }
+    .applied-jobs-table .col-company { color: #3b82f6; }
+    .applied-jobs-table .col-date { color: #60a5fa; }
+    .applied-jobs-table .col-actions { text-align: right; white-space: nowrap; }
+    .applied-jobs-table .col-actions button { font-size: 12px; padding: 4px 10px; }
+    .applied-jobs-table tfoot td { padding-top: 12px; font-size: 12px; color: #59667e; }
   </style>
 </head>
 <body>
   <header>
     <div class="header-inner">
       <div class="brand"><span class="brand-mark" aria-hidden="true">C</span> Cover Letter Studio</div>
-      <button class="tertiary" id="settings-open" type="button" aria-haspopup="dialog" hidden>Settings</button>
+      <nav class="nav-menu" id="nav-menu" hidden>
+        <button class="tertiary active" id="nav-cover-letter" type="button">Cover Letter</button>
+        <button class="tertiary" id="nav-applied-jobs" type="button">Applied Jobs</button>
+        <button class="tertiary" id="settings-open" type="button" aria-haspopup="dialog">Settings</button>
+      </nav>
     </div>
   </header>
   <main>
@@ -254,8 +278,67 @@
           <button class="primary" id="download" type="button">Download PDF</button>
           <button class="secondary" id="copy" type="button">Copy text</button>
           <span class="status" id="copy-status" role="status" aria-live="polite"></span>
+          <button class="secondary" id="add-applied-job" type="button">Add to applied jobs</button>
+          <span class="status" id="applied-job-status" role="status" aria-live="polite"></span>
           <button class="secondary" id="start-over" type="button">Start a new application</button>
         </div>
+      </section>
+    </section>
+
+    <section id="applied-jobs-page" hidden>
+      <div class="intro">
+        <h1>Applied Jobs</h1>
+        <p>Track the jobs you have applied to. Entries are kept for 30 days.</p>
+      </div>
+      <section class="card" aria-labelledby="applied-jobs-heading">
+        <h2 id="applied-jobs-heading">Your applications</h2>
+        <div class="actions" style="margin-bottom:12px">
+          <button class="primary" id="applied-jobs-export-all" type="button">Export all as PDF</button>
+        </div>
+        <div class="applied-jobs-search-row">
+          <div class="field">
+            <label for="applied-jobs-search">Search</label>
+            <input id="applied-jobs-search" type="text" placeholder="Search by company or job title...">
+          </div>
+          <button class="primary" id="applied-jobs-search-btn" type="button">Search</button>
+        </div>
+        <div class="field">
+          <label>Date filter</label>
+          <div class="actions" style="gap:8px">
+            <select id="applied-jobs-date-mode">
+              <option value="none">No date filter</option>
+              <option value="single">Single date</option>
+              <option value="range">Date range</option>
+            </select>
+          </div>
+        </div>
+        <div id="applied-jobs-date-single" class="field" hidden>
+          <label for="applied-jobs-date-from">Date</label>
+          <input id="applied-jobs-date-from" type="date">
+        </div>
+        <div id="applied-jobs-date-range" hidden>
+          <div class="field">
+            <label for="applied-jobs-date-range-from">From</label>
+            <input id="applied-jobs-date-range-from" type="date">
+          </div>
+          <div class="field">
+            <label for="applied-jobs-date-range-to">To</label>
+            <input id="applied-jobs-date-range-to" type="date">
+          </div>
+        </div>
+        <div class="field">
+          <label for="applied-jobs-sort">Sort by</label>
+          <div class="actions" style="gap:8px">
+            <select id="applied-jobs-sort">
+              <option value="date">Date</option>
+              <option value="title">Job Title</option>
+              <option value="company">Company</option>
+            </select>
+            <button class="secondary" id="applied-jobs-sort-order" type="button">Newest first</button>
+          </div>
+        </div>
+        <div id="applied-jobs-table-wrap"></div>
+        <p class="hint" id="applied-jobs-empty" hidden>No applied jobs yet. Generate a cover letter and click "Add to applied jobs" to start tracking.</p>
       </section>
     </section>
   </main>
@@ -468,8 +551,10 @@
         return;
       }
       settingsOpen.hidden = false;
+      document.querySelector("#nav-menu").hidden = false;
       setup.hidden = true;
       workspace.hidden = false;
+      showPage("cover-letter");
       await refreshResume();
       await refreshSupportingDocuments();
     }
@@ -1614,6 +1699,260 @@
     letter.addEventListener("input", () => {
       copyStatus.textContent = "";
       copyStatus.classList.remove("success", "error");
+    });
+
+    const appliedJobsPage = document.querySelector("#applied-jobs-page");
+    const navCoverLetter = document.querySelector("#nav-cover-letter");
+    const navAppliedJobs = document.querySelector("#nav-applied-jobs");
+    const appliedJobsTableWrap = document.querySelector("#applied-jobs-table-wrap");
+    const appliedJobsEmpty = document.querySelector("#applied-jobs-empty");
+    const appliedJobsSearch = document.querySelector("#applied-jobs-search");
+    const appliedJobsSearchBtn = document.querySelector("#applied-jobs-search-btn");
+    const appliedJobsDateMode = document.querySelector("#applied-jobs-date-mode");
+    const appliedJobsDateSingle = document.querySelector("#applied-jobs-date-single");
+    const appliedJobsDateFrom = document.querySelector("#applied-jobs-date-from");
+    const appliedJobsDateRange = document.querySelector("#applied-jobs-date-range");
+    const appliedJobsDateRangeFrom = document.querySelector("#applied-jobs-date-range-from");
+    const appliedJobsDateRangeTo = document.querySelector("#applied-jobs-date-range-to");
+    const appliedJobsSort = document.querySelector("#applied-jobs-sort");
+    const appliedJobsSortOrder = document.querySelector("#applied-jobs-sort-order");
+    let appliedJobsSortAsc = false;
+
+    appliedJobsDateMode.addEventListener("change", () => {
+      const mode = appliedJobsDateMode.value;
+      appliedJobsDateSingle.hidden = mode !== "single";
+      appliedJobsDateRange.hidden = mode !== "range";
+      loadAppliedJobs();
+    });
+    appliedJobsDateFrom.addEventListener("change", () => loadAppliedJobs());
+    appliedJobsDateRangeFrom.addEventListener("change", () => loadAppliedJobs());
+    appliedJobsDateRangeTo.addEventListener("change", () => loadAppliedJobs());
+
+    function showPage(page) {
+      if (page === "cover-letter") {
+        workspace.hidden = false;
+        appliedJobsPage.hidden = true;
+        navCoverLetter.classList.add("active");
+        navAppliedJobs.classList.remove("active");
+      } else if (page === "applied-jobs") {
+        workspace.hidden = true;
+        appliedJobsPage.hidden = false;
+        navCoverLetter.classList.remove("active");
+        navAppliedJobs.classList.add("active");
+        loadAppliedJobs();
+      }
+    }
+
+    navCoverLetter.addEventListener("click", () => showPage("cover-letter"));
+    navAppliedJobs.addEventListener("click", () => showPage("applied-jobs"));
+
+    appliedJobsSearch.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") loadAppliedJobs();
+    });
+    appliedJobsSearchBtn.addEventListener("click", () => loadAppliedJobs());
+    appliedJobsSort.addEventListener("change", () => loadAppliedJobs());
+    appliedJobsSortOrder.addEventListener("click", () => {
+      appliedJobsSortAsc = !appliedJobsSortAsc;
+      appliedJobsSortOrder.textContent = appliedJobsSortAsc ? "Oldest first" : "Newest first";
+      loadAppliedJobs();
+    });
+
+    async function loadAppliedJobs() {
+      const search = appliedJobsSearch.value.trim();
+      const sortBy = appliedJobsSort.value;
+      const sortOrder = appliedJobsSortAsc ? "asc" : "desc";
+      const dateMode = appliedJobsDateMode.value;
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (dateMode === "single" && appliedJobsDateFrom.value) {
+        params.set("dateFrom", appliedJobsDateFrom.value);
+        params.set("dateTo", appliedJobsDateFrom.value);
+      } else if (dateMode === "range") {
+        if (appliedJobsDateRangeFrom.value) params.set("dateFrom", appliedJobsDateRangeFrom.value);
+        if (appliedJobsDateRangeTo.value) params.set("dateTo", appliedJobsDateRangeTo.value);
+      }
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      try {
+        const jobs = await requestJson(`/api/applied-jobs?${params.toString()}`);
+        appliedJobsTableWrap.replaceChildren();
+        if (jobs.length === 0) {
+          appliedJobsEmpty.hidden = false;
+          return;
+        }
+        appliedJobsEmpty.hidden = true;
+        const table = document.createElement("table");
+        table.className = "applied-jobs-table";
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        ["Job Title", "Company", "Date Applied", "Actions"].forEach((text) => {
+          const th = document.createElement("th");
+          th.textContent = text;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        jobs.forEach((job) => {
+          const tr = document.createElement("tr");
+          const date = new Date(job.appliedDate);
+          const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+          const tdTitle = document.createElement("td");
+          tdTitle.className = "col-title";
+          tdTitle.tabIndex = 0;
+          tdTitle.textContent = job.jobTitle;
+          tr.appendChild(tdTitle);
+          const tdCompany = document.createElement("td");
+          tdCompany.className = "col-company";
+          tdCompany.tabIndex = 0;
+          tdCompany.textContent = job.company;
+          tr.appendChild(tdCompany);
+          const tdDate = document.createElement("td");
+          tdDate.className = "col-date";
+          tdDate.tabIndex = 0;
+          tdDate.textContent = dateStr;
+          tr.appendChild(tdDate);
+          const tdActions = document.createElement("td");
+          tdActions.className = "col-actions";
+          const exportBtn = document.createElement("button");
+          exportBtn.className = "secondary";
+          exportBtn.type = "button";
+          exportBtn.textContent = "Export PDF";
+          exportBtn.setAttribute("aria-label", `Export ${job.jobTitle} at ${job.company} as PDF`);
+          exportBtn.addEventListener("click", () => downloadSingleJobPdf(job.id));
+          tdActions.appendChild(exportBtn);
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "secondary";
+          removeBtn.type = "button";
+          removeBtn.textContent = "Remove";
+          removeBtn.setAttribute("aria-label", `Remove ${job.jobTitle} at ${job.company}`);
+          removeBtn.addEventListener("click", async () => {
+            try {
+              await fetch(`/api/applied-jobs/${job.id}`, { method: "DELETE" });
+              await loadAppliedJobs();
+            } catch (error) {
+              console.error("Failed to remove applied job:", error);
+            }
+          });
+          tdActions.appendChild(removeBtn);
+          tr.appendChild(tdActions);
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        const columnClassMap = { 0: "col-title", 1: "col-company", 2: "col-date", 3: "col-actions" };
+        tbody.addEventListener("mouseover", (e) => {
+          const td = e.target.closest("td");
+          if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
+          const colClass = columnClassMap[td.cellIndex];
+          tbody.querySelectorAll(`td.${colClass}`).forEach((cell) => cell.classList.add("col-highlight"));
+        });
+        tbody.addEventListener("mouseout", (e) => {
+          const td = e.target.closest("td");
+          if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
+          const colClass = columnClassMap[td.cellIndex];
+          tbody.querySelectorAll(`td.${colClass}.col-highlight`).forEach((cell) => cell.classList.remove("col-highlight"));
+        });
+        tbody.addEventListener("focusin", (e) => {
+          const td = e.target.closest("td");
+          if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
+          const colClass = columnClassMap[td.cellIndex];
+          tbody.querySelectorAll(`td.${colClass}`).forEach((cell) => cell.classList.add("col-highlight"));
+        });
+        tbody.addEventListener("focusout", (e) => {
+          const td = e.target.closest("td");
+          if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
+          const colClass = columnClassMap[td.cellIndex];
+          tbody.querySelectorAll(`td.${colClass}.col-highlight`).forEach((cell) => cell.classList.remove("col-highlight"));
+        });
+        const tfoot = document.createElement("tfoot");
+        const footRow = document.createElement("tr");
+        const footCell = document.createElement("td");
+        footCell.colSpan = 4;
+        footCell.textContent = `${jobs.length} job${jobs.length === 1 ? "" : "s"}`;
+        footRow.appendChild(footCell);
+        tfoot.appendChild(footRow);
+        table.appendChild(tfoot);
+        appliedJobsTableWrap.appendChild(table);
+      } catch (error) {
+        console.error("Failed to load applied jobs:", error);
+      }
+    }
+
+    const appliedJobStatus = document.querySelector("#applied-job-status");
+
+    async function downloadSingleJobPdf(id) {
+      try {
+        const response = await fetch(`/api/applied-jobs/${id}/pdf`);
+        if (!response.ok) throw new Error(await response.text() || "Failed to export PDF");
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "applied-job.pdf";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error("Failed to export job PDF:", error);
+      }
+    }
+
+    document.querySelector("#applied-jobs-export-all").addEventListener("click", async () => {
+      const search = appliedJobsSearch.value.trim();
+      const sortBy = appliedJobsSort.value;
+      const sortOrder = appliedJobsSortAsc ? "asc" : "desc";
+      const dateMode = appliedJobsDateMode.value;
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (dateMode === "single" && appliedJobsDateFrom.value) {
+        params.set("dateFrom", appliedJobsDateFrom.value);
+        params.set("dateTo", appliedJobsDateFrom.value);
+      } else if (dateMode === "range") {
+        if (appliedJobsDateRangeFrom.value) params.set("dateFrom", appliedJobsDateRangeFrom.value);
+        if (appliedJobsDateRangeTo.value) params.set("dateTo", appliedJobsDateRangeTo.value);
+      }
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      try {
+        const response = await fetch(`/api/applied-jobs/pdf?${params.toString()}`);
+        if (!response.ok) throw new Error(await response.text() || "Failed to export PDF");
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "applied-jobs.pdf";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error("Failed to export jobs list PDF:", error);
+      }
+    });
+
+    document.querySelector("#add-applied-job").addEventListener("click", async () => {
+      const company = detectedCompanyName.trim();
+      const jobTitle = detectedJobTitle.trim();
+      const jobDesc = jobDescription.value.trim();
+      if (!company || !jobTitle) {
+        appliedJobStatus.textContent = "Could not determine company or job title from the generated letter. Please generate a letter first.";
+        appliedJobStatus.classList.add("error");
+        return;
+      }
+      try {
+        await requestJson("/api/applied-jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ company, jobTitle, jobDescription: jobDesc })
+        });
+        appliedJobStatus.textContent = `Added "${jobTitle}" at "${company}" to your applied jobs list.`;
+        appliedJobStatus.classList.add("success");
+        await recordUserAction(`Added ${jobTitle} at ${company} to applied jobs`);
+      } catch (error) {
+        appliedJobStatus.textContent = error.message || "Failed to add to applied jobs.";
+        appliedJobStatus.classList.add("error");
+      }
     });
 
     refreshApp().catch((error) => {
