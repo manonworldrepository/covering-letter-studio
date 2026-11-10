@@ -98,11 +98,16 @@
     .applied-jobs-table td:hover { background-color: #b8ccff; }
     .applied-jobs-table td:focus { background-color: #b8ccff; outline: none; }
     .applied-jobs-table td.col-highlight { background-color: #d0dcff; }
-    .applied-jobs-table .col-title { color: #1a56db; font-weight: 600; }
-    .applied-jobs-table .col-company { color: #3b82f6; }
-    .applied-jobs-table .col-date { color: #60a5fa; }
-    .applied-jobs-table .col-actions { text-align: right; white-space: nowrap; }
+        .applied-jobs-table th.col-highlight { background-color: #d0dcff; }
+    .applied-jobs-table .col-title { color: #1a56db; font-weight: 600; white-space: nowrap; }
+    .applied-jobs-table .col-company { color: #3b82f6; white-space: nowrap; }
+    .applied-jobs-table .col-date { color: #60a5fa; white-space: nowrap; }
+    .applied-jobs-table .col-actions { display: flex; justify-content: flex-end; gap: 8px; white-space: nowrap; }
     .applied-jobs-table .col-actions button { font-size: 12px; padding: 4px 10px; }
+    .applied-jobs-table .col-actions .btn-export { color: #1a56db; border-color: #3158d5; background: #e8efff; }
+    .applied-jobs-table .col-actions .btn-export:hover { background: #d0dcff; }
+    .applied-jobs-table .col-actions .btn-remove { color: #ba3947; border-color: #ad2938; background: #fde8ec; }
+    .applied-jobs-table .col-actions .btn-remove:hover { background: #f9cfd6; }
     .applied-jobs-table tfoot td { padding-top: 12px; font-size: 12px; color: #59667e; }
   </style>
 </head>
@@ -277,9 +282,7 @@
         <div class="actions">
           <button class="primary" id="download" type="button">Download PDF</button>
           <button class="secondary" id="copy" type="button">Copy text</button>
-          <span class="status" id="copy-status" role="status" aria-live="polite"></span>
           <button class="secondary" id="add-applied-job" type="button">Add to applied jobs</button>
-          <span class="status" id="applied-job-status" role="status" aria-live="polite"></span>
           <button class="secondary" id="start-over" type="button">Start a new application</button>
         </div>
       </section>
@@ -404,7 +407,6 @@
     const settingsOpen = document.querySelector("#settings-open");
     const settingsModal = document.querySelector("#settings-modal");
     const status = document.querySelector("#status");
-    const copyStatus = document.querySelector("#copy-status");
     const result = document.querySelector("#result");
     const generateButton = document.querySelector("#generate");
     const generateTooltip = document.querySelector("#generate-tooltip");
@@ -438,8 +440,6 @@
 
     generationFormat.addEventListener("change", () => {
       const motivationMessage = generationFormat.value === "motivation-message";
-      copyStatus.textContent = "";
-      copyStatus.classList.remove("success", "error");
       result.hidden = true;
       document.querySelector("#generate").textContent =
         motivationMessage ? "Generate motivation message" : "Generate covering letter";
@@ -1595,8 +1595,6 @@
       data.append("jobDescription", document.querySelector("#job").value);
       data.append("format", generationFormat.value);
       setGenerationInProgress(true);
-      copyStatus.textContent = "";
-      copyStatus.classList.remove("success", "error");
       status.classList.remove("error");
       const motivationMessage = generationFormat.value === "motivation-message";
       status.textContent = motivationMessage
@@ -1635,8 +1633,6 @@
       updateGenerateButtonState();
       document.querySelector("#setup-job").value = "";
       letter.value = "";
-      copyStatus.textContent = "";
-      copyStatus.classList.remove("success", "error");
       document.querySelector("#detected-details").textContent = "";
       result.hidden = true;
       status.textContent = "";
@@ -1645,11 +1641,11 @@
       document.querySelector("#job").focus();
     });
 
-    document.querySelector("#download").addEventListener("click", async () => {
-      const download = document.querySelector("#download");
-      download.disabled = true;
-      status.classList.remove("error");
-      status.textContent = "Preparing your PDF...";
+    const downloadBtn = document.querySelector("#download");
+    const downloadOriginalText = downloadBtn.textContent;
+    downloadBtn.addEventListener("click", async () => {
+      downloadBtn.textContent = "Loading...";
+      downloadBtn.disabled = true;
       try {
         const response = await fetch("/api/pdf", {
           method: "POST",
@@ -1670,35 +1666,37 @@
         link.download = filename;
         link.click();
         URL.revokeObjectURL(url);
-        status.textContent = "PDF downloaded.";
+        showButtonMessage(downloadBtn, "Downloaded!", 3000, downloadOriginalText);
       } catch (error) {
-        status.textContent = error.message || "Could not create the PDF.";
-        status.classList.add("error");
-      } finally {
-        download.disabled = false;
+        showButtonMessage(downloadBtn, error.message || "Could not create the PDF.", 3000, downloadOriginalText);
       }
     });
 
-    document.querySelector("#copy").addEventListener("click", async () => {
-      copyStatus.textContent = "";
-      copyStatus.classList.remove("success", "error");
+    function showButtonMessage(button, message, duration, originalText) {
+      button.textContent = message;
+      button.disabled = true;
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+      }, duration);
+    }
+
+    const copyBtn = document.querySelector("#copy");
+    const copyOriginalText = copyBtn.textContent;
+    copyBtn.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(letter.value);
-        copyStatus.textContent = generationFormat.value === "motivation-message"
-          ? "Motivation message copied to clipboard."
-          : "Covering letter copied to clipboard.";
-        copyStatus.classList.add("success");
-        await recordUserAction(copyStatus.textContent);
+        await recordUserAction("Copied to clipboard");
+        showButtonMessage(copyBtn, "Copied!", 2000, copyOriginalText);
       } catch {
-        copyStatus.textContent = "Clipboard access was denied by your browser.";
-        copyStatus.classList.add("error");
+        showButtonMessage(copyBtn, "Clipboard denied", 3000, copyOriginalText);
         await recordUserAction("Clipboard copy failed.");
       }
     });
 
     letter.addEventListener("input", () => {
-      copyStatus.textContent = "";
-      copyStatus.classList.remove("success", "error");
+      status.textContent = "";
+      status.classList.remove("success", "error");
     });
 
     const appliedJobsPage = document.querySelector("#applied-jobs-page");
@@ -1815,14 +1813,14 @@
           const tdActions = document.createElement("td");
           tdActions.className = "col-actions";
           const exportBtn = document.createElement("button");
-          exportBtn.className = "secondary";
+          exportBtn.className = "secondary btn-export";
           exportBtn.type = "button";
           exportBtn.textContent = "Export PDF";
           exportBtn.setAttribute("aria-label", `Export ${job.jobTitle} at ${job.company} as PDF`);
-          exportBtn.addEventListener("click", () => downloadSingleJobPdf(job.id));
+          exportBtn.addEventListener("click", () => downloadSingleJobPdf(job.id, exportBtn, "Export PDF"));
           tdActions.appendChild(exportBtn);
           const removeBtn = document.createElement("button");
-          removeBtn.className = "secondary";
+          removeBtn.className = "secondary btn-remove";
           removeBtn.type = "button";
           removeBtn.textContent = "Remove";
           removeBtn.setAttribute("aria-label", `Remove ${job.jobTitle} at ${job.company}`);
@@ -1840,29 +1838,38 @@
         });
         table.appendChild(tbody);
         const columnClassMap = { 0: "col-title", 1: "col-company", 2: "col-date", 3: "col-actions" };
+        const theadRow = table.querySelector("thead tr");
         tbody.addEventListener("mouseover", (e) => {
           const td = e.target.closest("td");
           if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
           const colClass = columnClassMap[td.cellIndex];
           tbody.querySelectorAll(`td.${colClass}`).forEach((cell) => cell.classList.add("col-highlight"));
+          const th = theadRow.children[td.cellIndex];
+          if (th) th.classList.add("col-highlight");
         });
         tbody.addEventListener("mouseout", (e) => {
           const td = e.target.closest("td");
           if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
           const colClass = columnClassMap[td.cellIndex];
           tbody.querySelectorAll(`td.${colClass}.col-highlight`).forEach((cell) => cell.classList.remove("col-highlight"));
+          const th = theadRow.children[td.cellIndex];
+          if (th) th.classList.remove("col-highlight");
         });
         tbody.addEventListener("focusin", (e) => {
           const td = e.target.closest("td");
           if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
           const colClass = columnClassMap[td.cellIndex];
           tbody.querySelectorAll(`td.${colClass}`).forEach((cell) => cell.classList.add("col-highlight"));
+          const th = theadRow.children[td.cellIndex];
+          if (th) th.classList.add("col-highlight");
         });
         tbody.addEventListener("focusout", (e) => {
           const td = e.target.closest("td");
           if (!td || !td.parentElement || !columnClassMap[td.cellIndex]) return;
           const colClass = columnClassMap[td.cellIndex];
           tbody.querySelectorAll(`td.${colClass}.col-highlight`).forEach((cell) => cell.classList.remove("col-highlight"));
+          const th = theadRow.children[td.cellIndex];
+          if (th) th.classList.remove("col-highlight");
         });
         const tfoot = document.createElement("tfoot");
         const footRow = document.createElement("tr");
@@ -1878,9 +1885,12 @@
       }
     }
 
-    const appliedJobStatus = document.querySelector("#applied-job-status");
+    const addAppliedJobBtn = document.querySelector("#add-applied-job");
+    const addAppliedJobOriginalText = addAppliedJobBtn.textContent;
 
-    async function downloadSingleJobPdf(id) {
+    async function downloadSingleJobPdf(id, button, originalText) {
+      button.textContent = "Loading...";
+      button.disabled = true;
       try {
         const response = await fetch(`/api/applied-jobs/${id}/pdf`);
         if (!response.ok) throw new Error(await response.text() || "Failed to export PDF");
@@ -1893,12 +1903,17 @@
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+        showButtonMessage(button, "Exported", 3000, originalText);
       } catch (error) {
-        console.error("Failed to export job PDF:", error);
+        showButtonMessage(button, error.message || "Failed to export PDF", 3000, originalText);
       }
     }
 
-    document.querySelector("#applied-jobs-export-all").addEventListener("click", async () => {
+    const exportAllBtn = document.querySelector("#applied-jobs-export-all");
+    const exportAllOriginalText = exportAllBtn.textContent;
+    exportAllBtn.addEventListener("click", async () => {
+      exportAllBtn.textContent = "Loading...";
+      exportAllBtn.disabled = true;
       const search = appliedJobsSearch.value.trim();
       const sortBy = appliedJobsSort.value;
       const sortOrder = appliedJobsSortAsc ? "asc" : "desc";
@@ -1926,18 +1941,18 @@
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+        showButtonMessage(exportAllBtn, "Exported", 3000, exportAllOriginalText);
       } catch (error) {
-        console.error("Failed to export jobs list PDF:", error);
+        showButtonMessage(exportAllBtn, error.message || "Failed to export PDF", 3000, exportAllOriginalText);
       }
     });
 
-    document.querySelector("#add-applied-job").addEventListener("click", async () => {
+    addAppliedJobBtn.addEventListener("click", async () => {
       const company = detectedCompanyName.trim();
       const jobTitle = detectedJobTitle.trim();
       const jobDesc = jobDescription.value.trim();
       if (!company || !jobTitle) {
-        appliedJobStatus.textContent = "Could not determine company or job title from the generated letter. Please generate a letter first.";
-        appliedJobStatus.classList.add("error");
+        showButtonMessage(addAppliedJobBtn, "Generate a letter first", 3000, addAppliedJobOriginalText);
         return;
       }
       try {
@@ -1946,12 +1961,10 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ company, jobTitle, jobDescription: jobDesc })
         });
-        appliedJobStatus.textContent = `Added "${jobTitle}" at "${company}" to your applied jobs list.`;
-        appliedJobStatus.classList.add("success");
+        showButtonMessage(addAppliedJobBtn, "Added!", 2000, addAppliedJobOriginalText);
         await recordUserAction(`Added ${jobTitle} at ${company} to applied jobs`);
       } catch (error) {
-        appliedJobStatus.textContent = error.message || "Failed to add to applied jobs.";
-        appliedJobStatus.classList.add("error");
+        showButtonMessage(addAppliedJobBtn, error.message || "Failed to add", 3000, addAppliedJobOriginalText);
       }
     });
 

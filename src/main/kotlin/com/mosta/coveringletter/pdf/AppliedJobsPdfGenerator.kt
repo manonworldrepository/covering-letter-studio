@@ -97,7 +97,7 @@ class AppliedJobsPdfGenerator {
             val lineHeight = bodyFontSize * 1.4f
 
             val colTitleX = margin
-            val colCompanyX = margin + 80f
+            val colCompanyX = margin + 160f
             val colDateX = pageSize.width - margin - 120f
             val colTitleWidth = colCompanyX - colTitleX
             val colCompanyWidth = colDateX - colCompanyX
@@ -136,26 +136,20 @@ class AppliedJobsPdfGenerator {
                         y = pageSize.height - margin
                     }
 
-                    var dateStr = job.appliedDate.format(dateFormat)
-                    val titleLines = wrapText(font, job.jobTitle, colTitleWidth, bodyFontSize)
-                    val companyLines = wrapText(font, job.company, colCompanyWidth, bodyFontSize)
-                    val maxLines = titleLines.size.coerceAtLeast(companyLines.size)
-                    val paddedTitle = titleLines + List(maxLines - titleLines.size) { "" }
-                    val paddedCompany = companyLines + List(maxLines - companyLines.size) { "" }
+                    val titleText = toSupportedText(font, job.jobTitle)
+                    val companyText = toSupportedText(font, job.company)
+                    val dateText = toSupportedText(font, job.appliedDate.format(dateFormat))
 
-                    for (i in 0 until maxLines) {
-                        stream.beginText()
-                        stream.setFont(font, bodyFontSize)
-                        stream.newLineAtOffset(colTitleX, y)
-                        stream.showText(toSupportedText(font, paddedTitle[i]))
-                        stream.newLineAtOffset(colCompanyX - colTitleX, 0f)
-                        stream.showText(toSupportedText(font, paddedCompany[i]))
-                        stream.newLineAtOffset(colDateX - colCompanyX, 0f)
-                        stream.showText(toSupportedText(font, dateStr))
-                        stream.endText()
-                        y -= lineHeight
-                        if (i == 0) dateStr = ""
-                    }
+                    stream.beginText()
+                    stream.setFont(font, bodyFontSize)
+                    stream.newLineAtOffset(colTitleX, y)
+                    stream.showText(titleText)
+                    stream.newLineAtOffset(colCompanyX - colTitleX, 0f)
+                    stream.showText(companyText)
+                    stream.newLineAtOffset(colDateX - colCompanyX, 0f)
+                    stream.showText(dateText)
+                    stream.endText()
+                    y -= lineHeight
                 }
             }
             return ByteArrayOutputStream().use { output ->
