@@ -26,9 +26,9 @@
     .field > button:not(.close), .step > button:not(.close) { margin-top: 12px; }
     .step > button + select { margin-top: 12px; }
     .required { color: #ba3947; }
-    textarea, input[type="file"], input[type="password"], input[type="text"], select { width: 100%; font: inherit; }
+    textarea, input[type="file"], input[type="password"], input[type="text"], input[type="date"], select { width: 100%; font: inherit; }
     textarea { min-height: 138px; resize: vertical; padding: 13px 14px; border: 1px solid #d5dae4; border-radius: 9px; line-height: 1.5; }
-    input[type="password"], input[type="text"], select { padding: 12px 13px; border: 1px solid #d5dae4; border-radius: 9px; background: #fff; }
+    input[type="password"], input[type="text"], input[type="date"], select { padding: 12px 13px; border: 1px solid #d5dae4; border-radius: 9px; background: #fff; }
     textarea:focus, input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #3158d544; outline-offset: 2px; }
     input[type="file"] { padding: 12px; background: #fafbfc; border: 1px dashed #cbd1dd; border-radius: 9px; }
     .hint { margin: 7px 0 0; font-size: 12px; }
@@ -319,14 +319,17 @@
           <label for="applied-jobs-date-from">Date</label>
           <input id="applied-jobs-date-from" type="date">
         </div>
-        <div id="applied-jobs-date-range" hidden>
-          <div class="field">
-            <label for="applied-jobs-date-range-from">From</label>
-            <input id="applied-jobs-date-range-from" type="date">
-          </div>
-          <div class="field">
-            <label for="applied-jobs-date-range-to">To</label>
-            <input id="applied-jobs-date-range-to" type="date">
+        <div id="applied-jobs-date-range" class="field" hidden>
+          <label>Date range</label>
+          <div class="actions" style="gap:8px">
+            <div class="field" style="flex:1">
+              <label for="applied-jobs-date-range-from">From</label>
+              <input id="applied-jobs-date-range-from" type="date">
+            </div>
+            <div class="field" style="flex:1">
+              <label for="applied-jobs-date-range-to">To</label>
+              <input id="applied-jobs-date-range-to" type="date">
+            </div>
           </div>
         </div>
         <div class="field">
