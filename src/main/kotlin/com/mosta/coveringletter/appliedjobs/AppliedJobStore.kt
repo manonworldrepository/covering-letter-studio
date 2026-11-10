@@ -8,9 +8,9 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
-class AppliedJobStore {
+class AppliedJobStore(private val dataDir: String = ".data") {
 
-    private val jobsDir = File(".data/applied-jobs")
+    private val jobsDir = File(dataDir, "applied-jobs")
     private val RETENTION_DAYS = 30L
     private val dateFormat = DateTimeFormatter.ISO_LOCAL_DATE_TIME
 
