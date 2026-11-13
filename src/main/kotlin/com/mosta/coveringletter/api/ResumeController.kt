@@ -40,6 +40,17 @@ class ResumeController(
 	fun clearResumes() = resumeStore.clear()
 		.also { logs.record("Cleared resumes") }
 
+	@GetMapping("/api/resume/{id}/view")
+	fun viewResume(@PathVariable id: String): DocumentViewResponse =
+		resumeStore.getDocumentView(id)
+			.also { logs.record("Viewed resume: ${it.filename}") }
+
+	@GetMapping("/api/resume/{id}/raw")
+	fun getResumeRaw(@PathVariable id: String): org.springframework.http.ResponseEntity<ByteArray> {
+		val (filename, bytes) = resumeStore.getDocumentBytes(id)
+		return DocumentResponseHelper.createInlineResponseEntity(filename, bytes)
+	}
+
 	@DeleteMapping("/api/resume/{id}")
 	fun deleteResume(@PathVariable id: String) =
 		resumeStore.delete(id)

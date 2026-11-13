@@ -37,6 +37,17 @@ class SupportingDocumentsController(
 	fun clearSupportingDocuments() = supportingDocumentStore.clear()
 		.doOnSuccess { logs.record("Cleared supporting documents") }
 
+	@GetMapping("/api/supporting-documents/{id}/view")
+	fun viewSupportingDocument(@PathVariable id: String): DocumentViewResponse =
+		supportingDocumentStore.getDocumentView(id)
+			.also { logs.record("Viewed supporting document: ${it.filename}") }
+
+	@GetMapping("/api/supporting-documents/{id}/raw")
+	fun getSupportingDocumentRaw(@PathVariable id: String): org.springframework.http.ResponseEntity<ByteArray> {
+		val (filename, bytes) = supportingDocumentStore.getDocumentBytes(id)
+		return DocumentResponseHelper.createInlineResponseEntity(filename, bytes)
+	}
+
 	@DeleteMapping("/api/supporting-documents/{id}")
 	fun deleteSupportingDocument(@PathVariable id: String) =
 		supportingDocumentStore.delete(id)

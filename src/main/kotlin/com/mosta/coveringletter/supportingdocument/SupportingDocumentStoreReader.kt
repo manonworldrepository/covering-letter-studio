@@ -59,6 +59,9 @@ internal class SupportingDocumentStoreReader(
 				text
 			}
 
+	fun find(id: String): SupportingDocument? =
+		list().firstOrNull { it.id == id }
+
 	fun resolve(document: SupportingDocument): Path {
 		if (!document.id.matches(Regex("[0-9a-fA-F-]{36}")) ||
 			document.filename.contains('/') || document.filename.contains('\\')

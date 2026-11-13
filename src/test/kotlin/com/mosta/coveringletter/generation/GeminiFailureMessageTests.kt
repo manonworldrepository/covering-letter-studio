@@ -10,7 +10,7 @@ class GeminiFailureMessageTests {
 
 		assertTrue(message.contains("busy or temporarily unavailable"))
 		assertTrue(message.contains("Settings"))
-		assertTrue(message.contains("another available Gemini model"))
+		assertTrue(message.contains("other available Gemini models"))
 	}
 
 	@Test
@@ -19,6 +19,6 @@ class GeminiFailureMessageTests {
 
 		assertTrue(message.contains("Quota exceeded."))
 		assertTrue(message.contains("Settings"))
-		assertTrue(message.contains("another available Gemini model"))
+		assertTrue(message.contains("other available Gemini models"))
 	}
 }

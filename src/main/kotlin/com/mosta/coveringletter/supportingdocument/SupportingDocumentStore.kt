@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.supportingdocument
 
+import com.mosta.coveringletter.api.DocumentViewResponse
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.buffer.DataBufferLimitException
@@ -11,11 +12,12 @@ import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
+import java.nio.file.Files
 import java.nio.file.Paths
 
 @Service
 class SupportingDocumentStore(
-	extractor: DocumentTextExtractor,
+	private val extractor: DocumentTextExtractor,
 	@Value("\${coverletter.storage.directory:.data}") storageDirectory: String
 ) {
 	private val directory = Paths.get(storageDirectory).toAbsolutePath().normalize().resolve("supporting-documents")
@@ -76,6 +78,40 @@ class SupportingDocumentStore(
 		Mono.fromCallable { writer.delete(id) }.subscribeOn(Schedulers.boundedElastic())
 
 	fun select(ids: Set<String>): List<SupportingDocument> = writer.select(ids)
+
+	fun getDocumentView(id: String): DocumentViewResponse {
+		val doc = reader.find(id)
+			?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Supporting document not found.")
+		val path = reader.resolve(doc)
+		if (!Files.isRegularFile(path)) {
+			throw ResponseStatusException(HttpStatus.NOT_FOUND, "Supporting document file not found.")
+		}
+		val bytes = Files.readAllBytes(path)
+		val ext = doc.filename.substringAfterLast('.', "").lowercase()
+		val text = try {
+			extractor.extractText(doc.filename, bytes)
+		} catch (e: Exception) {
+			""
+		}
+		return DocumentViewResponse(
+			id = doc.id,
+			filename = doc.filename,
+			extension = ext,
+			viewable = ext in setOf("pdf", "txt", "text", "md", "csv", "log"),
+			rawUrl = "/api/supporting-documents/${doc.id}/raw",
+			text = text
+		)
+	}
+
+	fun getDocumentBytes(id: String): Pair<String, ByteArray> {
+		val doc = reader.find(id)
+			?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Supporting document not found.")
+		val path = reader.resolve(doc)
+		if (!Files.isRegularFile(path)) {
+			throw ResponseStatusException(HttpStatus.NOT_FOUND, "Supporting document file not found.")
+		}
+		return doc.filename to Files.readAllBytes(path)
+	}
 
 	internal fun saveBytes(originalName: String, bytes: ByteArray): SupportingDocument =
 		writer.saveBytes(originalName, bytes)

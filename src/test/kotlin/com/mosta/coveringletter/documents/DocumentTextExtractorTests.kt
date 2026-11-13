@@ -94,9 +94,16 @@ class DocumentTextExtractorTests {
     }
 
     @Test
+    fun `extracts plain text files case insensitively`() {
+        val text = extractor.extractText("file.TXT", "hello from plain text".toByteArray())
+
+        assertEquals("hello from plain text", text)
+    }
+
+    @Test
     fun `rejects unsupported extension case insensitively`() {
         val exception = assertThrows(ResponseStatusException::class.java) {
-            extractor.extractText("file.TXT", "hello".toByteArray())
+            extractor.extractText("file.PNG", byteArrayOf(1, 2, 3))
         }
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.statusCode)

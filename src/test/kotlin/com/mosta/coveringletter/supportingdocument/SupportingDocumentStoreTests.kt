@@ -91,6 +91,40 @@ class SupportingDocumentStoreTests {
 		assertEquals(HttpStatus.PAYLOAD_TOO_LARGE, exception.statusCode)
 	}
 
+	@Test
+	fun `retrieves document view and raw bytes for a stored supporting document`() {
+		val store = store()
+		val filename = "certificate.pdf"
+		val bytes = pdfGenerator.create("Certificate of completion.")
+		val saved = store.saveBytes(filename, bytes)
+
+		val view = store.getDocumentView(saved.id)
+		assertEquals(saved.id, view.id)
+		assertEquals(filename, view.filename)
+		assertEquals("pdf", view.extension)
+		assertTrue(view.viewable)
+		assertEquals("/api/supporting-documents/${saved.id}/raw", view.rawUrl)
+		assertTrue(view.text.contains("Certificate of completion"))
+
+		val (rawName, rawBytes) = store.getDocumentBytes(saved.id)
+		assertEquals(filename, rawName)
+		assertEquals(bytes.size, rawBytes.size)
+	}
+
+	@Test
+	fun `throws 404 when viewing or reading unknown supporting document`() {
+		val store = store()
+		val exception = org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException::class.java) {
+			store.getDocumentView("00000000-0000-0000-0000-000000000000")
+		}
+		assertEquals(HttpStatus.NOT_FOUND, exception.statusCode)
+
+		val rawException = org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException::class.java) {
+			store.getDocumentBytes("00000000-0000-0000-0000-000000000000")
+		}
+		assertEquals(HttpStatus.NOT_FOUND, rawException.statusCode)
+	}
+
 	private fun store() = SupportingDocumentStore(
 		DocumentTextExtractor(),
 		temporaryDirectory.resolve("data").toString()

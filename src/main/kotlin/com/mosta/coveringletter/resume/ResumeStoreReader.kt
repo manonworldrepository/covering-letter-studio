@@ -31,6 +31,9 @@ internal class ResumeStoreReader(
 		)
 	}
 
+	fun find(id: String): ResumeOption? =
+		status().resumes.firstOrNull { it.id == id }
+
 	fun extractSelected(): String {
 		val resume = status().resumes.firstOrNull { it.selected }
 			?: throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload and select a resume before generating a letter.")

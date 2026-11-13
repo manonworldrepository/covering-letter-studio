@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.resume
 
+import com.mosta.coveringletter.api.DocumentViewResponse
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.buffer.DataBufferLimitException
@@ -11,11 +12,12 @@ import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
+import java.nio.file.Files
 import java.nio.file.Paths
 
 @Service
 class ResumeStore(
-	extractor: DocumentTextExtractor,
+	private val extractor: DocumentTextExtractor,
 	@Value("\${coverletter.storage.directory:.data}") storageDirectory: String
 ) {
 	private val directory = Paths.get(storageDirectory).toAbsolutePath().normalize()
@@ -76,6 +78,40 @@ class ResumeStore(
 
 	fun extractStored(): Mono<String> =
 		Mono.fromCallable { reader.extractSelected() }.subscribeOn(Schedulers.boundedElastic())
+
+	fun getDocumentView(id: String): DocumentViewResponse {
+		val resume = reader.find(id)
+			?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume not found.")
+		val path = reader.resolve(resume)
+		if (!Files.isRegularFile(path)) {
+			throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume file not found.")
+		}
+		val bytes = Files.readAllBytes(path)
+		val ext = resume.filename.substringAfterLast('.', "").lowercase()
+		val text = try {
+			extractor.extractText(resume.filename, bytes)
+		} catch (e: Exception) {
+			""
+		}
+		return DocumentViewResponse(
+			id = resume.id,
+			filename = resume.filename,
+			extension = ext,
+			viewable = ext in setOf("pdf", "txt", "text", "md", "csv", "log"),
+			rawUrl = "/api/resume/${resume.id}/raw",
+			text = text
+		)
+	}
+
+	fun getDocumentBytes(id: String): Pair<String, ByteArray> {
+		val resume = reader.find(id)
+			?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume not found.")
+		val path = reader.resolve(resume)
+		if (!Files.isRegularFile(path)) {
+			throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resume file not found.")
+		}
+		return resume.filename to Files.readAllBytes(path)
+	}
 
 	internal fun saveBytes(originalName: String, bytes: ByteArray): ResumeStatus =
 		writer.saveBytes(originalName, bytes)

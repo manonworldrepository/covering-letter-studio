@@ -8,12 +8,14 @@ import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.WebClientResponseException
 import org.springframework.web.server.ResponseStatusException
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicReference
 
 @Service
 class GeminiCoverLetterService(
@@ -32,7 +34,7 @@ class GeminiCoverLetterService(
 		format: GenerationFormat = GenerationFormat.COVER_LETTER
 	): Mono<GeneratedCoverLetter> {
 		val apiKey = settings.apiKey()
-		val model = settings.model()
+		val preferredModel = settings.model()
 		val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH))
 		if (apiKey.isBlank()) {
 			return Mono.error(
@@ -100,7 +102,56 @@ class GeminiCoverLetterService(
 			.put("text", prompt)
 		request.putObject("generationConfig").put("responseMimeType", "application/json")
 
-		return webClient.post()
+		return resolveCandidateModels(apiKey, preferredModel)
+			.flatMap { candidates -> generateWithFallback(candidates, apiKey, request) }
+	}
+
+	private fun resolveCandidateModels(apiKey: String, preferredModel: String): Mono<List<String>> =
+		settings.availableModels(apiKey)
+			.map { models -> GeminiModelFallback.candidates(preferredModel, models.map { it.id }) }
+			.onErrorReturn(GeminiModelFallback.candidates(preferredModel, emptyList()))
+
+	private fun generateWithFallback(
+		candidates: List<String>,
+		apiKey: String,
+		request: JsonNode
+	): Mono<GeneratedCoverLetter> {
+		val lastError = AtomicReference<Throwable>()
+		return Flux.fromIterable(candidates.withIndex())
+			.concatMap { (index, model) ->
+				callModel(model, apiKey, request)
+					.doOnNext {
+						if (index > 0) {
+							userActions.record("Switched to Gemini model $model after a previous model failed")
+						}
+					}
+					.onErrorResume { error ->
+						lastError.set(error)
+						val hasMore = index < candidates.lastIndex
+						if (hasMore && GeminiModelFallback.isRetryable(error)) {
+							userActions.record("Gemini model $model failed to respond; trying another model")
+							GeminiCoverLetterServiceSupport.logger.warn(
+								"Gemini model {} failed; trying fallback ({}/{}).",
+								model,
+								index + 1,
+								candidates.size
+							)
+							Mono.empty()
+						} else {
+							Mono.error(mapGenerationError(error))
+						}
+					}
+			}
+			.next()
+			.switchIfEmpty(
+				Mono.defer {
+					Mono.error(mapGenerationError(lastError.get() ?: defaultFallbackFailure()))
+				}
+			)
+	}
+
+	private fun callModel(model: String, apiKey: String, request: JsonNode): Mono<GeneratedCoverLetter> =
+		webClient.post()
 			.uri { builder ->
 				builder.path("/v1beta/models/{model}:generateContent")
 					.queryParam("key", apiKey)
@@ -112,29 +163,37 @@ class GeminiCoverLetterService(
 			.doOnSubscribe { userActions.record("Contacting Gemini with model $model") }
 			.doOnNext { userActions.record("Received a reply from Gemini using model $model") }
 			.map(::readGeneratedLetter)
-			.onErrorMap { error ->
-				when (error) {
-					is ResponseStatusException -> error
-					is WebClientResponseException -> ResponseStatusException(
-						HttpStatus.BAD_GATEWAY,
-						GeminiFailureMessage.fromHttpResponse(
-							error.statusCode.value(),
-							geminiErrorMessage(error)
-						),
-						error
-					).also {
-						GeminiCoverLetterServiceSupport.logger.warn("Gemini request failed with HTTP {}.", error.statusCode.value())
-					}
-					else -> ResponseStatusException(
-						HttpStatus.BAD_GATEWAY,
-						"Could not connect to Gemini. Check your network connection and try again.",
-						error
-					).also {
-						GeminiCoverLetterServiceSupport.logger.error("Could not complete the Gemini request.", error)
-					}
-				}
+
+	private fun mapGenerationError(error: Throwable): ResponseStatusException =
+		when (error) {
+			is ResponseStatusException -> error
+			is WebClientResponseException -> ResponseStatusException(
+				HttpStatus.BAD_GATEWAY,
+				GeminiFailureMessage.fromHttpResponse(
+					error.statusCode.value(),
+					geminiErrorMessage(error)
+				),
+				error
+			).also {
+				GeminiCoverLetterServiceSupport.logger.warn(
+					"Gemini request failed with HTTP {}.",
+					error.statusCode.value()
+				)
 			}
-	}
+			else -> ResponseStatusException(
+				HttpStatus.BAD_GATEWAY,
+				"Could not connect to Gemini. Check your network connection and try again.",
+				error
+			).also {
+				GeminiCoverLetterServiceSupport.logger.error("Could not complete the Gemini request.", error)
+			}
+		}
+
+	private fun defaultFallbackFailure(): ResponseStatusException =
+		ResponseStatusException(
+			HttpStatus.BAD_GATEWAY,
+			"All tried Gemini models failed to respond. ${GeminiFailureMessage.modelSwitchAdvice}"
+		)
 
 	private fun geminiErrorMessage(error: WebClientResponseException): String {
 		val message = try {

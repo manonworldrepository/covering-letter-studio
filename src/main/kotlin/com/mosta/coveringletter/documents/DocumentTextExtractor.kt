@@ -2,7 +2,10 @@ package com.mosta.coveringletter.documents
 
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.text.PDFTextStripper
+import org.apache.poi.xwpf.usermodel.IBodyElement
 import org.apache.poi.xwpf.usermodel.XWPFDocument
+import org.apache.poi.xwpf.usermodel.XWPFParagraph
+import org.apache.poi.xwpf.usermodel.XWPFTable
 import org.springframework.http.HttpStatus
 import org.springframework.http.codec.multipart.FilePart
 import org.springframework.stereotype.Component
@@ -11,6 +14,8 @@ import org.springframework.core.io.buffer.DataBufferUtils
 import reactor.core.scheduler.Schedulers
 import reactor.core.publisher.Mono
 import java.io.ByteArrayInputStream
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 
 @Component
 class DocumentTextExtractor {
@@ -36,16 +41,8 @@ class DocumentTextExtractor {
 		return try {
 			when (filename.substringAfterLast('.', "").lowercase()) {
 				"pdf" -> Loader.loadPDF(bytes).use { PDFTextStripper().getText(it) }
-				"docx" -> XWPFDocument(ByteArrayInputStream(bytes)).use { document ->
-					buildString {
-						document.paragraphs.forEach { appendLine(it.text) }
-						document.tables.forEach { table ->
-							table.rows.forEach { row ->
-								appendLine(row.tableCells.joinToString(" | ") { it.text })
-							}
-						}
-					}
-				}
+				"docx" -> extractDocx(bytes)
+				"txt", "text", "md", "csv", "log" -> decodeTextFile(bytes)
 				else -> throw ResponseStatusException(
 					HttpStatus.BAD_REQUEST,
 					"Unsupported file type for '$filename'. Upload PDF or DOCX files."
@@ -59,6 +56,45 @@ class DocumentTextExtractor {
 				"Could not read '$filename'. Make sure it is a valid, text-based PDF or DOCX file.",
 				exception
 			)
+		}
+	}
+
+	private fun extractDocx(bytes: ByteArray): String =
+		XWPFDocument(ByteArrayInputStream(bytes)).use { document ->
+			buildString {
+				document.bodyElements.forEach { element ->
+					appendBodyElement(element)
+				}
+			}.trim()
+		}
+
+	private fun StringBuilder.appendBodyElement(element: IBodyElement) {
+		when (element) {
+			is XWPFParagraph -> {
+				val text = element.text.trim()
+				if (text.isEmpty()) return
+				val style = element.style ?: ""
+				if (style.startsWith("Heading", ignoreCase = true)) {
+					appendLine("# $text")
+				} else {
+					appendLine(text)
+				}
+			}
+			is XWPFTable -> {
+				element.rows.forEach { row ->
+					appendLine(row.tableCells.joinToString(" | ") { it.text.trim() })
+				}
+				appendLine()
+			}
+		}
+	}
+
+	private fun decodeTextFile(bytes: ByteArray): String {
+		val decoded = String(bytes, StandardCharsets.UTF_8)
+		return if (decoded.contains('\uFFFD') && bytes.isNotEmpty()) {
+			String(bytes, Charset.defaultCharset())
+		} else {
+			decoded
 		}
 	}
 }

@@ -121,6 +121,41 @@ class ResumeStoreTests {
 		assertEquals(HttpStatus.BAD_REQUEST, exception.statusCode)
 	}
 
+	@Test
+	fun `retrieves document view and raw bytes for a stored resume`() {
+		val store = store()
+		val filename = "Viewable Resume.pdf"
+		val bytes = pdfGenerator.create("Content for viewing.")
+		val saved = store.saveBytes(filename, bytes)
+		val resumeId = saved.resumes.single().id
+
+		val view = store.getDocumentView(resumeId)
+		assertEquals(resumeId, view.id)
+		assertEquals(filename, view.filename)
+		assertEquals("pdf", view.extension)
+		assertTrue(view.viewable)
+		assertEquals("/api/resume/$resumeId/raw", view.rawUrl)
+		assertTrue(view.text.contains("Content for viewing"))
+
+		val (rawName, rawBytes) = store.getDocumentBytes(resumeId)
+		assertEquals(filename, rawName)
+		assertEquals(bytes.size, rawBytes.size)
+	}
+
+	@Test
+	fun `throws 404 when viewing or reading unknown resume`() {
+		val store = store()
+		val exception = assertThrows(ResponseStatusException::class.java) {
+			store.getDocumentView("00000000-0000-0000-0000-000000000000")
+		}
+		assertEquals(HttpStatus.NOT_FOUND, exception.statusCode)
+
+		val rawException = assertThrows(ResponseStatusException::class.java) {
+			store.getDocumentBytes("00000000-0000-0000-0000-000000000000")
+		}
+		assertEquals(HttpStatus.NOT_FOUND, rawException.statusCode)
+	}
+
 	private fun store() = ResumeStore(
 		DocumentTextExtractor(),
 		temporaryDirectory.resolve("data").toString()
