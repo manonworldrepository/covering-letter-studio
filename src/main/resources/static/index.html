@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f6f8">
+  <meta name="theme-color" content="#3158d5">
   <meta http-equiv="Cache-Control" content="no-store">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>Cover Letter Studio</title>
@@ -11,10 +11,10 @@
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #172033; background: #f5f6f8; }
     * { box-sizing: border-box; }
     body { margin: 0; }
-    header { position: sticky; top: 0; z-index: 6; padding: 14px max(24px, calc((100% - 1040px) / 2)); background: #fff; border-bottom: 2px solid #e6e8ed; box-shadow: 0 1px 4px #1720330a; }
+    header { position: sticky; top: 0; z-index: 6; padding: 14px max(24px, calc((100% - 1040px) / 2)); background: #3158d5; border-bottom: 2px solid #2448bd; box-shadow: 0 2px 8px #17203318; color: #fff; }
     .header-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-    .brand { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 720; letter-spacing: -.3px; }
-    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #3158d5; color: white; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 720; letter-spacing: -.3px; color: #fff; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #fff; color: #3158d5; font-weight: 800; }
     main { width: min(100% - 32px, 920px); margin: 44px auto 72px; }
     .intro { margin-bottom: 28px; }
     h1 { margin: 0 0 9px; font-size: clamp(28px, 5vw, 38px); letter-spacing: -1.2px; }
@@ -83,10 +83,11 @@
     .generation-progress-bar { width: 0; height: 100%; border-radius: inherit; background: #3158d5; transition: width .25s ease; }
     .generation-progress-details { display: flex; justify-content: space-between; gap: 12px; margin-top: 9px; color: #59667e; font-size: 12px; }
     @media (max-width: 580px) { header { padding-top: 14px; padding-bottom: 14px; } main { margin-top: 30px; } }
-    .nav-menu { display: flex; align-items: center; gap: 4px; background: #f0f4fa; border-radius: 10px; padding: 4px; }
-    .nav-menu button { display: inline-flex; align-items: center; gap: 6px; width: auto; max-width: none; flex: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; background: transparent; color: #59667e; border: none; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
-    .nav-menu button:hover { background: #e0e8f4; color: #172033; }
-    .nav-menu button.active { background: #fff; color: #3158d5; box-shadow: 0 1px 3px #17203314; }
+    .nav-menu { display: flex; align-items: center; gap: 4px; background: rgba(0, 0, 0, 0.14); border-radius: 10px; padding: 4px; }
+    .nav-menu button { display: inline-flex; align-items: center; gap: 6px; width: auto; max-width: none; flex: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; background: transparent; color: #fff; border: none; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+    .nav-menu button:hover { background: #fff; color: #3158d5; }
+    .nav-menu button.active { background: #fff; color: #3158d5; box-shadow: 0 1px 3px #17203324; }
+    .nav-menu button.active:hover { background: #fff; color: #2448bd; }
     .nav-menu button svg { width: 18px; height: 18px; flex-shrink: 0; }
     .applied-jobs-search-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 16px; }
     .applied-jobs-search-row .field { flex: 1; margin-bottom: 0; }
