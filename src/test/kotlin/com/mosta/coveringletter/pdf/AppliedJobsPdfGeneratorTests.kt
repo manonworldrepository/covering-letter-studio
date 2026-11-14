@@ -164,4 +164,42 @@ class AppliedJobsPdfGeneratorTests {
             assertTrue(text.contains("B".repeat(80)))
         }
     }
+
+    @Test
+    fun `single job PDF creates multiple pages when job description exceeds single page and extracts complete text`() {
+        val longDescription = buildString {
+            for (i in 1..80) {
+                appendLine("Section $i: Detailed requirement description text for paragraph $i with some additional words.")
+            }
+        }
+        val job = sampleJob(jobDescription = longDescription)
+        val pdf = generator.createSingleJob(job)
+
+        Loader.loadPDF(pdf).use { document ->
+            assertTrue(document.numberOfPages > 1, "Should create multiple pages when description exceeds single page")
+            val text = PDFTextStripper().getText(document)
+            assertTrue(text.contains("Section 1:"))
+            assertTrue(text.contains("Section 40:"))
+            assertTrue(text.contains("Section 80:"))
+            for (pageIndex in 0 until document.numberOfPages) {
+                val page = document.getPage(pageIndex)
+                assertEquals(595.28f, page.mediaBox.width, 1f)
+                assertEquals(841.89f, page.mediaBox.height, 1f)
+            }
+        }
+    }
+
+    @Test
+    fun `single job PDF preserves paragraphs and line breaks in job description`() {
+        val description = "First paragraph here.\n\nSecond paragraph here.\n\nThird paragraph here."
+        val job = sampleJob(jobDescription = description)
+        val pdf = generator.createSingleJob(job)
+
+        Loader.loadPDF(pdf).use { document ->
+            val text = PDFTextStripper().getText(document)
+            assertTrue(text.contains("First paragraph here."))
+            assertTrue(text.contains("Second paragraph here."))
+            assertTrue(text.contains("Third paragraph here."))
+        }
+    }
 }

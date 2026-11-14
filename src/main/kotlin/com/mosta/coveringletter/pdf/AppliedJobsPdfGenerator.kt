@@ -27,59 +27,66 @@ class AppliedJobsPdfGenerator {
             val margin = 72f
             val fontSize = 11f
             val lineHeight = fontSize * 1.4f
+            val maxWidth = pageSize.width - margin * 2
 
-            document.addPage(PDPage(pageSize))
-            PDPageContentStream(document, document.getPage(0)).use { stream ->
-                var y = pageSize.height - margin
+            var page = PDPage(pageSize)
+            document.addPage(page)
+            var stream: PDPageContentStream? = PDPageContentStream(document, page)
+            var y = pageSize.height - margin
 
-                stream.beginText()
-                stream.setFont(font, 16f)
-                stream.newLineAtOffset(margin, y)
-                stream.showText(toSupportedText(font, "Applied Job"))
-                stream.endText()
-                y -= 30f
+            fun closeCurrentStream() {
+                stream?.close()
+                stream = null
+            }
 
-                stream.beginText()
-                stream.setFont(font, fontSize)
-                stream.newLineAtOffset(margin, y)
-                stream.showText(toSupportedText(font, "Job Title: ${job.jobTitle}"))
-                stream.endText()
-                y -= lineHeight
+            fun newPage() {
+                closeCurrentStream()
+                val newPage = PDPage(pageSize)
+                document.addPage(newPage)
+                stream = PDPageContentStream(document, newPage)
+                y = pageSize.height - margin
+            }
 
-                stream.beginText()
-                stream.setFont(font, fontSize)
-                stream.newLineAtOffset(margin, y)
-                stream.showText(toSupportedText(font, "Company: ${job.company}"))
-                stream.endText()
-                y -= lineHeight
-
-                stream.beginText()
-                stream.setFont(font, fontSize)
-                stream.newLineAtOffset(margin, y)
-                stream.showText(toSupportedText(font, "Applied Date: ${job.appliedDate.format(dateFormat)}"))
-                stream.endText()
-                y -= lineHeight * 2
-
-                if (job.jobDescription.isNotBlank()) {
-                    stream.beginText()
-                    stream.setFont(font, fontSize)
-                    stream.newLineAtOffset(margin, y)
-                    stream.showText(toSupportedText(font, "Job Description:"))
-                    stream.endText()
-                    y -= lineHeight
-
-                    val maxWidth = pageSize.width - margin * 2
-                    val lines = wrapText(font, job.jobDescription, maxWidth, fontSize)
-                    lines.forEach { line ->
-                        stream.beginText()
-                        stream.setFont(font, fontSize)
-                        stream.newLineAtOffset(margin, y)
-                        stream.showText(toSupportedText(font, line))
-                        stream.endText()
-                        y -= lineHeight
-                    }
+            fun checkPageBreak(requiredHeight: Float = lineHeight) {
+                if (y - requiredHeight < margin) {
+                    newPage()
                 }
             }
+
+            fun writeTextLine(text: String, size: Float = fontSize, extraSpace: Float = 0f) {
+                val lineH = size * 1.4f
+                checkPageBreak(lineH + extraSpace)
+                val s = stream!!
+                s.beginText()
+                s.setFont(font, size)
+                s.newLineAtOffset(margin, y)
+                s.showText(toSupportedText(font, text))
+                s.endText()
+                y -= (lineH + extraSpace)
+            }
+
+            try {
+                writeTextLine("Applied Job", 16f, 15f)
+                writeTextLine("Job Title: ${job.jobTitle}")
+                writeTextLine("Company: ${job.company}")
+                writeTextLine("Applied Date: ${job.appliedDate.format(dateFormat)}", fontSize, lineHeight)
+
+                if (job.jobDescription.isNotBlank()) {
+                    writeTextLine("Job Description:")
+                    val lines = wrapText(font, job.jobDescription, maxWidth, fontSize)
+                    lines.forEach { line ->
+                        if (line.isEmpty()) {
+                            checkPageBreak(lineHeight * 0.6f)
+                            y -= lineHeight * 0.6f
+                        } else {
+                            writeTextLine(line)
+                        }
+                    }
+                }
+            } finally {
+                closeCurrentStream()
+            }
+
             return ByteArrayOutputStream().use { output ->
                 document.save(output)
                 output.toByteArray()
@@ -99,59 +106,81 @@ class AppliedJobsPdfGenerator {
             val colTitleX = margin
             val colCompanyX = margin + 160f
             val colDateX = pageSize.width - margin - 120f
-            val colTitleWidth = colCompanyX - colTitleX
-            val colCompanyWidth = colDateX - colCompanyX
-            val colDateWidth = pageSize.width - margin - colDateX
 
-            document.addPage(PDPage(pageSize))
-            PDPageContentStream(document, document.getPage(0)).use { stream ->
-                var y = pageSize.height - margin
+            var page = PDPage(pageSize)
+            document.addPage(page)
+            var stream: PDPageContentStream? = PDPageContentStream(document, page)
+            var y = pageSize.height - margin
 
-                stream.beginText()
-                stream.setFont(font, headerFontSize)
-                stream.newLineAtOffset(margin, y)
-                stream.showText(toSupportedText(font, "Applied Jobs (${jobs.size})"))
-                stream.endText()
-                y -= 30f
+            fun closeCurrentStream() {
+                stream?.close()
+                stream = null
+            }
 
-                stream.beginText()
-                stream.setFont(font, bodyFontSize)
-                stream.newLineAtOffset(colTitleX, y)
-                stream.showText(toSupportedText(font, "Job Title"))
-                stream.newLineAtOffset(colCompanyX - colTitleX, 0f)
-                stream.showText(toSupportedText(font, "Company"))
-                stream.newLineAtOffset(colDateX - colCompanyX, 0f)
-                stream.showText(toSupportedText(font, "Date Applied"))
-                stream.endText()
+            fun drawTableHeader(s: PDPageContentStream) {
+                s.beginText()
+                s.setFont(font, bodyFontSize)
+                s.newLineAtOffset(colTitleX, y)
+                s.showText(toSupportedText(font, "Job Title"))
+                s.newLineAtOffset(colCompanyX - colTitleX, 0f)
+                s.showText(toSupportedText(font, "Company"))
+                s.newLineAtOffset(colDateX - colCompanyX, 0f)
+                s.showText(toSupportedText(font, "Date Applied"))
+                s.endText()
                 y -= 5f
 
-                stream.moveTo(margin, y)
-                stream.lineTo(pageSize.width - margin, y)
-                stream.stroke()
+                s.moveTo(margin, y)
+                s.lineTo(pageSize.width - margin, y)
+                s.stroke()
                 y -= 10f
+            }
+
+            fun newPage() {
+                closeCurrentStream()
+                val newPage = PDPage(pageSize)
+                document.addPage(newPage)
+                val newStream = PDPageContentStream(document, newPage)
+                stream = newStream
+                y = pageSize.height - margin
+                drawTableHeader(newStream)
+            }
+
+            try {
+                val currentStream = stream!!
+                currentStream.beginText()
+                currentStream.setFont(font, headerFontSize)
+                currentStream.newLineAtOffset(margin, y)
+                currentStream.showText(toSupportedText(font, "Applied Jobs (${jobs.size})"))
+                currentStream.endText()
+                y -= 30f
+
+                drawTableHeader(currentStream)
 
                 jobs.forEach { job ->
-                    if (y < margin) {
-                        document.addPage(PDPage(pageSize))
-                        y = pageSize.height - margin
+                    if (y - lineHeight < margin) {
+                        newPage()
                     }
 
+                    val s = stream!!
                     val titleText = toSupportedText(font, job.jobTitle)
                     val companyText = toSupportedText(font, job.company)
                     val dateText = toSupportedText(font, job.appliedDate.format(dateFormat))
 
-                    stream.beginText()
-                    stream.setFont(font, bodyFontSize)
-                    stream.newLineAtOffset(colTitleX, y)
-                    stream.showText(titleText)
-                    stream.newLineAtOffset(colCompanyX - colTitleX, 0f)
-                    stream.showText(companyText)
-                    stream.newLineAtOffset(colDateX - colCompanyX, 0f)
-                    stream.showText(dateText)
-                    stream.endText()
+                    s.beginText()
+                    s.setFont(font, bodyFontSize)
+                    s.newLineAtOffset(colTitleX, y)
+                    s.showText(titleText)
+                    s.newLineAtOffset(colCompanyX - colTitleX, 0f)
+                    s.showText(companyText)
+                    s.newLineAtOffset(colDateX - colCompanyX, 0f)
+                    s.showText(dateText)
+                    s.endText()
                     y -= lineHeight
                 }
+            } finally {
+                closeCurrentStream()
             }
+
             return ByteArrayOutputStream().use { output ->
                 document.save(output)
                 output.toByteArray()
@@ -161,17 +190,40 @@ class AppliedJobsPdfGenerator {
 
     private fun wrapText(font: PDFont, text: String, maxWidth: Float, fontSize: Float): List<String> {
         val lines = mutableListOf<String>()
-        var currentLine = ""
-        text.split(Regex("\\s+")).forEach { word ->
-            val candidate = if (currentLine.isEmpty()) word else "$currentLine $word"
-            if (getWidth(font, candidate, fontSize) <= maxWidth) {
-                currentLine = candidate
+        text.lineSequence().forEach { rawLine ->
+            val trimmedLine = rawLine.trim()
+            if (trimmedLine.isEmpty()) {
+                if (lines.isNotEmpty() && lines.last().isNotEmpty()) {
+                    lines.add("")
+                }
             } else {
+                var currentLine = ""
+                trimmedLine.split(Regex("\\s+")).forEach { word ->
+                    val candidate = if (currentLine.isEmpty()) word else "$currentLine $word"
+                    if (getWidth(font, candidate, fontSize) <= maxWidth) {
+                        currentLine = candidate
+                    } else {
+                        if (currentLine.isNotEmpty()) lines.add(currentLine)
+                        if (getWidth(font, word, fontSize) > maxWidth) {
+                            var brokenWord = ""
+                            word.forEach { character ->
+                                val extended = brokenWord + character
+                                if (getWidth(font, extended, fontSize) > maxWidth && brokenWord.isNotEmpty()) {
+                                    lines.add(brokenWord)
+                                    brokenWord = character.toString()
+                                } else {
+                                    brokenWord = extended
+                                }
+                            }
+                            currentLine = brokenWord
+                        } else {
+                            currentLine = word
+                        }
+                    }
+                }
                 if (currentLine.isNotEmpty()) lines.add(currentLine)
-                currentLine = word
             }
         }
-        if (currentLine.isNotEmpty()) lines.add(currentLine)
         return lines
     }
 

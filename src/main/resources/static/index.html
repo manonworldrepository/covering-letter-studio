@@ -62,13 +62,11 @@
     .document-viewer-heading-info h2 { margin: 0; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .document-viewer-meta { font-size: 12px; color: #657087; }
     .document-viewer-heading-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .document-viewer-tabs { display: inline-flex; align-items: center; background: #e8efff; border-radius: 8px; padding: 3px; gap: 2px; }
-    .document-viewer-tabs button { width: auto; max-width: none; flex: none; padding: 5px 12px; font-size: 13px; font-weight: 600; border-radius: 6px; background: transparent; color: #1a56db; border: none; cursor: pointer; }
-    .document-viewer-tabs button.active { background: #3158d5; color: #fff; box-shadow: 0 1px 2px #1720331a; }
-    .document-download-link { display: inline-flex; align-items: center; padding: 6px 12px; font-size: 13px; font-weight: 600; color: #1a56db; background: #e8efff; border: 1px solid #c7dcfa; border-radius: 7px; text-decoration: none; transition: background 0.15s ease; }
+    #doc-copy-text, .document-download-link { width: auto; max-width: none; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; font-size: 13px; font-weight: 600; border-radius: 7px; line-height: 1.2; cursor: pointer; }
+    .document-download-link { color: #1a56db; background: #e8efff; border: 1px solid #c7dcfa; text-decoration: none; transition: background 0.15s ease; }
     .document-download-link:hover { background: #d0dcff; }
+    .document-download-link:disabled { opacity: .6; cursor: wait; }
     .document-viewer-body { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 14px; position: relative; }
-    .document-viewer-iframe { width: 100%; flex: 1; min-height: 350px; border: 1px solid #d5dae4; border-radius: 8px; background: #fff; }
     .document-viewer-text { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; background: #fafbfc; border: 1px solid #e2e8f0; border-radius: 10px; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.7; color: #172033; word-break: break-word; }
     .document-viewer-text p { margin: 0 0 14px; }
     .document-viewer-text p:last-child { margin-bottom: 0; }
@@ -431,18 +429,13 @@
           <span class="document-viewer-meta" id="document-viewer-meta"></span>
         </div>
         <div class="document-viewer-heading-actions">
-          <div class="document-viewer-tabs" id="document-viewer-tabs" hidden>
-            <button class="active" id="doc-tab-preview" type="button">Preview</button>
-            <button id="doc-tab-text" type="button">Extracted Text</button>
-          </div>
           <button class="secondary" id="doc-copy-text" type="button" hidden>Copy text</button>
-          <a class="document-download-link" id="doc-download-link" href="#" target="_blank" download hidden>Download</a>
+          <button class="document-download-link" id="doc-download-link" type="button" hidden>Download</button>
           <button class="close" id="document-viewer-close" type="button" aria-label="Close document preview">&times;</button>
         </div>
       </div>
       <div id="document-viewer-body" class="document-viewer-body">
         <div class="document-viewer-status" id="document-viewer-status" hidden></div>
-        <iframe class="document-viewer-iframe" id="document-viewer-iframe" hidden title="Document preview"></iframe>
         <div class="document-viewer-text" id="document-viewer-text" hidden></div>
       </div>
     </section>
@@ -514,17 +507,13 @@
     const documentViewerModal = document.querySelector("#document-viewer-modal");
     const documentViewerTitle = document.querySelector("#document-viewer-title");
     const documentViewerMeta = document.querySelector("#document-viewer-meta");
-    const documentViewerTabs = document.querySelector("#document-viewer-tabs");
     const documentViewerStatus = document.querySelector("#document-viewer-status");
-    const documentViewerIframe = document.querySelector("#document-viewer-iframe");
     const documentViewerText = document.querySelector("#document-viewer-text");
     const documentViewerDownload = document.querySelector("#doc-download-link");
     const documentViewerCopy = document.querySelector("#doc-copy-text");
-    const docTabPreview = document.querySelector("#doc-tab-preview");
-    const docTabText = document.querySelector("#doc-tab-text");
-    let documentViewerObjectUrl = null;
     let documentViewerCurrentText = "";
-    let documentViewerCanPreview = false;
+    let documentViewerRawUrl = "";
+    let documentViewerDownloadFilename = "";
 
     generationFormat.addEventListener("change", () => {
       const motivationMessage = generationFormat.value === "motivation-message";
@@ -598,31 +587,11 @@
       return parts.join("");
     }
 
-    function revokeDocumentViewerUrl() {
-      if (documentViewerObjectUrl) {
-        URL.revokeObjectURL(documentViewerObjectUrl);
-        documentViewerObjectUrl = null;
-      }
-      documentViewerIframe.removeAttribute("src");
-    }
-
-    function setDocumentViewerTab(tab) {
-      const showPreview = tab === "preview" && documentViewerCanPreview;
-      docTabPreview.classList.toggle("active", showPreview);
-      docTabText.classList.toggle("active", !showPreview);
-      documentViewerIframe.hidden = !showPreview;
-      documentViewerText.hidden = showPreview;
-      documentViewerStatus.hidden = true;
-      documentViewerCopy.hidden = showPreview || !documentViewerCurrentText;
-    }
-
     function showDocumentViewerLoading(title, meta = "") {
       documentViewerTitle.textContent = title;
       documentViewerMeta.textContent = meta;
-      documentViewerTabs.hidden = true;
       documentViewerDownload.hidden = true;
       documentViewerCopy.hidden = true;
-      documentViewerIframe.hidden = true;
       documentViewerText.hidden = true;
       documentViewerStatus.hidden = false;
       documentViewerStatus.className = "document-viewer-status document-viewer-loading";
@@ -631,10 +600,8 @@
     }
 
     function showDocumentViewerError(message) {
-      documentViewerTabs.hidden = true;
       documentViewerDownload.hidden = true;
       documentViewerCopy.hidden = true;
-      documentViewerIframe.hidden = true;
       documentViewerText.hidden = true;
       documentViewerStatus.hidden = false;
       documentViewerStatus.className = "document-viewer-status document-viewer-error";
@@ -645,52 +612,41 @@
       title,
       meta = "",
       extension = "",
-      viewable = false,
       rawUrl = "",
-      text = "",
-      previewUrl = ""
+      text = ""
     }) {
-      revokeDocumentViewerUrl();
-      if (previewUrl && previewUrl.startsWith("blob:")) {
-        documentViewerObjectUrl = previewUrl;
-      }
       documentViewerCurrentText = text || "";
-      documentViewerCanPreview = Boolean(viewable && (previewUrl || rawUrl));
       documentViewerTitle.textContent = title || "Document Preview";
       documentViewerMeta.textContent = meta || (extension ? extension.toUpperCase() : "");
       documentViewerText.innerHTML = formatExtractedText(documentViewerCurrentText);
       documentViewerStatus.hidden = true;
       documentViewerStatus.textContent = "";
 
-      if (rawUrl) {
-        documentViewerDownload.href = rawUrl;
-        documentViewerDownload.download = title || "document";
+      documentViewerRawUrl = rawUrl || "";
+      documentViewerDownloadFilename = title || "document";
+      if (documentViewerRawUrl) {
+        documentViewerDownload.textContent = "Download";
+        documentViewerDownload.disabled = false;
         documentViewerDownload.hidden = false;
       } else {
         documentViewerDownload.hidden = true;
       }
 
-      if (documentViewerCanPreview) {
-        documentViewerIframe.src = previewUrl || rawUrl;
-        documentViewerTabs.hidden = false;
-        setDocumentViewerTab("preview");
-      } else {
-        documentViewerTabs.hidden = true;
-        documentViewerIframe.hidden = true;
-        documentViewerText.hidden = false;
-        documentViewerCopy.hidden = !documentViewerCurrentText;
-        if (!documentViewerCurrentText) {
-          showDocumentViewerError("This file cannot be previewed and no extractable text was found.");
-        }
+      documentViewerText.hidden = false;
+      documentViewerCopy.hidden = !documentViewerCurrentText;
+      if (!documentViewerCurrentText) {
+        showDocumentViewerError("No extractable text was found in this file.");
       }
       documentViewerModal.hidden = false;
     }
 
     function closeDocumentViewer() {
       documentViewerModal.hidden = true;
-      revokeDocumentViewerUrl();
       documentViewerCurrentText = "";
-      documentViewerCanPreview = false;
+      documentViewerRawUrl = "";
+      documentViewerDownloadFilename = "";
+      documentViewerDownload.textContent = "Download";
+      documentViewerDownload.disabled = false;
       documentViewerText.innerHTML = "";
       documentViewerStatus.hidden = true;
     }
@@ -701,9 +657,8 @@
         const view = await requestJson(viewUrl);
         openDocumentViewer({
           title: view.filename,
-          meta: `${(view.extension || "").toUpperCase()}${view.viewable ? " · Browser preview" : " · Extracted text"}`,
+          meta: `${(view.extension || "").toUpperCase()} · Extracted text`,
           extension: view.extension,
-          viewable: view.viewable,
           rawUrl: view.rawUrl,
           text: view.text
         });
@@ -712,7 +667,7 @@
       }
     }
 
-    async function openAppliedJobViewer(job) {
+    function openAppliedJobViewer(job) {
       const date = new Date(job.appliedDate);
       const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
       const title = `${job.jobTitle} at ${job.company}`;
@@ -724,25 +679,12 @@
         "# Job description",
         job.jobDescription || "No job description saved."
       ].join("\n");
-      showDocumentViewerLoading(title, dateStr);
-      let previewUrl = "";
-      try {
-        const response = await fetch(`/api/applied-jobs/${encodeURIComponent(job.id)}/pdf`);
-        if (response.ok) {
-          const blob = await response.blob();
-          previewUrl = URL.createObjectURL(blob);
-        }
-      } catch {
-        previewUrl = "";
-      }
       openDocumentViewer({
         title,
-        meta: dateStr,
+        meta: `${dateStr} · Extracted text`,
         extension: "pdf",
-        viewable: Boolean(previewUrl),
         rawUrl: `/api/applied-jobs/${encodeURIComponent(job.id)}/pdf`,
-        text,
-        previewUrl
+        text
       });
     }
 
@@ -750,8 +692,8 @@
       const view = document.createElement("button");
       view.className = "view-document";
       view.type = "button";
-      view.textContent = "View";
-      view.setAttribute("aria-label", `View ${filename}`);
+      view.textContent = "Preview";
+      view.setAttribute("aria-label", `Preview ${filename}`);
       view.addEventListener("click", onClick);
       return view;
     }
@@ -1339,9 +1281,8 @@
         "settings-open": "Opened settings",
         "settings-close": "Closed settings",
         "document-viewer-close": "Closed document preview",
-        "doc-tab-preview": "Switched document preview tab",
-        "doc-tab-text": "Switched extracted text tab",
         "doc-copy-text": "Copied document text",
+        "doc-download-link": "Downloaded document",
         "setup-save": "Saved initial settings",
         "setup-load-models": "Saved the Gemini API key and loaded models during setup",
         "setup-load-models-existing-key": "Loaded Gemini models during setup",
@@ -1737,8 +1678,6 @@
     documentViewerModal.addEventListener("click", (event) => {
       if (event.target === documentViewerModal) closeDocumentViewer();
     });
-    docTabPreview.addEventListener("click", () => setDocumentViewerTab("preview"));
-    docTabText.addEventListener("click", () => setDocumentViewerTab("text"));
     documentViewerCopy.addEventListener("click", async () => {
       if (!documentViewerCurrentText) return;
       try {
@@ -1753,6 +1692,39 @@
         window.setTimeout(() => {
           documentViewerCopy.textContent = "Copy text";
         }, 1500);
+      }
+    });
+    documentViewerDownload.addEventListener("click", async () => {
+      if (!documentViewerRawUrl) return;
+      const originalText = "Download";
+      documentViewerDownload.textContent = "Loading...";
+      documentViewerDownload.disabled = true;
+      try {
+        const response = await fetch(documentViewerRawUrl);
+        if (!response.ok) throw new Error((await response.text()) || "Failed to download");
+        let filename = documentViewerDownloadFilename;
+        const disposition = response.headers.get("Content-Disposition");
+        if (disposition && disposition.includes("filename=")) {
+          const match = disposition.match(/filename\*?=['"]?(?:UTF-8'')?([^;"'\n]+)['"]?/i);
+          if (match && match[1]) {
+            filename = decodeURIComponent(match[1]);
+          }
+        }
+        if (filename && !filename.includes(".") && documentViewerRawUrl.includes("/pdf")) {
+          filename += ".pdf";
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename || "document";
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showButtonMessage(documentViewerDownload, "Downloaded", 3000, originalText);
+      } catch (error) {
+        showButtonMessage(documentViewerDownload, error.message || "Failed to download", 3000, originalText);
       }
     });
     document.addEventListener("keydown", (event) => {
@@ -2174,8 +2146,8 @@
           const viewBtn = document.createElement("button");
           viewBtn.className = "secondary btn-view";
           viewBtn.type = "button";
-          viewBtn.textContent = "View";
-          viewBtn.setAttribute("aria-label", `View ${job.jobTitle} at ${job.company}`);
+          viewBtn.textContent = "Preview";
+          viewBtn.setAttribute("aria-label", `Preview ${job.jobTitle} at ${job.company}`);
           viewBtn.addEventListener("click", () => openAppliedJobViewer(job));
           tdActions.appendChild(viewBtn);
           const exportBtn = document.createElement("button");
