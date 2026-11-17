@@ -88,11 +88,15 @@
     .modal-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
     .close { width: auto; max-width: none; flex: 0 0 auto; padding: 6px 10px; background: transparent; color: #657087; font-size: 22px; }
     .document-list { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
-    .document-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; overflow-wrap: anywhere; }
+    .document-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 10px 12px; background: #f6f8fc; border-radius: 8px; overflow-wrap: anywhere; transition: background .15s ease; }
+    .document-list li:hover, .document-list li:focus-within { background: #e8efff; }
+    #supporting-list li:hover, #supporting-list li:focus-within,
+    #setup-supporting-list li:hover, #setup-supporting-list li:focus-within { background: #e8efff; }
     .document-list li > span, .document-list li > label { min-width: 0; overflow-wrap: anywhere; }
     .document-list input[type="radio"], .document-list input[type="checkbox"] { width: auto; margin: 0 9px 0 0; }
     .document-choice { display: flex; align-items: center; margin: 0; font-weight: 500; cursor: pointer; }
     .document-actions { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .selected-badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #1a56db; background: #e8efff; border: 1px solid #c7dcfa; border-radius: 6px; padding: 2px 8px; flex-shrink: 0; }
     .document-actions button { width: auto; max-width: none; flex: 0 0 auto; padding: 6px 12px; font-size: 13px; font-weight: 600; border-radius: 7px; }
     .document-actions .view-document { color: #1a56db; background: #e8efff; border: 1px solid #c7dcfa; }
     .document-actions .view-document:hover { background: #d0dcff; }
@@ -281,9 +285,6 @@
           <h2 id="resume-heading">Your resumes</h2>
           <button class="btn-clear-section" id="clear-resumes" type="button" disabled>Clear all resumes</button>
         </div>
-        <div class="file-current">
-          <span id="resume-status">No resume saved yet.</span>
-        </div>
         <div class="actions" style="margin-top:12px">
           <button class="primary" id="replace-resume-button" type="button">Choose resume</button>
         </div>
@@ -449,7 +450,7 @@
   <div class="modal-backdrop" id="confirm-clear-all-modal" hidden>
     <section class="card modal confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-clear-all-title">
       <h2 id="confirm-clear-all-title">Clear all applied jobs</h2>
-      <p>Are you sure you want to delete all applied jobs? This action cannot be undone.</p>
+      <p id="confirm-clear-all-message">Are you sure you want to delete all applied jobs? This action cannot be undone.</p>
       <div class="confirm-actions">
         <button class="danger" id="confirm-clear-all-yes" type="button">Yes</button>
         <button class="secondary" id="confirm-clear-all-no" type="button">No</button>
@@ -1020,7 +1021,6 @@
 
     async function refreshResume() {
       const resume = await requestJson("/api/resume");
-      const resumeStatus = document.querySelector("#resume-status");
       const list = document.querySelector("#resume-list");
       list.replaceChildren();
       const hasResumes = resume.resumes.length > 0;
@@ -1032,7 +1032,6 @@
       resumeAvailable = resume.configured;
       if (resume.configured) {
         document.querySelector("#resume-form").hidden = true;
-        resumeStatus.textContent = `Selected resume: ${resume.filename}`;
         updateGenerateButtonState();
         resume.resumes.forEach((savedResume) => {
           const item = document.createElement("li");
@@ -1063,6 +1062,14 @@
             }
           });
           label.append(radio, document.createTextNode(savedResume.filename));
+          if (savedResume.selected) {
+            const badge = document.createElement("span");
+            badge.className = "selected-badge";
+            badge.textContent = "Selected";
+            item.append(label, badge);
+          } else {
+            item.append(label);
+          }
           const view = createViewDocumentButton(savedResume.filename, () => {
             openStoredDocumentViewer(`/api/resume/${encodeURIComponent(savedResume.id)}/view`);
           });
@@ -1088,11 +1095,10 @@
               remove.disabled = false;
             }
           });
-          item.append(label, wrapDocumentActions(view, remove));
+          item.appendChild(wrapDocumentActions(view, remove));
           list.append(item);
         });
       } else {
-        resumeStatus.textContent = "No resume saved yet. Add one before generating a letter.";
         updateGenerateButtonState();
         document.querySelector("#resume-form").hidden = true;
         document.querySelector("#replace-resume-button").hidden = false;
@@ -1218,6 +1224,14 @@
         });
         checkbox.dataset.documentId = supportingDocument.id;
         label.append(checkbox, document.createTextNode(supportingDocument.filename));
+        if (supportingDocument.selected) {
+          const badge = document.createElement("span");
+          badge.className = "selected-badge";
+          badge.textContent = "Selected";
+          item.append(label, badge);
+        } else {
+          item.append(label);
+        }
         const view = createViewDocumentButton(supportingDocument.filename, () => {
           openStoredDocumentViewer(`/api/supporting-documents/${encodeURIComponent(supportingDocument.id)}/view`);
         });
@@ -1243,7 +1257,7 @@
             remove.disabled = false;
           }
         });
-        item.append(label, wrapDocumentActions(view, remove));
+        item.appendChild(wrapDocumentActions(view, remove));
         list.append(item);
       });
       if (documents.length === 0) {
@@ -2095,10 +2109,11 @@
     confirmClearAllYes.addEventListener("click", async () => {
       confirmClearAllModal.hidden = true;
       try {
-        await fetch("/api/applied-jobs", { method: "DELETE" });
+        const params = buildAppliedJobsQueryParams();
+        await fetch(`/api/applied-jobs?${params.toString()}`, { method: "DELETE" });
         await loadAppliedJobs();
       } catch (error) {
-        console.error("Failed to clear all applied jobs:", error);
+        console.error("Failed to clear applied jobs:", error);
       }
     });
 
@@ -2140,6 +2155,21 @@
       appliedJobsSortOrder.textContent = appliedJobsSortAsc ? "Oldest first" : "Newest first";
       loadAppliedJobs();
     });
+
+    function buildAppliedJobsQueryParams() {
+      const search = appliedJobsSearch.value.trim();
+      const dateMode = appliedJobsDateMode.value;
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (dateMode === "single" && appliedJobsDateFrom.value) {
+        params.set("dateFrom", appliedJobsDateFrom.value);
+        params.set("dateTo", appliedJobsDateFrom.value);
+      } else if (dateMode === "range") {
+        if (appliedJobsDateRangeFrom.value) params.set("dateFrom", appliedJobsDateRangeFrom.value);
+        if (appliedJobsDateRangeTo.value) params.set("dateTo", appliedJobsDateRangeTo.value);
+      }
+      return params;
+    }
 
     async function loadAppliedJobs() {
       const search = appliedJobsSearch.value.trim();
@@ -2186,6 +2216,21 @@
         clearAllBtn.textContent = "Clear All";
         clearAllBtn.setAttribute("aria-label", "Clear all applied jobs");
         clearAllBtn.addEventListener("click", () => {
+          const search = appliedJobsSearch.value.trim();
+          const dateMode = appliedJobsDateMode.value;
+          const hasDateFilter = (dateMode === "single" && appliedJobsDateFrom.value) ||
+                               (dateMode === "range" && (appliedJobsDateRangeFrom.value || appliedJobsDateRangeTo.value));
+          const isFiltered = search || hasDateFilter;
+          const count = jobs.length;
+          if (isFiltered) {
+            document.querySelector("#confirm-clear-all-title").textContent = "Clear filtered jobs";
+            document.querySelector("#confirm-clear-all-message").textContent =
+              `Are you sure you want to delete the ${count} filtered job${count === 1 ? '' : 's'} currently shown? This action cannot be undone.`;
+          } else {
+            document.querySelector("#confirm-clear-all-title").textContent = "Clear all applied jobs";
+            document.querySelector("#confirm-clear-all-message").textContent =
+              `Are you sure you want to delete all ${count} applied jobs? This action cannot be undone.`;
+          }
           confirmClearAllModal.hidden = false;
         });
         actionsHeaderDiv.appendChild(clearAllBtn);
