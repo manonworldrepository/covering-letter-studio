@@ -169,14 +169,29 @@ class GeminiCoverLetterService(
 				Retry.backoff(GeminiCoverLetterServiceSupport.MAX_RETRIES.toLong(), Duration.ofSeconds(1))
 					.filter { GeminiModelFallback.isRetryable(it) }
 					.doBeforeRetry { signal ->
+						val attempt = signal.totalRetries()
+						val reason = extractFailureReason(signal.failure())
 						GeminiCoverLetterServiceSupport.logger.warn(
 							"Gemini model {} request failed; retrying (attempt {}/{}).",
 							model,
-							signal.totalRetries(),
+							attempt,
 							GeminiCoverLetterServiceSupport.MAX_RETRIES
 						)
+						userActions.record("Retry $attempt/${GeminiCoverLetterServiceSupport.MAX_RETRIES}: $reason")
 					}
 			)
+
+	private fun extractFailureReason(error: Throwable): String =
+		when (error) {
+			is WebClientResponseException -> when (error.statusCode.value()) {
+				429 -> "Gemini is busy (rate limited)"
+				408 -> "Request timed out"
+				404 -> "Model not found"
+				in 500..599 -> "Gemini server error (HTTP ${error.statusCode.value()})"
+				else -> "Gemini error (HTTP ${error.statusCode.value()})"
+			}
+			else -> "Network error"
+		}
 
 	private fun mapGenerationError(error: Throwable): ResponseStatusException =
 		when (error) {
