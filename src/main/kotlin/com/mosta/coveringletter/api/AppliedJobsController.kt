@@ -45,6 +45,25 @@ class AppliedJobsController(
         if (deleted) logs.record("Removed applied job entry")
     }
 
+    @DeleteMapping("/api/applied-jobs")
+    fun deleteAll(
+        @RequestParam(value = "search", defaultValue = "") search: String,
+        @RequestParam(value = "dateFrom", required = false) dateFrom: LocalDate?,
+        @RequestParam(value = "dateTo", required = false) dateTo: LocalDate?,
+        @RequestParam(value = "ids", required = false) ids: List<String>? = null
+    ): Map<String, Int> {
+        val targetIds = if (!ids.isNullOrEmpty()) {
+            ids
+        } else {
+            store.list(search = search, dateFrom = dateFrom, dateTo = dateTo).map { it.id }
+        }
+        val count = store.deleteAll(targetIds)
+        if (count > 0) {
+            logs.record("Removed applied jobs ($count entries)")
+        }
+        return mapOf("deleted" to count)
+    }
+
     @GetMapping("/api/applied-jobs/{id}/pdf", produces = [MediaType.APPLICATION_PDF_VALUE])
     fun downloadSingleJobPdf(@PathVariable id: String, response: ServerHttpResponse): ByteArray {
         val jobs = store.list()

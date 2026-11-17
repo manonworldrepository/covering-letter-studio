@@ -83,6 +83,10 @@ class AppliedJobStore(private val dataDir: String = ".data") {
         }
     }
 
+    fun deleteAll(ids: Collection<String>): Int {
+        return ids.count { delete(it) }
+    }
+
     private fun serialize(job: AppliedJob): String {
         return "${job.id}\n${job.company}\n${job.jobTitle}\n${job.appliedDate.format(dateFormat)}\n${job.jobDescription}"
     }

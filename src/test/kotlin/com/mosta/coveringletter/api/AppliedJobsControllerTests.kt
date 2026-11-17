@@ -101,6 +101,46 @@ class AppliedJobsControllerTests {
     }
 
     @Test
+    fun `deleteAll removes all jobs when no filter is provided and records log`() {
+        controller.add(AddAppliedJobRequest("Company A", "Role A", ""))
+        controller.add(AddAppliedJobRequest("Company B", "Role B", ""))
+
+        val result = controller.deleteAll(search = "", dateFrom = null, dateTo = null)
+        assertEquals(2, result["deleted"])
+        assertTrue(controller.list("", "date", "desc", null, null).isEmpty())
+
+        val entries = logs.latest()
+        assertTrue(entries.any { it.action.contains("Removed applied jobs (2 entries)") })
+    }
+
+    @Test
+    fun `deleteAll removes only jobs matching search filter`() {
+        controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", ""))
+        controller.add(AddAppliedJobRequest("Beta Inc", "Designer", ""))
+
+        val result = controller.deleteAll(search = "acme", dateFrom = null, dateTo = null)
+        assertEquals(1, result["deleted"])
+
+        val remaining = controller.list("", "date", "desc", null, null)
+        assertEquals(1, remaining.size)
+        assertEquals("Beta Inc", remaining.single().company)
+    }
+
+    @Test
+    fun `deleteAll removes only jobs matching specific ids`() {
+        val job1 = controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", ""))
+        val job2 = controller.add(AddAppliedJobRequest("Beta Inc", "Designer", ""))
+        controller.add(AddAppliedJobRequest("Gamma LLC", "Manager", ""))
+
+        val result = controller.deleteAll(search = "", dateFrom = null, dateTo = null, ids = listOf(job1.id, job2.id))
+        assertEquals(2, result["deleted"])
+
+        val remaining = controller.list("", "date", "desc", null, null)
+        assertEquals(1, remaining.size)
+        assertEquals("Gamma LLC", remaining.single().company)
+    }
+
+    @Test
     fun `download single job PDF returns valid PDF bytes`() {
         val job = controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", "Description"))
         val response = MockServerHttpResponse()

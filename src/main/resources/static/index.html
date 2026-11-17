@@ -144,6 +144,14 @@
     .applied-jobs-table .col-actions .btn-remove { color: #ba3947; border-color: #ad2938; background: #fde8ec; }
     .applied-jobs-table .col-actions .btn-remove:hover { background: #f9cfd6; }
     .applied-jobs-table tfoot td { padding-top: 12px; font-size: 12px; color: #59667e; }
+    .applied-jobs-table .actions-header { display: flex; justify-content: space-between; align-items: center; }
+    .applied-jobs-table .btn-clear-all { width: auto; max-width: none; flex: 0 0 auto; font-size: 12px; padding: 4px 8px; background: #ad2938; color: #fff; border: 1px solid #8f1f2c; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .applied-jobs-table .btn-clear-all:hover { background: #8f1f2c; }
+    .confirm-dialog { width: min(100%, 400px); padding: 28px 32px 24px; text-align: center; }
+    .confirm-dialog h2 { margin: 0 0 10px; font-size: 18px; }
+    .confirm-dialog p { margin: 0 0 22px; color: #59667e; font-size: 14px; line-height: 1.5; }
+    .confirm-dialog .confirm-actions { display: flex; justify-content: center; gap: 12px; }
+    .confirm-dialog .confirm-actions button { width: auto; max-width: none; flex: 0 0 auto; padding: 8px 28px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -418,6 +426,17 @@
         <button class="primary" id="settings-save" type="button">Save settings</button>
       </div>
       <div class="status" id="settings-status" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="confirm-clear-all-modal" hidden>
+    <section class="card modal confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-clear-all-title">
+      <h2 id="confirm-clear-all-title">Clear all applied jobs</h2>
+      <p>Are you sure you want to delete all applied jobs? This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="danger" id="confirm-clear-all-yes" type="button">Yes</button>
+        <button class="secondary" id="confirm-clear-all-no" type="button">No</button>
+      </div>
     </section>
   </div>
 
@@ -2046,6 +2065,25 @@
     const appliedJobsSort = document.querySelector("#applied-jobs-sort");
     const appliedJobsSortOrder = document.querySelector("#applied-jobs-sort-order");
     let appliedJobsSortAsc = false;
+    const confirmClearAllModal = document.querySelector("#confirm-clear-all-modal");
+    const confirmClearAllYes = document.querySelector("#confirm-clear-all-yes");
+    const confirmClearAllNo = document.querySelector("#confirm-clear-all-no");
+
+    confirmClearAllNo.addEventListener("click", () => {
+      confirmClearAllModal.hidden = true;
+    });
+    confirmClearAllModal.addEventListener("click", (e) => {
+      if (e.target === confirmClearAllModal) confirmClearAllModal.hidden = true;
+    });
+    confirmClearAllYes.addEventListener("click", async () => {
+      confirmClearAllModal.hidden = true;
+      try {
+        await fetch("/api/applied-jobs", { method: "DELETE" });
+        await loadAppliedJobs();
+      } catch (error) {
+        console.error("Failed to clear all applied jobs:", error);
+      }
+    });
 
     appliedJobsDateMode.addEventListener("change", () => {
       const mode = appliedJobsDateMode.value;
@@ -2114,11 +2152,28 @@
         table.className = "applied-jobs-table";
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
-        ["Job Title", "Company", "Date Applied", "Actions"].forEach((text) => {
+        ["Job Title", "Company", "Date Applied"].forEach((text) => {
           const th = document.createElement("th");
           th.textContent = text;
           headerRow.appendChild(th);
         });
+        const actionsTh = document.createElement("th");
+        const actionsHeaderDiv = document.createElement("div");
+        actionsHeaderDiv.className = "actions-header";
+        const actionsLabel = document.createElement("span");
+        actionsLabel.textContent = "Actions";
+        actionsHeaderDiv.appendChild(actionsLabel);
+        const clearAllBtn = document.createElement("button");
+        clearAllBtn.className = "btn-clear-all";
+        clearAllBtn.type = "button";
+        clearAllBtn.textContent = "Clear All";
+        clearAllBtn.setAttribute("aria-label", "Clear all applied jobs");
+        clearAllBtn.addEventListener("click", () => {
+          confirmClearAllModal.hidden = false;
+        });
+        actionsHeaderDiv.appendChild(clearAllBtn);
+        actionsTh.appendChild(actionsHeaderDiv);
+        headerRow.appendChild(actionsTh);
         thead.appendChild(headerRow);
         table.appendChild(thead);
         const tbody = document.createElement("tbody");

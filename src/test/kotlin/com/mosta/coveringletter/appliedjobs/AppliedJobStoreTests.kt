@@ -232,6 +232,21 @@ class AppliedJobStoreTests {
     }
 
     @Test
+    fun `deleteAll removes all matching jobs and returns count`() {
+        val store = store()
+        val job1 = store.add("Acme Corp", "Engineer", "")
+        val job2 = store.add("Beta Corp", "Designer", "")
+        store.add("Gamma Corp", "Product Manager", "")
+
+        val count = store.deleteAll(listOf(job1.id, job2.id, "non-existent-id"))
+        assertEquals(2, count)
+
+        val remaining = store.list()
+        assertEquals(1, remaining.size)
+        assertEquals("Gamma Corp", remaining.single().company)
+    }
+
+    @Test
     fun `survives corrupted file content`() {
         val store = store()
         store.add("Valid Corp", "Valid Role", "Valid description")
