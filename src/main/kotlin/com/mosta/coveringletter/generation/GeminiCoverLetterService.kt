@@ -22,16 +22,16 @@ class GeminiCoverLetterService(
 	private val objectMapper: ObjectMapper,
 	private val settings: AppSettingsService,
 	private val userActions: UserActionLogBuffer
-) {
+) : CoverLetterGenerator {
 	private val webClient = WebClient.builder()
 		.baseUrl("https://generativelanguage.googleapis.com")
 		.build()
 
-	fun generate(
+	override fun generate(
 		jobDescription: String,
 		resume: String,
 		supportingDocuments: String,
-		format: GenerationFormat = GenerationFormat.COVER_LETTER
+		format: GenerationFormat
 	): Mono<GeneratedCoverLetter> {
 		val apiKey = settings.apiKey()
 		val preferredModel = settings.model()

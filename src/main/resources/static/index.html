@@ -19,6 +19,12 @@
     .intro { margin-bottom: 28px; }
     h1 { margin: 0 0 9px; font-size: clamp(28px, 5vw, 38px); letter-spacing: -1.2px; }
     h2 { margin: 0 0 12px; font-size: 20px; }
+    .section-heading-strip { border-bottom: 3px solid #3158d5; padding-bottom: 8px; }
+    .section-heading-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #3158d5; padding-bottom: 8px; margin: 0 0 12px; }
+    .section-heading-row h2 { margin: 0; font-size: 20px; }
+    .section-heading-row .btn-clear-section { width: auto; max-width: none; flex: 0 0 auto; font-size: 12px; padding: 4px 10px; background: #ad2938; color: #fff; border: 1px solid #8f1f2c; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .section-heading-row .btn-clear-section:hover { background: #8f1f2c; }
+    .section-heading-row .btn-clear-section:disabled { opacity: .6; cursor: wait; }
     .intro p, .hint { color: #657087; line-height: 1.6; }
     .card { padding: clamp(20px, 4vw, 32px); background: white; border: 1px solid #e6e8ed; border-radius: 16px; box-shadow: 0 8px 24px #17203308; }
     .field { margin-bottom: 23px; }
@@ -181,6 +187,7 @@
       <p class="hint">Your API key and selected model are saved in the local, Git-ignored <code>.env</code> file.</p>
       <div class="step" id="setup-key-step" hidden>
         <div class="step-number">Step 1</div>
+        <h2 class="section-heading-strip">API key</h2>
         <label for="setup-key">Gemini API key <span class="required">*</span></label>
         <input id="setup-key" type="password" autocomplete="new-password" placeholder="Paste your Gemini API key">
         <button class="secondary" id="setup-key-visibility" type="button" aria-pressed="false">Show</button>
@@ -191,6 +198,7 @@
       </div>
       <div class="step" id="setup-model-step" hidden>
         <div class="step-number">Step 2</div>
+        <h2 class="section-heading-strip">Model selection</h2>
         <label for="setup-model">Gemini model <span class="required">*</span></label>
         <p class="hint">Recommended: Gemini 3.1 Flash-Lite (gemini-3.1-flash-lite), the model this app uses by default. It will stay selected when available.</p>
         <button class="secondary" id="setup-load-models-existing-key" type="button" hidden>Load available models</button>
@@ -202,6 +210,7 @@
       </div>
       <div class="step" id="setup-resume-step" hidden>
         <div class="step-number">Step 3</div>
+        <h2 class="section-heading-strip">Your resumes</h2>
         <label for="setup-resume-file">Add one or more resumes <span class="required">*</span></label>
         <input id="setup-resume-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
         <div class="actions" style="margin-top:12px">
@@ -219,6 +228,7 @@
       </div>
       <div class="step" id="setup-supporting-step" hidden>
         <div class="step-number">Step 4</div>
+        <h2 class="section-heading-strip">Supporting documents</h2>
         <label for="setup-supporting-file">Add supporting documents <span class="optional">(optional)</span></label>
         <input id="setup-supporting-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple>
         <div class="actions" style="margin-top:12px">
@@ -236,6 +246,7 @@
       </div>
       <div class="step" id="setup-format-step" hidden>
         <div class="step-number">Step 5</div>
+        <h2 class="section-heading-strip">Next actions</h2>
         <label for="setup-format">What would you like to generate?</label>
         <select id="setup-format">
           <option value="cover-letter">Complete covering letter</option>
@@ -248,6 +259,7 @@
       </div>
       <div class="step" id="setup-job-step" hidden>
         <div class="step-number">Step 6</div>
+        <h2 class="section-heading-strip">Job description</h2>
         <label for="setup-job">Job description <span class="required">*</span></label>
         <textarea id="setup-job" maxlength="20000" required placeholder="Paste the job description here..."></textarea>
         <p class="hint">This is required to create your first draft. You can edit it or enter another description in the application form afterwards.</p>
@@ -265,13 +277,15 @@
         <p>Upload your resumes and supporting documents, then choose which files should inform each letter.</p>
       </div>
       <section class="card" aria-labelledby="resume-heading">
-        <h2 id="resume-heading">Your resumes</h2>
+        <div class="section-heading-row">
+          <h2 id="resume-heading">Your resumes</h2>
+          <button class="btn-clear-section" id="clear-resumes" type="button" disabled>Clear all resumes</button>
+        </div>
         <div class="file-current">
           <span id="resume-status">No resume saved yet.</span>
         </div>
         <div class="actions" style="margin-top:12px">
           <button class="primary" id="replace-resume-button" type="button">Choose resume</button>
-          <button class="danger" id="clear-resumes" type="button" disabled>Clear all resumes</button>
         </div>
         <ul class="document-list" id="resume-list" aria-label="Choose the resume used for generation"></ul>
         <form id="resume-form" hidden>
@@ -286,11 +300,13 @@
       </section>
 
       <section class="card" style="margin-top:20px" aria-labelledby="supporting-heading">
-        <h2 id="supporting-heading">Supporting documents</h2>
+        <div class="section-heading-row">
+          <h2 id="supporting-heading">Supporting documents</h2>
+          <button class="btn-clear-section" id="clear-supporting" type="button" hidden>Clear all supporting files</button>
+        </div>
         <p class="hint">Store up to five certificates and other useful PDFs or DOCX files (10 MB each). Choose which documents should contribute to each generated letter.</p>
         <div class="actions" style="margin-top:12px">
           <button class="primary" id="replace-supporting-button" type="button">Choose supporting file</button>
-          <button class="danger" id="clear-supporting" type="button" hidden>Clear all supporting files</button>
         </div>
         <ul class="document-list" id="supporting-list" aria-live="polite"></ul>
         <form id="supporting-form" hidden>
@@ -307,6 +323,7 @@
       </section>
 
       <form class="card" id="generator" style="margin-top:20px">
+        <h2 class="section-heading-strip">Next actions</h2>
         <div class="field">
           <label for="generation-format">What would you like to generate?</label>
           <select id="generation-format" name="format">
@@ -346,7 +363,7 @@
         <p>Track the jobs you have applied to. Entries are kept for 30 days.</p>
       </div>
       <section class="card" aria-labelledby="applied-jobs-heading">
-        <h2 id="applied-jobs-heading">Your applications</h2>
+        <h2 id="applied-jobs-heading" class="section-heading-strip">Your applications</h2>
         <div class="actions" style="margin-bottom:12px">
           <button class="primary" id="applied-jobs-export-all" type="button">Export all as PDF</button>
         </div>

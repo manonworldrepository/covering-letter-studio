@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono
 class CoverLetterGenerationService(
 	private val resumeStore: ResumeStore,
 	private val supportingDocumentStore: SupportingDocumentStore,
-	private val generator: GeminiCoverLetterService,
+	private val generator: CoverLetterGenerator,
 	private val logs: UserActionLogBuffer
 ) {
 	fun generate(jobDescription: String, requestedFormat: String?): Mono<GeneratedCoverLetter> {
