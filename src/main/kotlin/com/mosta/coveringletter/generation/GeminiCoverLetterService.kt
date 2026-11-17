@@ -10,8 +10,10 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import org.springframework.web.server.ResponseStatusException
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.util.retry.Retry
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
+import java.time.Duration
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -163,6 +165,18 @@ class GeminiCoverLetterService(
 			.doOnSubscribe { userActions.record("Contacting Gemini with model $model") }
 			.doOnNext { userActions.record("Received a reply from Gemini using model $model") }
 			.map(::readGeneratedLetter)
+			.retryWhen(
+				Retry.backoff(GeminiCoverLetterServiceSupport.MAX_RETRIES.toLong(), Duration.ofSeconds(1))
+					.filter { GeminiModelFallback.isRetryable(it) }
+					.doBeforeRetry { signal ->
+						GeminiCoverLetterServiceSupport.logger.warn(
+							"Gemini model {} request failed; retrying (attempt {}/{}).",
+							model,
+							signal.totalRetries(),
+							GeminiCoverLetterServiceSupport.MAX_RETRIES
+						)
+					}
+			)
 
 	private fun mapGenerationError(error: Throwable): ResponseStatusException =
 		when (error) {
