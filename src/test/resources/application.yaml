@@ -1,0 +1,29 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope:
+              - email
+              - profile
+            authorization-grant-type: authorization_code
+            redirect-uri: "https://test.example.com/login/oauth2/code/google"
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+
+gemini:
+  api-key: test-api-key
+  model: gemini-3.1-flash-lite
+
+coverletter:
+  storage:
+    directory: .data
+  security:
+    allowed-emails: test@example.com
+
+server:
+  address: 127.0.0.1
