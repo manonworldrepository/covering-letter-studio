@@ -53,15 +53,11 @@ class SecurityConfig(
             .csrf { it.disable() }
             .authorizeExchange { auth ->
                 auth.pathMatchers(
-                    "/",
-                    "/index.html",
                     "/login",
                     "/login.html",
                     "/error",
                     "/favicon.ico",
-                    "/login/oauth2/code/*",
-                    "/api/settings",
-                    "/api/settings/current"
+                    "/login/oauth2/code/*"
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }
