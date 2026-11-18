@@ -166,6 +166,11 @@
     .applied-jobs-table .actions-header { display: flex; justify-content: space-between; align-items: center; }
     .applied-jobs-table .btn-clear-all { width: auto; max-width: none; flex: 0 0 auto; font-size: 12px; padding: 4px 8px; background: #ad2938; color: #fff; border: 1px solid #8f1f2c; border-radius: 6px; cursor: pointer; font-weight: 600; }
     .applied-jobs-table .btn-clear-all:hover { background: #8f1f2c; }
+    .user-info { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; }
+    .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.25); display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #fff; flex-shrink: 0; }
+    .user-email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-logout { width: auto; max-width: none; flex: 0 0 auto; font-size: 12px; padding: 4px 10px; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.15s ease; }
+    .btn-logout:hover { background: rgba(255,255,255,0.3); }
     .confirm-dialog { width: min(100%, 400px); padding: 28px 32px 24px; text-align: center; }
     .confirm-dialog h2 { margin: 0 0 10px; font-size: 18px; }
     .confirm-dialog p { margin: 0 0 22px; color: #59667e; font-size: 14px; line-height: 1.5; }
@@ -177,6 +182,11 @@
   <header>
     <div class="header-inner">
       <div class="brand"><span class="brand-mark" aria-hidden="true">C</span> Cover Letter Studio</div>
+      <div id="user-info" class="user-info" hidden>
+        <span class="user-avatar" id="user-avatar"></span>
+        <span class="user-email" id="user-email"></span>
+        <button class="btn-logout" id="btn-logout" type="button" title="Sign out">Sign out</button>
+      </div>
       <nav class="nav-menu" id="nav-menu" hidden>
         <button class="active" id="nav-cover-letter" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -822,12 +832,30 @@
       }
     }
 
+    async function loadUserInfo() {
+      try {
+        const user = await requestJson("/api/user/me");
+        const userInfo = document.querySelector("#user-info");
+        const userAvatar = document.querySelector("#user-avatar");
+        const userEmail = document.querySelector("#user-email");
+        if (user && userInfo) {
+          userAvatar.textContent = (user.name || user.email || "?").charAt(0).toUpperCase();
+          userEmail.textContent = user.email;
+          userEmail.title = user.email;
+          userInfo.hidden = false;
+        }
+      } catch (error) {
+        console.error("Failed to load user info:", error);
+      }
+    }
+
     async function refreshApp() {
       const config = await requestJson("/api/settings");
       const settingsConfigured = config.apiKeyConfigured === true && config.modelConfigured === true;
       activeModel = config.model;
       setupApiKeyConfigured = config.apiKeyConfigured === true;
       setupModelConfigured = config.modelConfigured === true;
+      await loadUserInfo();
       if (!settingsConfigured || config.resumeConfigured !== true) {
         settingsOpen.hidden = true;
         workspace.hidden = true;
@@ -860,6 +888,16 @@
       await refreshResume();
       await refreshSupportingDocuments();
     }
+
+    document.querySelector("#btn-logout")?.addEventListener("click", async () => {
+      try {
+        await fetch("/logout", { method: "POST", credentials: "same-origin" });
+        window.location.href = "/login.html";
+      } catch (error) {
+        console.error("Failed to logout:", error);
+        window.location.href = "/login.html";
+      }
+    });
 
     function showSetupStep(stepId) {
       ["setup-key-step", "setup-model-step", "setup-resume-step", "setup-supporting-step", "setup-format-step", "setup-job-step"]
