@@ -87,20 +87,49 @@ class AppliedJobStore(private val dataDir: String = ".data") {
         return ids.count { delete(it) }
     }
 
+    fun updateStatus(id: String, status: AppliedJobStatus): AppliedJob? {
+        val file = File(jobsDir, "$id.txt")
+        if (!file.exists()) return null
+        val job = deserialize(file.readText()) ?: return null
+        val updated = AppliedJob(
+            id = job.id,
+            company = job.company,
+            jobTitle = job.jobTitle,
+            appliedDate = job.appliedDate,
+            jobDescription = job.jobDescription,
+            status = status
+        )
+        file.writeText(serialize(updated))
+        return updated
+    }
+
     private fun serialize(job: AppliedJob): String {
-        return "${job.id}\n${job.company}\n${job.jobTitle}\n${job.appliedDate.format(dateFormat)}\n${job.jobDescription}"
+        return "${job.id}\n${job.company}\n${job.jobTitle}\n${job.appliedDate.format(dateFormat)}\n${job.status.name}\n${job.jobDescription}"
     }
 
     private fun deserialize(text: String): AppliedJob? {
         val lines = text.split('\n', limit = 5)
         if (lines.size < 5) return null
         return try {
+            val statusAndDescription = lines[4]
+            val firstNewline = statusAndDescription.indexOf('\n')
+            val (statusLine, jobDescription) = if (firstNewline >= 0) {
+                statusAndDescription.substring(0, firstNewline).trim() to statusAndDescription.substring(firstNewline + 1)
+            } else {
+                AppliedJobStatus.PROGRESSING.name to ""
+            }
+            val status = if (statusLine.isBlank()) {
+                AppliedJobStatus.PROGRESSING
+            } else {
+                AppliedJobStatus.valueOf(statusLine)
+            }
             AppliedJob(
                 id = lines[0],
                 company = lines[1],
                 jobTitle = lines[2],
                 appliedDate = LocalDateTime.parse(lines[3], dateFormat),
-                jobDescription = lines[4]
+                jobDescription = jobDescription,
+                status = status
             )
         } catch (e: Exception) {
             null

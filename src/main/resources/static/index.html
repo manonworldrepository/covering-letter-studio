@@ -153,6 +153,15 @@
     .applied-jobs-table .col-actions .btn-export:hover { background: #d0dcff; }
     .applied-jobs-table .col-actions .btn-remove { color: #ba3947; border-color: #ad2938; background: #fde8ec; }
     .applied-jobs-table .col-actions .btn-remove:hover { background: #f9cfd6; }
+    .applied-jobs-table .col-status { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .applied-jobs-table .status-badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 10px; border-radius: 6px; flex-shrink: 0; }
+    .applied-jobs-table .status-badge.progressing { color: #166534; background: #dcfce7; border: 1px solid #86efac; }
+    .applied-jobs-table .status-badge.rejected { color: #991b1b; background: #fde8ec; border: 1px solid #fca5a5; }
+    .applied-jobs-table .col-actions .btn-toggle-status { font-size: 12px; padding: 4px 8px; }
+    .applied-jobs-table .col-actions .btn-toggle-status.mark-rejected { color: #ba3947; border-color: #ad2938; background: #fde8ec; }
+    .applied-jobs-table .col-actions .btn-toggle-status.mark-rejected:hover { background: #f9cfd6; }
+    .applied-jobs-table .col-actions .btn-toggle-status.mark-progressing { color: #166534; border-color: #16a34a; background: #dcfce7; }
+    .applied-jobs-table .col-actions .btn-toggle-status.mark-progressing:hover { background: #bbf7d0; }
     .applied-jobs-table tfoot td { padding-top: 12px; font-size: 12px; color: #59667e; }
     .applied-jobs-table .actions-header { display: flex; justify-content: space-between; align-items: center; }
     .applied-jobs-table .btn-clear-all { width: auto; max-width: none; flex: 0 0 auto; font-size: 12px; padding: 4px 8px; background: #ad2938; color: #fff; border: 1px solid #8f1f2c; border-radius: 6px; cursor: pointer; font-weight: 600; }
@@ -2258,8 +2267,13 @@
           tdDate.tabIndex = 0;
           tdDate.textContent = dateStr;
           tr.appendChild(tdDate);
+          const jobStatus = job.status || "PROGRESSING";
           const tdActions = document.createElement("td");
           tdActions.className = "col-actions";
+          const statusBadge = document.createElement("span");
+          statusBadge.className = `status-badge ${jobStatus === "REJECTED" ? "rejected" : "progressing"}`;
+          statusBadge.textContent = jobStatus === "REJECTED" ? "Rejected" : "Progressing";
+          tdActions.appendChild(statusBadge);
           const viewBtn = document.createElement("button");
           viewBtn.className = "secondary btn-view";
           viewBtn.type = "button";
@@ -2274,6 +2288,22 @@
           exportBtn.setAttribute("aria-label", `Export ${job.jobTitle} at ${job.company} as PDF`);
           exportBtn.addEventListener("click", () => downloadSingleJobPdf(job.id, exportBtn, "Export PDF"));
           tdActions.appendChild(exportBtn);
+          const toggleStatusBtn = document.createElement("button");
+          const isRejected = jobStatus === "REJECTED";
+          toggleStatusBtn.className = `secondary btn-toggle-status ${isRejected ? 'mark-progressing' : 'mark-rejected'}`;
+          toggleStatusBtn.type = "button";
+          toggleStatusBtn.textContent = isRejected ? "Mark Progressing" : "Mark Rejected";
+          toggleStatusBtn.setAttribute("aria-label", `${isRejected ? 'Mark as progressing' : 'Mark as rejected'}: ${job.jobTitle} at ${job.company}`);
+          toggleStatusBtn.addEventListener("click", async () => {
+            try {
+              const newStatus = isRejected ? "PROGRESSING" : "REJECTED";
+              await fetch(`/api/applied-jobs/${job.id}/status?status=${newStatus}`, { method: "PATCH" });
+              await loadAppliedJobs();
+            } catch (error) {
+              console.error("Failed to update job status:", error);
+            }
+          });
+          tdActions.appendChild(toggleStatusBtn);
           const removeBtn = document.createElement("button");
           removeBtn.className = "secondary btn-remove";
           removeBtn.type = "button";

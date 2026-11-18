@@ -2,6 +2,7 @@ package com.mosta.coveringletter.api
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.appliedjobs.AddAppliedJobRequest
+import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import com.mosta.coveringletter.appliedjobs.AppliedJobStore
 import com.mosta.coveringletter.pdf.AppliedJobsPdfGenerator
 import jakarta.validation.Valid
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -43,6 +45,18 @@ class AppliedJobsController(
     fun delete(@PathVariable id: String) {
         val deleted = store.delete(id)
         if (deleted) logs.record("Removed applied job entry")
+    }
+
+    @PatchMapping("/api/applied-jobs/{id}/status")
+    fun updateStatus(@PathVariable id: String, @RequestParam status: String) {
+        val jobStatus = try {
+            AppliedJobStatus.valueOf(status.uppercase())
+        } catch (e: IllegalArgumentException) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: $status")
+        }
+        val updated = store.updateStatus(id, jobStatus)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Applied job not found")
+        logs.record("Updated job status to ${jobStatus.name.lowercase().replaceFirstChar { it.uppercase() }}: ${updated.jobTitle} at ${updated.company}")
     }
 
     @DeleteMapping("/api/applied-jobs")
