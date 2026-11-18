@@ -53,7 +53,9 @@ jobs:
           distribution: 'temurin'
 
       - name: Build JAR with Gradle
-        run: ./gradlew bootJar --no-daemon
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bootJar --no-daemon
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
