@@ -167,7 +167,7 @@ class AppliedJobsPdfGenerator {
 
                     val s = stream!!
                     val titleText = toSupportedText(font, truncate(job.jobTitle, 25))
-                    val companyText = toSupportedText(font, truncate(job.company, 20))
+                    val companyText = toSupportedText(font, truncate(job.company, 15))
                     val statusText = toSupportedText(font, job.status.name.lowercase().replaceFirstChar { it.uppercase() })
                     val dateText = toSupportedText(font, job.appliedDate.format(dateFormat))
 

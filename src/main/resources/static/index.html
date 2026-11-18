@@ -2262,9 +2262,9 @@
           const tdCompany = document.createElement("td");
           tdCompany.className = "col-company";
           tdCompany.tabIndex = 0;
-          const displayCompany = job.company.length > 20 ? job.company.slice(0, 20) + "..." : job.company;
+          const displayCompany = job.company.length > 15 ? job.company.slice(0, 15) + "..." : job.company;
           tdCompany.textContent = displayCompany;
-          if (job.company.length > 20) tdCompany.title = job.company;
+          if (job.company.length > 15) tdCompany.title = job.company;
           tr.appendChild(tdCompany);
           const tdDate = document.createElement("td");
           tdDate.className = "col-date";
