@@ -1,0 +1,17 @@
+# Cloud Build configuration for Cover Letter Studio
+# The Dockerfile uses a multi-stage build: Gradle builds the JAR in stage 1,
+# then copies it into a minimal distroless Java runtime in stage 2.
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--tag'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/coveringletter-repo/coveringletter:${_TAG}'
+      - '.'
+
+substitutions:
+  _TAG: 'latest'
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/coveringletter-repo/coveringletter:${_TAG}'

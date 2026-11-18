@@ -1,0 +1,38 @@
+# Gradle
+.gradle/
+build/
+!build.gradle.kts
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.out/
+
+# Data (Git-ignored, should not be in container)
+.data/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed at runtime)
+CLOUD_DEPLOYMENT.md
+AGENTS.md
+
+# Local scripts
+install-and-run-linux.sh
+install-and-run-macos.sh
+install-and-run-windows.bat
+
+# Native build artifacts (large, rebuild if needed)
+build/native/
+
+# Test sources (not needed in production image)
+src/test/

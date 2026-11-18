@@ -18,6 +18,7 @@ This repository is a single-user, localhost-only Spring Boot/Kotlin app for draf
 - AI integration: Google Gemini via Spring AI and `WebClient`
 - MCP server: `http://127.0.0.1:8080/mcp` exposing `generate_cover_letter`
 - Gradle Configuration Cache is enabled via `gradle.properties` for faster builds
+- Cloud deployment: `application-cloud.yaml` profile binds to `0.0.0.0`; `Dockerfile` and `.dockerignore` support containerized deployment to Google Cloud Run
 
 ## Build and run
 
@@ -54,6 +55,15 @@ Linux/macOS:
 ./gradlew nativeCompile
 ```
 
+### Cloud Run deployment
+
+The app can be deployed to Google Cloud Run on the free tier. See `CLOUD_DEPLOYMENT.md` for a step-by-step guide. Key points:
+
+- Activate the `cloud` Spring profile (`-Dspring.profiles.active=cloud`) to bind to `0.0.0.0` instead of `127.0.0.1`
+- Set `GEMINI_API_KEY` and `GEMINI_MODEL` as Cloud Run environment variables
+- The `.data` directory is ephemeral on Cloud Run — data is lost on restart unless external persistence (Cloud Storage, Cloud SQL) is configured
+- Use IAM authentication (`--no-allow-unauthenticated`) to protect sensitive data
+
 ### Tests
 
 ```powershell
@@ -71,8 +81,9 @@ Linux/macOS:
   - `GEMINI_MODEL`
 - `AppSettingsService` reads `.env`, then environment variables, then Spring properties, and writes a normalized `GEMINI_*` pair back to `.env` when settings are saved.
 - The default model is `gemini-3.1-flash-lite` when available.
-- The app binds to `127.0.0.1` and is intentionally single-user/local-only.
+- The app binds to `127.0.0.1` by default (localhost-only). The `cloud` profile overrides this to `0.0.0.0` for containerized deployment.
 - Keep `.env` private; it is excluded from Git.
+- On Cloud Run, configure `GEMINI_API_KEY` and `GEMINI_MODEL` as environment variables instead of using `.env`.
 
 ## Architecture and service boundaries
 
@@ -177,6 +188,10 @@ These stores are not generic repositories; they are domain-specific file stores 
 - `src/main/kotlin/com/mosta/coveringletter/aspects/ApiExceptionLoggingAspect.kt` — `@Around` aspects that log API errors transparently
 - `src/main/kotlin/com/mosta/coveringletter/appliedjobs/AppliedJobStore.kt` — applied job persistence with status tracking and filter-based deletion
 - `src/main/kotlin/com/mosta/coveringletter/appliedjobs/AppliedJob.kt` — applied job data model with `AppliedJobStatus` enum (`PROGRESSING` / `REJECTED`)
+- `src/main/resources/application-cloud.yaml` — Spring profile for cloud deployment (binds to `0.0.0.0`)
+- `Dockerfile` — container image definition for Cloud Run deployment
+- `CLOUD_DEPLOYMENT.md` — step-by-step guide for deploying to Google Cloud Run, including CI/CD setup
+- `.github/workflows/deploy.yml` — GitHub Actions workflow for automatic Cloud Run deployment on push to `main`
 
 This repo is not a generic CRUD app; it is a local document-processing and generation app whose domain logic is centered around selected resume content, supporting documents, Gemini prompts, and generated PDF output.
 
