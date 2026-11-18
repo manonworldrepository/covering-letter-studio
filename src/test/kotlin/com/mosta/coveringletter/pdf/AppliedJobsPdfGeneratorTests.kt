@@ -162,8 +162,8 @@ class AppliedJobsPdfGeneratorTests {
 
         Loader.loadPDF(pdf).use { document ->
             val text = PDFTextStripper().getText(document)
-            assertTrue(text.contains("A".repeat(80)))
-            assertTrue(text.contains("B".repeat(80)))
+            assertTrue(text.contains("A".repeat(25) + "..."), "Long company name should be truncated with ellipsis")
+            assertTrue(text.contains("B".repeat(25) + "..."), "Long job title should be truncated with ellipsis")
         }
     }
 

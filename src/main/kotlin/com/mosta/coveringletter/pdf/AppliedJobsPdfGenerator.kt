@@ -166,8 +166,8 @@ class AppliedJobsPdfGenerator {
                     }
 
                     val s = stream!!
-                    val titleText = toSupportedText(font, job.jobTitle)
-                    val companyText = toSupportedText(font, job.company)
+                    val titleText = toSupportedText(font, truncate(job.jobTitle, 25))
+                    val companyText = toSupportedText(font, truncate(job.company, 25))
                     val statusText = toSupportedText(font, job.status.name.lowercase().replaceFirstChar { it.uppercase() })
                     val dateText = toSupportedText(font, job.appliedDate.format(dateFormat))
 
@@ -251,6 +251,9 @@ class AppliedJobsPdfGenerator {
             PDType1Font(Standard14Fonts.FontName.HELVETICA)
         }
     }
+
+    private fun truncate(text: String, maxLength: Int): String =
+        if (text.length > maxLength) text.slice(0 until maxLength) + "..." else text
 
     private fun toSupportedText(font: PDFont, text: String): String {
         var candidate = text
