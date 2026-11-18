@@ -64,5 +64,5 @@ jobs:
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }} \
             --no-allow-unauthenticated \
-            --set-env-vars GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+            --set-env-vars GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
             --quiet
