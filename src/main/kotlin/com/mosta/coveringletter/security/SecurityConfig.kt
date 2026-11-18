@@ -53,6 +53,8 @@ class SecurityConfig(
             .csrf { it.disable() }
             .authorizeExchange { auth ->
                 auth.pathMatchers(
+                    "/",
+                    "/index.html",
                     "/login",
                     "/login.html",
                     "/error",
@@ -61,6 +63,7 @@ class SecurityConfig(
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }
+            .httpBasic { it.disable() }
             .oauth2Login { oauth ->
                 oauth.loginPage("/login.html")
                 oauth.authenticationSuccessHandler(LoginSuccessHandler(allowedEmails))

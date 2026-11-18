@@ -763,7 +763,7 @@
     }
 
     async function requestJson(url, options = {}) {
-      const response = await fetch(url, { cache: "no-store", ...options });
+      const response = await fetch(url, { cache: "no-store", credentials: "same-origin", ...options });
       if (!response.ok) throw new Error(await responseError(response, "Request failed."));
       return response.json();
     }
@@ -1759,7 +1759,7 @@
       documentViewerDownload.textContent = "Loading...";
       documentViewerDownload.disabled = true;
       try {
-        const response = await fetch(documentViewerRawUrl);
+        const response = await fetch(documentViewerRawUrl, { credentials: "same-origin" });
         if (!response.ok) throw new Error((await response.text()) || "Failed to download");
         let filename = documentViewerDownloadFilename;
         const disposition = response.headers.get("Content-Disposition");
@@ -1966,7 +1966,7 @@
       message.classList.remove("error");
       message.textContent = "Clearing saved supporting files...";
       try {
-        const response = await fetch("/api/supporting-documents", { method: "DELETE" });
+        const response = await fetch("/api/supporting-documents", { method: "DELETE", credentials: "same-origin" });
         if (!response.ok) throw new Error(await responseError(response, "Could not clear supporting files."));
         await response.json();
         message.textContent = "Supporting documents cleared.";
@@ -2039,6 +2039,7 @@
       try {
         const response = await fetch("/api/pdf", {
           method: "POST",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             letter: letter.value,
@@ -2119,7 +2120,7 @@
       confirmClearAllModal.hidden = true;
       try {
         const params = buildAppliedJobsQueryParams();
-        await fetch(`/api/applied-jobs?${params.toString()}`, { method: "DELETE" });
+        await fetch(`/api/applied-jobs?${params.toString()}`, { method: "DELETE", credentials: "same-origin" });
         await loadAppliedJobs();
       } catch (error) {
         console.error("Failed to clear applied jobs:", error);
@@ -2301,7 +2302,7 @@
           toggleStatusBtn.addEventListener("click", async () => {
             try {
               const newStatus = isRejected ? "PROGRESSING" : "REJECTED";
-              await fetch(`/api/applied-jobs/${job.id}/status?status=${newStatus}`, { method: "PATCH" });
+              await fetch(`/api/applied-jobs/${job.id}/status?status=${newStatus}`, { method: "PATCH", credentials: "same-origin" });
               await loadAppliedJobs();
             } catch (error) {
               console.error("Failed to update job status:", error);
@@ -2315,7 +2316,7 @@
           removeBtn.setAttribute("aria-label", `Remove ${job.jobTitle} at ${job.company}`);
           removeBtn.addEventListener("click", async () => {
             try {
-              await fetch(`/api/applied-jobs/${job.id}`, { method: "DELETE" });
+              await fetch(`/api/applied-jobs/${job.id}`, { method: "DELETE", credentials: "same-origin" });
               await loadAppliedJobs();
             } catch (error) {
               console.error("Failed to remove applied job:", error);
@@ -2381,7 +2382,7 @@
       button.textContent = "Loading...";
       button.disabled = true;
       try {
-        const response = await fetch(`/api/applied-jobs/${id}/pdf`);
+        const response = await fetch(`/api/applied-jobs/${id}/pdf`, { credentials: "same-origin" });
         if (!response.ok) throw new Error(await response.text() || "Failed to export PDF");
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -2419,7 +2420,7 @@
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
       try {
-        const response = await fetch(`/api/applied-jobs/pdf?${params.toString()}`);
+        const response = await fetch(`/api/applied-jobs/pdf?${params.toString()}`, { credentials: "same-origin" });
         if (!response.ok) throw new Error(await response.text() || "Failed to export PDF");
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);

@@ -135,12 +135,75 @@ ENTRYPOINT ["/app/coveringletter"]
 
 This requires GraalVM 25+ with Native Image tooling installed locally.
 
-## Monitoring
+## Cloud Logging
 
-View logs and metrics:
+Cloud Run automatically sends all `stdout`/`stderr` output to Google Cloud Logging. Your app's SLF4J server logs (including Gemini operations, retries, API errors, and user action logs) are captured without any code changes.
+
+### Free Tier Limits
+
+| Resource | Free Allowance |
+|----------|----------------|
+| Log storage | 50 GiB/project/month |
+| Log ingestion (us-central1) | 4.8 GB/minute |
+| Log retention | 30 days (default, auto-cleared) |
+
+For a personal app generating a few cover letters per day, you'll stay well within these limits.
+
+### Log Retention
+
+The `_Default` log bucket retains logs for **30 days by default** — older logs are automatically deleted. No extra setup is needed. To change the retention period:
 
 ```powershell
-# View logs
+gcloud logging buckets update _Default --location=global --retention-days=30
+```
+
+### Real-time Logs URL
+
+View your app's logs in real-time:
+
+**https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%20resource.labels.service_name%3D%22coveringletter%22?project=manon-world-1737941816058**
+
+Or open the Logs Explorer and paste this query:
+
+```
+resource.type="cloud_run_revision" resource.labels.service_name="coveringletter"
+```
+
+### Quota Alerts
+
+To avoid unexpected charges, set up alerting policies that notify you when usage approaches the free tier limits.
+
+#### Step 1: Create an email notification channel
+
+1. Go to **https://console.cloud.google.com/** → select your project
+2. Search for **"Monitoring"** → click it
+3. In the left sidebar, click **"Alerting"**
+4. Click **"Edit notification channels"** (top right)
+5. Under **"Email"**, click **"Add New"**
+6. Enter your email address and click **"Save"**
+
+#### Step 2: Create Cloud Logging storage alert (50 GiB free limit)
+
+1. In the **Alerting** page, click **"Create Policy"**
+2. Click **"Add Condition"** → **"Metric"**
+3. Search for **"bytes streamed into log buckets monthly"**
+4. Set the condition: **"Above"** → **"42949672960"** (40 GiB in bytes, 80% of free limit)
+5. Add your email notification channel
+6. Name it **"Cloud Logging Storage Alert"** and click **"Save"**
+
+#### Step 3: Create Cloud Run request count alert (2M free limit)
+
+1. In the **Alerting** page, click **"Create Policy"**
+2. Click **"Add Condition"** → **"Metric"**
+3. Search for **"Request count"** under **Cloud Run Revision**
+4. Set the condition: **"Above"** → **"1600000"** (80% of 2M free limit)
+5. Add your email notification channel
+6. Name it **"Cloud Run Request Count Alert"** and click **"Save"**
+
+### CLI Alternative
+
+```powershell
+# View recent logs
 gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=coveringletter" --limit 50
 
 # View metrics
