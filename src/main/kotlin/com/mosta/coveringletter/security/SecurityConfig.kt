@@ -59,7 +59,9 @@ class SecurityConfig(
                     "/login.html",
                     "/error",
                     "/favicon.ico",
-                    "/login/oauth2/code/*"
+                    "/login/oauth2/code/*",
+                    "/api/settings",
+                    "/api/settings/current"
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }
