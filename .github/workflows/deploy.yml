@@ -46,25 +46,9 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Set up Java 25 (Gradle toolchain)
-        uses: actions/setup-java@v4
-        with:
-          java-version: '25'
-          distribution: 'temurin'
-
-      - name: Build JAR with Gradle
+      - name: Build and push Docker image with Cloud Build
         run: |
-          chmod +x ./gradlew
-          ./gradlew bootJar --no-daemon
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      - name: Build and push Docker image
-        run: |
-          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/coveringletter:${{ github.sha }}"
-          docker build -t "$IMAGE_TAG" .
-          docker push "$IMAGE_TAG"
+          gcloud builds submit --config=cloudbuild.yaml --substitutions=_TAG=${{ github.sha }} --project=${{ env.PROJECT_ID }}
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
