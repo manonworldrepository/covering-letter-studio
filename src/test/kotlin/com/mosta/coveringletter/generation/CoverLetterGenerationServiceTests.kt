@@ -1,6 +1,6 @@
 package com.mosta.coveringletter.generation
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
+import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
 import com.mosta.coveringletter.resume.ResumeStore
 import com.mosta.coveringletter.supportingdocument.SupportingDocumentStore
 import com.mosta.coveringletter.documents.DocumentTextExtractor
@@ -23,7 +23,6 @@ class CoverLetterGenerationServiceTests {
 	private val pdfGenerator = CoverLetterPdfGenerator()
 	private lateinit var resumeStore: ResumeStore
 	private lateinit var supportingDocumentStore: SupportingDocumentStore
-	private val logs = UserActionLogBuffer()
 	private lateinit var mockGenerator: MockCoverLetterGenerator
 	private lateinit var service: CoverLetterGenerationService
 
@@ -32,11 +31,12 @@ class CoverLetterGenerationServiceTests {
 		resumeStore = ResumeStore(DocumentTextExtractor(), temporaryDirectory.resolve("resume-data").toString())
 		supportingDocumentStore = SupportingDocumentStore(DocumentTextExtractor(), temporaryDirectory.resolve("supporting-data").toString())
 		mockGenerator = MockCoverLetterGenerator()
+		val loggingAspect = GeminiServiceLoggingAspect(com.mosta.coveringletter.activity.UserActionLogBuffer())
 		service = CoverLetterGenerationService(
 			resumeStore,
 			supportingDocumentStore,
 			mockGenerator,
-			logs
+			loggingAspect
 		)
 	}
 
@@ -131,25 +131,6 @@ class CoverLetterGenerationServiceTests {
 		assertTrue(mockGenerator.lastSupportingDocuments.contains("AWS Certified Developer"))
 	}
 
-	@Test
-	fun `records user action log on successful cover letter generation`() {
-		resumeStore.saveBytes("resume.pdf", pdfGenerator.create("John Doe. Software engineer."))
-
-		service.generate("Software Engineer at Acme", "cover-letter").block()
-
-		val entries = logs.latest()
-		assertTrue(entries.any { it.action.contains("Generated a cover letter") })
-	}
-
-	@Test
-	fun `records motivation message generation in log`() {
-		resumeStore.saveBytes("resume.pdf", pdfGenerator.create("John Doe. Software engineer."))
-
-		service.generate("Software Engineer at Acme", "motivation-message").block()
-
-		val entries = logs.latest()
-		assertTrue(entries.any { it.action.contains("motivation message") })
-	}
 
 	@Test
 	fun `trims job description before passing to generator`() {

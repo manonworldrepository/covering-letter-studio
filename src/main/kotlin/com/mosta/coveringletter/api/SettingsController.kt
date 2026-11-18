@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.request.AppSettingsRequest
 import com.mosta.coveringletter.api.request.GeminiModelsRequest
 import com.mosta.coveringletter.settings.AppSettingsService
@@ -19,8 +18,7 @@ import reactor.core.publisher.Mono
 @RestController
 class SettingsController(
 	private val settings: AppSettingsService,
-	private val resumeStore: ResumeStore,
-	private val logs: UserActionLogBuffer
+	private val resumeStore: ResumeStore
 ) {
 	@GetMapping("/api/settings")
 	fun getSettings() = settings.status(resumeStore.status())
@@ -38,11 +36,9 @@ class SettingsController(
 	@PostMapping("/api/settings/api-key", consumes = [MediaType.APPLICATION_JSON_VALUE])
 	fun saveApiKey(@Valid @RequestBody request: GeminiModelsRequest) =
 		settings.saveApiKey(request.apiKey)
-			.doOnSuccess { logs.record("Saved Gemini API key during setup") }
 
 	@PostMapping("/api/settings", consumes = [MediaType.APPLICATION_JSON_VALUE])
 	fun saveSettings(@Valid @RequestBody request: AppSettingsRequest): Mono<AppSettingsStatus> =
 		settings.save(request)
-			.doOnSuccess { logs.record("Updated Gemini API settings") }
 			.map { settings.status(resumeStore.status()) }
 }

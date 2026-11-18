@@ -1,7 +1,7 @@
 package com.mosta.coveringletter.generation
 
 import com.mosta.coveringletter.settings.AppSettingsService
-import com.mosta.coveringletter.activity.UserActionLogBuffer
+import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
 
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 class GeminiCoverLetterService(
 	private val objectMapper: ObjectMapper,
 	private val settings: AppSettingsService,
-	private val userActions: UserActionLogBuffer
+	private val loggingAspect: GeminiServiceLoggingAspect
 ) : CoverLetterGenerator {
 	private val webClient = WebClient.builder()
 		.baseUrl("https://generativelanguage.googleapis.com")
@@ -124,20 +124,15 @@ class GeminiCoverLetterService(
 				callModel(model, apiKey, request)
 					.doOnNext {
 						if (index > 0) {
-							userActions.record("Switched to Gemini model $model after a previous model failed")
+							loggingAspect.logModelSwitched(model)
 						}
 					}
 					.onErrorResume { error ->
 						lastError.set(error)
 						val hasMore = index < candidates.lastIndex
 						if (hasMore && GeminiModelFallback.isRetryable(error)) {
-							userActions.record("Gemini model $model failed to respond; trying another model")
-							GeminiCoverLetterServiceSupport.logger.warn(
-								"Gemini model {} failed; trying fallback ({}/{}).",
-								model,
-								index + 1,
-								candidates.size
-							)
+							loggingAspect.logModelFailed(model)
+							loggingAspect.logModelFallback(model, index + 1, candidates.size)
 							Mono.empty()
 						} else {
 							Mono.error(mapGenerationError(error))
@@ -161,24 +156,18 @@ class GeminiCoverLetterService(
 			}
 			.bodyValue(request)
 			.retrieve()
-			.bodyToMono(JsonNode::class.java)
-			.doOnSubscribe { userActions.record("Contacting Gemini with model $model") }
-			.doOnNext { userActions.record("Received a reply from Gemini using model $model") }
+ 		.bodyToMono(JsonNode::class.java)
+			.doOnSubscribe { loggingAspect.logModelContacted(model) }
+			.doOnNext { loggingAspect.logModelReplied(model) }
 			.map(::readGeneratedLetter)
 			.retryWhen(
 				Retry.backoff(GeminiCoverLetterServiceSupport.MAX_RETRIES.toLong(), Duration.ofSeconds(1))
 					.filter { GeminiModelFallback.isRetryable(it) }
-					.doBeforeRetry { signal ->
-						val attempt = signal.totalRetries()
-						val reason = extractFailureReason(signal.failure())
-						GeminiCoverLetterServiceSupport.logger.warn(
-							"Gemini model {} request failed; retrying (attempt {}/{}).",
-							model,
-							attempt,
-							GeminiCoverLetterServiceSupport.MAX_RETRIES
-						)
-						userActions.record("Retry $attempt/${GeminiCoverLetterServiceSupport.MAX_RETRIES}: $reason")
-					}
+ 				.doBeforeRetry { signal ->
+ 					val attempt = signal.totalRetries().toInt()
+ 					val reason = extractFailureReason(signal.failure())
+ 					loggingAspect.logRetry(model, attempt, GeminiCoverLetterServiceSupport.MAX_RETRIES, reason)
+ 				}
 			)
 
 	private fun extractFailureReason(error: Throwable): String =
@@ -204,17 +193,14 @@ class GeminiCoverLetterService(
 				),
 				error
 			).also {
-				GeminiCoverLetterServiceSupport.logger.warn(
-					"Gemini request failed with HTTP {}.",
-					error.statusCode.value()
-				)
+				loggingAspect.logHttpError(error.statusCode.value())
 			}
 			else -> ResponseStatusException(
 				HttpStatus.BAD_GATEWAY,
 				"Could not connect to Gemini. Check your network connection and try again.",
 				error
 			).also {
-				GeminiCoverLetterServiceSupport.logger.error("Could not complete the Gemini request.", error)
+				loggingAspect.logConnectionFailure(error)
 			}
 		}
 

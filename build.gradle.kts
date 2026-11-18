@@ -22,6 +22,9 @@ repositories {
 dependencies {
     implementation(platform("org.springframework.ai:spring-ai-bom:2.0.2"))
     implementation("org.springframework.ai:spring-ai-starter-mcp-server-webflux")
+    implementation("org.springframework.boot:spring-boot-starter-aspectj")
+    implementation("org.aspectj:aspectjweaver:1.9.24")
+    implementation("org.aspectj:aspectjrt:1.9.24")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webclient")
     implementation("org.springframework.boot:spring-boot-starter-webflux")

@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.request.CoverLetterRequest
 import com.mosta.coveringletter.pdf.CoverLetterPdfGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -13,9 +12,8 @@ import org.springframework.web.server.ResponseStatusException
 
 class PdfControllerTests {
 
-    private val logs = UserActionLogBuffer()
     private val pdfGenerator = CoverLetterPdfGenerator()
-    private val controller = PdfController(logs, pdfGenerator)
+    private val controller = PdfController(pdfGenerator)
 
     @Test
     fun `downloads a valid PDF with correct headers`() {
@@ -30,20 +28,6 @@ class PdfControllerTests {
         assertTrue(pdf.isNotEmpty())
         assertEquals("application/pdf", response.headers.contentType.toString())
         assertTrue(response.headers.getContentDisposition().toString().contains("attachment"))
-    }
-
-    @Test
-    fun `records user action log on PDF download`() {
-        val request = CoverLetterRequest(
-            letter = "Dear Hiring Manager, I am interested.",
-            personName = "Alex Morgan",
-            jobTitle = "Designer"
-        )
-        val response = MockServerHttpResponse()
-        controller.downloadPdf(request, response)
-
-        val entries = logs.latest()
-        assertTrue(entries.any { it.action.contains("Downloaded a cover-letter PDF") })
     }
 
     @Test

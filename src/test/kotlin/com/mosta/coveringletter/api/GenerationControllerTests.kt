@@ -1,7 +1,7 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.request.GenerateLetterRequest
+import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
 import com.mosta.coveringletter.generation.CoverLetterGenerationService
 import com.mosta.coveringletter.generation.CoverLetterGenerator
 import com.mosta.coveringletter.generation.GeneratedCoverLetter
@@ -32,13 +32,13 @@ class GenerationControllerTests {
 	fun setup() {
 		resumeStore = ResumeStore(DocumentTextExtractor(), temporaryDirectory.resolve("resume-data").toString())
 		val supportingDocumentStore = SupportingDocumentStore(DocumentTextExtractor(), temporaryDirectory.resolve("supporting-data").toString())
-		val logs = UserActionLogBuffer()
+		val loggingAspect = GeminiServiceLoggingAspect(com.mosta.coveringletter.activity.UserActionLogBuffer())
 		mockGenerator = MockCoverLetterGenerator()
 		generationService = CoverLetterGenerationService(
 			resumeStore,
 			supportingDocumentStore,
 			mockGenerator,
-			logs
+			loggingAspect
 		)
 		controller = GenerationController(generationService)
 	}

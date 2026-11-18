@@ -1,6 +1,7 @@
 package com.mosta.coveringletter.pdf
 
 import com.mosta.coveringletter.appliedjobs.AppliedJob
+import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -105,7 +106,8 @@ class AppliedJobsPdfGenerator {
 
             val colTitleX = margin
             val colCompanyX = margin + 160f
-            val colDateX = pageSize.width - margin - 120f
+            val colStatusX = margin + 320f
+            val colDateX = pageSize.width - margin - 100f
 
             var page = PDPage(pageSize)
             document.addPage(page)
@@ -124,7 +126,9 @@ class AppliedJobsPdfGenerator {
                 s.showText(toSupportedText(font, "Job Title"))
                 s.newLineAtOffset(colCompanyX - colTitleX, 0f)
                 s.showText(toSupportedText(font, "Company"))
-                s.newLineAtOffset(colDateX - colCompanyX, 0f)
+                s.newLineAtOffset(colStatusX - colCompanyX, 0f)
+                s.showText(toSupportedText(font, "Status"))
+                s.newLineAtOffset(colDateX - colStatusX, 0f)
                 s.showText(toSupportedText(font, "Date Applied"))
                 s.endText()
                 y -= 5f
@@ -164,6 +168,7 @@ class AppliedJobsPdfGenerator {
                     val s = stream!!
                     val titleText = toSupportedText(font, job.jobTitle)
                     val companyText = toSupportedText(font, job.company)
+                    val statusText = toSupportedText(font, job.status.name.lowercase().replaceFirstChar { it.uppercase() })
                     val dateText = toSupportedText(font, job.appliedDate.format(dateFormat))
 
                     s.beginText()
@@ -172,7 +177,9 @@ class AppliedJobsPdfGenerator {
                     s.showText(titleText)
                     s.newLineAtOffset(colCompanyX - colTitleX, 0f)
                     s.showText(companyText)
-                    s.newLineAtOffset(colDateX - colCompanyX, 0f)
+                    s.newLineAtOffset(colStatusX - colCompanyX, 0f)
+                    s.showText(statusText)
+                    s.newLineAtOffset(colDateX - colStatusX, 0f)
                     s.showText(dateText)
                     s.endText()
                     y -= lineHeight

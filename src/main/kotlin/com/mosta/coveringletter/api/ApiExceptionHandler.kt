@@ -12,7 +12,6 @@ class ApiExceptionHandler {
 	@ExceptionHandler(ResponseStatusException::class)
 	fun handleResponseStatus(exception: ResponseStatusException, response: ServerHttpResponse): ApiErrorResponse {
 		val message = exception.reason ?: "Request failed (HTTP ${exception.statusCode.value()})."
-		ApiExceptionHandlerSupport.logger.warn("Cover letter request failed (HTTP {}): {}", exception.statusCode.value(), message)
 		response.statusCode = exception.statusCode
 		return ApiErrorResponse(message)
 	}
@@ -27,7 +26,6 @@ class ApiExceptionHandler {
 
 	@ExceptionHandler(Exception::class)
 	fun handleUnexpected(exception: Exception, response: ServerHttpResponse): ApiErrorResponse {
-		ApiExceptionHandlerSupport.logger.error("Unexpected error while handling a cover letter request.", exception)
 		response.statusCode = HttpStatus.INTERNAL_SERVER_ERROR
 		return ApiErrorResponse("The server could not process the request. Check the application logs for details.")
 	}

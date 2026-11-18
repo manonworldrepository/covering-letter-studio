@@ -2,6 +2,7 @@ package com.mosta.coveringletter.appliedjobs
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -286,6 +287,103 @@ class AppliedJobStoreTests {
 
         val jobs = store.list()
         assertEquals(3, jobs.size)
+    }
+
+    @Test
+    fun `newly added job defaults to progressing status`() {
+        val store = store()
+        val job = store.add("Acme Corp", "Engineer", "")
+
+        assertEquals(AppliedJobStatus.PROGRESSING, job.status)
+    }
+
+    @Test
+    fun `updateStatus changes a job status to rejected`() {
+        val store = store()
+        val job = store.add("Acme Corp", "Engineer", "")
+
+        val updated = store.updateStatus(job.id, AppliedJobStatus.REJECTED)
+
+        assertEquals(job.id, updated?.id)
+        assertEquals(AppliedJobStatus.REJECTED, updated?.status)
+    }
+
+    @Test
+    fun `updateStatus persists the new status after reload`() {
+        val store = store()
+        val job = store.add("Acme Corp", "Engineer", "")
+        store.updateStatus(job.id, AppliedJobStatus.REJECTED)
+
+        val reloaded = store.list().single()
+
+        assertEquals(AppliedJobStatus.REJECTED, reloaded.status)
+    }
+
+    @Test
+    fun `updateStatus changes a job status back to progressing`() {
+        val store = store()
+        val job = store.add("Acme Corp", "Engineer", "")
+        store.updateStatus(job.id, AppliedJobStatus.REJECTED)
+
+        val updated = store.updateStatus(job.id, AppliedJobStatus.PROGRESSING)
+
+        assertEquals(AppliedJobStatus.PROGRESSING, updated?.status)
+    }
+
+    @Test
+    fun `updateStatus returns null for non-existent id`() {
+        val store = store()
+
+        val updated = store.updateStatus("non-existent-id", AppliedJobStatus.REJECTED)
+
+        assertNull(updated)
+    }
+
+    @Test
+    fun `updateStatus preserves job description with newlines`() {
+        val store = store()
+        val job = store.add("Acme Corp", "Engineer", "Line one\nLine two")
+        store.updateStatus(job.id, AppliedJobStatus.REJECTED)
+
+        val reloaded = store.list().single()
+
+        assertEquals("Line one\nLine two", reloaded.jobDescription)
+        assertEquals(AppliedJobStatus.REJECTED, reloaded.status)
+    }
+
+    @Test
+    fun `deserializes old format file without status line and defaults to progressing`() {
+        val store = store()
+        val jobsDir = temporaryDirectory.resolve("applied-jobs")
+        jobsDir.toFile().mkdirs()
+        java.io.File(jobsDir.toFile(), "old-format-id.txt").writeText(
+            "old-format-id\nOld Corp\nOld Role\n2026-01-01T10:00:00\nOld description"
+        )
+
+        val jobs = store.list()
+
+        assertEquals(1, jobs.size)
+        assertEquals("old-format-id", jobs.single().id)
+        assertEquals(AppliedJobStatus.PROGRESSING, jobs.single().status)
+        assertEquals("Old description", jobs.single().jobDescription)
+    }
+
+    @Test
+    fun `skips old format file with multi-line description as it is ambiguous`() {
+        val store = store()
+        val jobsDir = temporaryDirectory.resolve("applied-jobs")
+        jobsDir.toFile().mkdirs()
+        java.io.File(jobsDir.toFile(), "old-multiline-id.txt").writeText(
+            "old-multiline-id\nOld Corp\nOld Role\n2026-01-01T10:00:00\nLine one\nLine two"
+        )
+        store.add("Valid Corp", "Valid Role", "Valid description")
+
+        val jobs = store.list()
+
+        // The old multi-line format is ambiguous and is skipped as corrupted;
+        // only the valid job should appear
+        assertEquals(1, jobs.size)
+        assertEquals("Valid Corp", jobs.single().company)
     }
 
     private fun store() = AppliedJobStore(temporaryDirectory.toString())

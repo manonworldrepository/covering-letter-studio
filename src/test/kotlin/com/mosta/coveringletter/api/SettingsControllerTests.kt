@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.resume.ResumeStore
 import com.mosta.coveringletter.resume.ResumeStatus
 import com.mosta.coveringletter.settings.AppSettingsService
@@ -22,14 +21,13 @@ class SettingsControllerTests {
 
 	private lateinit var mockSettings: MockAppSettingsService
 	private lateinit var resumeStore: ResumeStore
-	private val logs = UserActionLogBuffer()
 	private lateinit var controller: SettingsController
 
 	@BeforeEach
 	fun setup() {
 		resumeStore = ResumeStore(DocumentTextExtractor(), temporaryDirectory.resolve("data").toString())
 		mockSettings = MockAppSettingsService()
-		controller = SettingsController(mockSettings, resumeStore, logs)
+		controller = SettingsController(mockSettings, resumeStore)
 	}
 
 	@Test

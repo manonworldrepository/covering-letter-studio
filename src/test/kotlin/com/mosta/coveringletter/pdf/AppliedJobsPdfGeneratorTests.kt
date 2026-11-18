@@ -1,6 +1,7 @@
 package com.mosta.coveringletter.pdf
 
 import com.mosta.coveringletter.appliedjobs.AppliedJob
+import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import org.apache.pdfbox.Loader
 import org.apache.pdfbox.text.PDFTextStripper
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -17,8 +18,9 @@ class AppliedJobsPdfGeneratorTests {
         company: String = "Acme Corp",
         jobTitle: String = "Software Engineer",
         appliedDate: LocalDateTime = LocalDateTime.of(2026, 11, 9, 10, 0),
-        jobDescription: String = "Build great software"
-    ) = AppliedJob(id, company, jobTitle, appliedDate, jobDescription)
+        jobDescription: String = "Build great software",
+        status: AppliedJobStatus = AppliedJobStatus.PROGRESSING
+    ) = AppliedJob(id, company, jobTitle, appliedDate, jobDescription, status)
 
     @Test
     fun `creates a readable single job PDF with all fields`() {
@@ -200,6 +202,54 @@ class AppliedJobsPdfGeneratorTests {
             assertTrue(text.contains("First paragraph here."))
             assertTrue(text.contains("Second paragraph here."))
             assertTrue(text.contains("Third paragraph here."))
+        }
+    }
+
+    @Test
+    fun `job list PDF includes Status column header`() {
+        val jobs = listOf(sampleJob(id = "1", company = "Alpha Inc", jobTitle = "Designer"))
+        val pdf = generator.createJobList(jobs)
+
+        Loader.loadPDF(pdf).use { document ->
+            val text = PDFTextStripper().getText(document)
+            assertTrue(text.contains("Status"), "PDF should contain Status column header")
+        }
+    }
+
+    @Test
+    fun `job list PDF shows Progressing status for progressing job`() {
+        val jobs = listOf(sampleJob(id = "1", company = "Alpha Inc", jobTitle = "Designer", status = AppliedJobStatus.PROGRESSING))
+        val pdf = generator.createJobList(jobs)
+
+        Loader.loadPDF(pdf).use { document ->
+            val text = PDFTextStripper().getText(document)
+            assertTrue(text.contains("Progressing"), "PDF should contain Progressing status")
+        }
+    }
+
+    @Test
+    fun `job list PDF shows Rejected status for rejected job`() {
+        val jobs = listOf(sampleJob(id = "1", company = "Alpha Inc", jobTitle = "Designer", status = AppliedJobStatus.REJECTED))
+        val pdf = generator.createJobList(jobs)
+
+        Loader.loadPDF(pdf).use { document ->
+            val text = PDFTextStripper().getText(document)
+            assertTrue(text.contains("Rejected"), "PDF should contain Rejected status")
+        }
+    }
+
+    @Test
+    fun `job list PDF shows mixed statuses correctly`() {
+        val jobs = listOf(
+            sampleJob(id = "1", company = "Alpha Inc", jobTitle = "Designer", status = AppliedJobStatus.PROGRESSING),
+            sampleJob(id = "2", company = "Beta Corp", jobTitle = "Engineer", status = AppliedJobStatus.REJECTED)
+        )
+        val pdf = generator.createJobList(jobs)
+
+        Loader.loadPDF(pdf).use { document ->
+            val text = PDFTextStripper().getText(document)
+            assertTrue(text.contains("Progressing"), "PDF should contain Progressing status")
+            assertTrue(text.contains("Rejected"), "PDF should contain Rejected status")
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import com.mosta.coveringletter.pdf.CoverLetterPdfGenerator
 import com.mosta.coveringletter.supportingdocument.SupportingDocumentStore
@@ -19,18 +18,17 @@ class SupportingDocumentsControllerTests {
 	lateinit var temporaryDirectory: Path
 
 	private lateinit var store: SupportingDocumentStore
-	private val logs = UserActionLogBuffer()
 	private val pdfGenerator = CoverLetterPdfGenerator()
 	private lateinit var controller: SupportingDocumentsController
 
 	@BeforeEach
 	fun setup() {
 		store = SupportingDocumentStore(DocumentTextExtractor(), temporaryDirectory.toString())
-		controller = SupportingDocumentsController(store, logs)
+		controller = SupportingDocumentsController(store)
 	}
 
 	@Test
-	fun `viewSupportingDocument returns document view response and records log`() {
+	fun `viewSupportingDocument returns document view response`() {
 		val bytes = pdfGenerator.create("AWS Certification Details.")
 		val doc = store.saveBytes("aws-cert.pdf", bytes)
 
@@ -41,7 +39,6 @@ class SupportingDocumentsControllerTests {
 		assertEquals("pdf", view.extension)
 		assertTrue(view.viewable)
 		assertTrue(view.text.contains("AWS Certification Details"))
-		assertTrue(logs.latest().any { it.action.contains("Viewed supporting document: aws-cert.pdf") })
 	}
 
 	@Test

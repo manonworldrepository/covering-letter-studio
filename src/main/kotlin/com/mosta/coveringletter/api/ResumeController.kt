@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.request.ResumeSelectionRequest
 import com.mosta.coveringletter.api.request.ResumeUploadRequest
 import com.mosta.coveringletter.resume.ResumeStatus
@@ -20,8 +19,7 @@ import reactor.core.publisher.Mono
 
 @RestController
 class ResumeController(
-	private val resumeStore: ResumeStore,
-	private val logs: UserActionLogBuffer
+	private val resumeStore: ResumeStore
 ) {
 	@GetMapping("/api/resume")
 	fun getResumeStatus() = resumeStore.status()
@@ -29,21 +27,17 @@ class ResumeController(
 	@PostMapping("/api/resume", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
 	fun saveResume(@Valid @ModelAttribute request: ResumeUploadRequest): Mono<ResumeStatus> =
 		resumeStore.save(Flux.fromIterable(request.resume))
-			.doOnSuccess { status -> status?.let { logs.record("Saved resume: ${it.filename}") } }
 
 	@PostMapping("/api/resume/select", consumes = [MediaType.APPLICATION_JSON_VALUE])
 	fun selectResume(@Valid @RequestBody request: ResumeSelectionRequest): ResumeStatus =
 		resumeStore.select(request.id)
-			.also { logs.record("Selected resume: ${it.filename}") }
 
 	@DeleteMapping("/api/resume")
 	fun clearResumes() = resumeStore.clear()
-		.also { logs.record("Cleared resumes") }
 
 	@GetMapping("/api/resume/{id}/view")
 	fun viewResume(@PathVariable id: String): DocumentViewResponse =
 		resumeStore.getDocumentView(id)
-			.also { logs.record("Viewed resume: ${it.filename}") }
 
 	@GetMapping("/api/resume/{id}/raw")
 	fun getResumeRaw(@PathVariable id: String): org.springframework.http.ResponseEntity<ByteArray> {
@@ -54,5 +48,4 @@ class ResumeController(
 	@DeleteMapping("/api/resume/{id}")
 	fun deleteResume(@PathVariable id: String) =
 		resumeStore.delete(id)
-			.also { logs.record("Removed resume: ${it.filename}") }
 }

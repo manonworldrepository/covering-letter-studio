@@ -1,6 +1,6 @@
 package com.mosta.coveringletter.generation
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
+import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
 import com.mosta.coveringletter.resume.ResumeStore
 import com.mosta.coveringletter.supportingdocument.SupportingDocumentStore
 
@@ -14,7 +14,7 @@ class CoverLetterGenerationService(
 	private val resumeStore: ResumeStore,
 	private val supportingDocumentStore: SupportingDocumentStore,
 	private val generator: CoverLetterGenerator,
-	private val logs: UserActionLogBuffer
+	private val loggingAspect: GeminiServiceLoggingAspect
 ) {
 	fun generate(jobDescription: String, requestedFormat: String?): Mono<GeneratedCoverLetter> {
 		val format = when (requestedFormat?.trim()?.lowercase()) {
@@ -55,7 +55,7 @@ class CoverLetterGenerationService(
 				}
 				generator.generate(jobDescription.trim(), resumeContent, supportingContent, format)
 					.doOnSuccess {
-						logs.record(
+						loggingAspect.logCoverLetterGenerated(
 							if (format == GenerationFormat.MOTIVATION_MESSAGE) {
 								"Generated a motivation message"
 							} else {

@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.appliedjobs.AddAppliedJobRequest
 import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import com.mosta.coveringletter.appliedjobs.AppliedJobStore
@@ -24,13 +23,11 @@ import java.time.LocalDate
 @RestController
 class AppliedJobsController(
     private val store: AppliedJobStore,
-    private val logs: UserActionLogBuffer,
     private val pdfGenerator: AppliedJobsPdfGenerator
 ) {
     @PostMapping("/api/applied-jobs", consumes = [MediaType.APPLICATION_JSON_VALUE])
     fun add(@Valid @RequestBody request: AddAppliedJobRequest) =
         store.add(request.company, request.jobTitle, request.jobDescription)
-            .also { logs.record("Added applied job: ${it.jobTitle} at ${it.company}") }
 
     @GetMapping("/api/applied-jobs")
     fun list(
@@ -43,8 +40,7 @@ class AppliedJobsController(
 
     @DeleteMapping("/api/applied-jobs/{id}")
     fun delete(@PathVariable id: String) {
-        val deleted = store.delete(id)
-        if (deleted) logs.record("Removed applied job entry")
+        store.delete(id)
     }
 
     @PatchMapping("/api/applied-jobs/{id}/status")
@@ -54,9 +50,8 @@ class AppliedJobsController(
         } catch (e: IllegalArgumentException) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: $status")
         }
-        val updated = store.updateStatus(id, jobStatus)
+        store.updateStatus(id, jobStatus)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Applied job not found")
-        logs.record("Updated job status to ${jobStatus.name.lowercase().replaceFirstChar { it.uppercase() }}: ${updated.jobTitle} at ${updated.company}")
     }
 
     @DeleteMapping("/api/applied-jobs")
@@ -72,9 +67,6 @@ class AppliedJobsController(
             store.list(search = search, dateFrom = dateFrom, dateTo = dateTo).map { it.id }
         }
         val count = store.deleteAll(targetIds)
-        if (count > 0) {
-            logs.record("Removed applied jobs ($count entries)")
-        }
         return mapOf("deleted" to count)
     }
 
@@ -84,7 +76,6 @@ class AppliedJobsController(
         val job = jobs.find { it.id == id }
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Applied job not found")
         val pdf = pdfGenerator.createSingleJob(job)
-        logs.record("Downloaded applied job PDF: ${job.jobTitle} at ${job.company}")
         response.headers.contentType = MediaType.APPLICATION_PDF
         response.headers.set(
             HttpHeaders.CONTENT_DISPOSITION,
@@ -107,7 +98,6 @@ class AppliedJobsController(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No jobs to export")
         }
         val pdf = pdfGenerator.createJobList(jobs)
-        logs.record("Downloaded applied jobs list PDF (${jobs.size} jobs)")
         response.headers.contentType = MediaType.APPLICATION_PDF
         response.headers.set(
             HttpHeaders.CONTENT_DISPOSITION,

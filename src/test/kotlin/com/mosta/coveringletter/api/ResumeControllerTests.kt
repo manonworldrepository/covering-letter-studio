@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import com.mosta.coveringletter.pdf.CoverLetterPdfGenerator
 import com.mosta.coveringletter.resume.ResumeStore
@@ -19,18 +18,17 @@ class ResumeControllerTests {
 	lateinit var temporaryDirectory: Path
 
 	private lateinit var store: ResumeStore
-	private val logs = UserActionLogBuffer()
 	private val pdfGenerator = CoverLetterPdfGenerator()
 	private lateinit var controller: ResumeController
 
 	@BeforeEach
 	fun setup() {
 		store = ResumeStore(DocumentTextExtractor(), temporaryDirectory.toString())
-		controller = ResumeController(store, logs)
+		controller = ResumeController(store)
 	}
 
 	@Test
-	fun `viewResume returns document view response and records log`() {
+	fun `viewResume returns document view response`() {
 		val bytes = pdfGenerator.create("Software Engineer Resume Content.")
 		val status = store.saveBytes("resume.pdf", bytes)
 		val id = status.resumes.single().id
@@ -42,7 +40,6 @@ class ResumeControllerTests {
 		assertEquals("pdf", view.extension)
 		assertTrue(view.viewable)
 		assertTrue(view.text.contains("Software Engineer Resume Content"))
-		assertTrue(logs.latest().any { it.action.contains("Viewed resume: resume.pdf") })
 	}
 
 	@Test

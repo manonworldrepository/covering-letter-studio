@@ -1,6 +1,5 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.request.CoverLetterRequest
 import com.mosta.coveringletter.pdf.CoverLetterFilename
 import com.mosta.coveringletter.pdf.CoverLetterPdfGenerator
@@ -16,7 +15,6 @@ import org.springframework.web.server.ResponseStatusException
 
 @RestController
 class PdfController(
-	private val logs: UserActionLogBuffer,
 	private val pdfGenerator: CoverLetterPdfGenerator
 ) {
 	@PostMapping(
@@ -38,7 +36,6 @@ class PdfController(
 		} catch (exception: IllegalArgumentException) {
 			throw ResponseStatusException(HttpStatus.BAD_REQUEST, exception.message, exception)
 		}
-		logs.record("Downloaded a cover-letter PDF")
 		response.headers.contentType = MediaType.APPLICATION_PDF
 		response.headers.set(
 			HttpHeaders.CONTENT_DISPOSITION,

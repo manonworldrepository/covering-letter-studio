@@ -116,7 +116,14 @@ class AppliedJobStore(private val dataDir: String = ".data") {
             val (statusLine, jobDescription) = if (firstNewline >= 0) {
                 statusAndDescription.substring(0, firstNewline).trim() to statusAndDescription.substring(firstNewline + 1)
             } else {
-                AppliedJobStatus.PROGRESSING.name to ""
+                // lines[4] has no newline — check if it's a valid status enum value
+                val trimmed = statusAndDescription.trim()
+                if (AppliedJobStatus.values().any { it.name == trimmed }) {
+                    trimmed to ""
+                } else {
+                    // Old format: lines[4] is the job description, no status line
+                    AppliedJobStatus.PROGRESSING.name to statusAndDescription
+                }
             }
             val status = if (statusLine.isBlank()) {
                 AppliedJobStatus.PROGRESSING

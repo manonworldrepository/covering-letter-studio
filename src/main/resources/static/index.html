@@ -2292,7 +2292,7 @@
           const isRejected = jobStatus === "REJECTED";
           toggleStatusBtn.className = `secondary btn-toggle-status ${isRejected ? 'mark-progressing' : 'mark-rejected'}`;
           toggleStatusBtn.type = "button";
-          toggleStatusBtn.textContent = isRejected ? "Mark Progressing" : "Mark Rejected";
+          toggleStatusBtn.textContent = isRejected ? "Progressing" : "Rejected";
           toggleStatusBtn.setAttribute("aria-label", `${isRejected ? 'Mark as progressing' : 'Mark as rejected'}: ${job.jobTitle} at ${job.company}`);
           toggleStatusBtn.addEventListener("click", async () => {
             try {

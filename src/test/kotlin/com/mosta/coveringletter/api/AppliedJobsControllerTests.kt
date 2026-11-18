@@ -1,7 +1,7 @@
 package com.mosta.coveringletter.api
 
-import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.appliedjobs.AddAppliedJobRequest
+import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import com.mosta.coveringletter.appliedjobs.AppliedJobStore
 import com.mosta.coveringletter.pdf.AppliedJobsPdfGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,14 +23,13 @@ class AppliedJobsControllerTests {
     lateinit var temporaryDirectory: Path
 
     private lateinit var store: AppliedJobStore
-    private val logs = UserActionLogBuffer()
     private val pdfGenerator = AppliedJobsPdfGenerator()
     private lateinit var controller: AppliedJobsController
 
     @BeforeEach
     fun setup() {
         store = AppliedJobStore(temporaryDirectory.toString())
-        controller = AppliedJobsController(store, logs, pdfGenerator)
+        controller = AppliedJobsController(store, pdfGenerator)
     }
 
     @Test
@@ -44,14 +43,6 @@ class AppliedJobsControllerTests {
         assertTrue(job.id.isNotEmpty())
     }
 
-    @Test
-    fun `add records user action log entry`() {
-        val request = AddAppliedJobRequest("Acme Corp", "Software Engineer", "")
-        controller.add(request)
-
-        val entries = logs.latest()
-        assertTrue(entries.any { it.action.contains("Added applied job") })
-    }
 
     @Test
     fun `list returns all added jobs`() {
@@ -101,16 +92,13 @@ class AppliedJobsControllerTests {
     }
 
     @Test
-    fun `deleteAll removes all jobs when no filter is provided and records log`() {
+    fun `deleteAll removes all jobs when no filter is provided`() {
         controller.add(AddAppliedJobRequest("Company A", "Role A", ""))
         controller.add(AddAppliedJobRequest("Company B", "Role B", ""))
 
         val result = controller.deleteAll(search = "", dateFrom = null, dateTo = null)
         assertEquals(2, result["deleted"])
         assertTrue(controller.list("", "date", "desc", null, null).isEmpty())
-
-        val entries = logs.latest()
-        assertTrue(entries.any { it.action.contains("Removed applied jobs (2 entries)") })
     }
 
     @Test
@@ -237,5 +225,61 @@ class AppliedJobsControllerTests {
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message!!.contains("title"))
         }
+    }
+
+    @Test
+    fun `updateStatus changes a job status to rejected`() {
+        val job = controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", ""))
+        controller.updateStatus(job.id, "REJECTED")
+
+        val updated = controller.list("", "date", "desc", null, null).single()
+        assertEquals(AppliedJobStatus.REJECTED, updated.status)
+    }
+
+    @Test
+    fun `updateStatus changes a job status to progressing`() {
+        val job = controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", ""))
+        controller.updateStatus(job.id, "REJECTED")
+        controller.updateStatus(job.id, "PROGRESSING")
+
+        val updated = controller.list("", "date", "desc", null, null).single()
+        assertEquals(AppliedJobStatus.PROGRESSING, updated.status)
+    }
+
+    @Test
+    fun `updateStatus accepts lowercase status value`() {
+        val job = controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", ""))
+        controller.updateStatus(job.id, "rejected")
+
+        val updated = controller.list("", "date", "desc", null, null).single()
+        assertEquals(AppliedJobStatus.REJECTED, updated.status)
+    }
+
+    @Test
+    fun `updateStatus throws 400 for invalid status`() {
+        val job = controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", ""))
+
+        val exception = assertThrows(ResponseStatusException::class.java) {
+            controller.updateStatus(job.id, "UNKNOWN")
+        }
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.statusCode)
+    }
+
+    @Test
+    fun `updateStatus throws 404 for non-existent job id`() {
+        val exception = assertThrows(ResponseStatusException::class.java) {
+            controller.updateStatus("non-existent-id", "REJECTED")
+        }
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.statusCode)
+    }
+
+
+    @Test
+    fun `newly added job defaults to progressing status`() {
+        val job = controller.add(AddAppliedJobRequest("Acme Corp", "Engineer", ""))
+
+        assertEquals(AppliedJobStatus.PROGRESSING, job.status)
     }
 }
