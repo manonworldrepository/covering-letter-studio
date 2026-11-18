@@ -40,15 +40,21 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           project_id: ${{ env.PROJECT_ID }}
+          service_account: coveringletter-deploy@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: Set up gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Build and push Docker image with Cloud Build
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
         run: |
-          gcloud builds submit --config=cloudbuild.yaml --substitutions=_TAG=${{ github.sha }} --project=${{ env.PROJECT_ID }}
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/coveringletter:${{ github.sha }}"
+          docker build -t "$IMAGE_TAG" .
+          docker push "$IMAGE_TAG"
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
