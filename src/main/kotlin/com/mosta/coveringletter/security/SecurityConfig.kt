@@ -40,7 +40,7 @@ class SecurityConfig(
             .userInfoUri("https://www.googleapis.com/oauth2/v3/userinfo")
             .userNameAttributeName("email")
             .jwkSetUri("https://www.googleapis.com/oauth2/v3/certs")
-            .redirectUri("https://coveringletter-971727829810.us-central1.run.app/login/oauth2/code/google")
+            .redirectUri("https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google")
             .scope("email", "profile", "openid")
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .build()

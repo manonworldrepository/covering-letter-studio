@@ -27,7 +27,7 @@ spring:
               - email
               - profile
             authorization-grant-type: authorization_code
-            redirect-uri: "https://coveringletter-971727829810.us-central1.run.app/login/oauth2/code/google"
+            redirect-uri: "https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google"
         provider:
           google:
             issuer-uri: https://accounts.google.com
