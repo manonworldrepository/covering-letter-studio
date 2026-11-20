@@ -21,4 +21,8 @@ class UserController {
 			}
 			Mono.just(UserInfoResponse(email = email, name = name))
 		}
+
+	@GetMapping("/api/session/heartbeat")
+	fun heartbeat(): Mono<String> =
+		Mono.just("""{"status":"ok"}""")
 }

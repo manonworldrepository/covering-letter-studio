@@ -124,6 +124,8 @@
       
       if (params.get('logout') === 'true') {
         container.innerHTML = '<div class="success-message">You have been signed out successfully.</div>';
+      } else if (params.get('error') === 'session_expired') {
+        container.innerHTML = '<div class="error-message">Your session has expired. Please sign in again.</div>';
       } else if (params.get('error') === 'access_denied') {
         container.innerHTML = '<div class="error-message">Access denied: Your Google account is not authorized to use this app.</div>';
       } else if (params.get('error') === 'authentication_failed') {

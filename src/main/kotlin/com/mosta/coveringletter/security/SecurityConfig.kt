@@ -65,6 +65,7 @@ class SecurityConfig(
                     "/favicon.ico",
                     "/login/oauth2/code/*"
                 ).permitAll()
+                auth.pathMatchers("/api/session/heartbeat").authenticated()
                 auth.anyExchange().authenticated()
             }
             .httpBasic { it.disable() }

@@ -2501,6 +2501,16 @@
       }
     });
 
+    function checkSession() {
+      fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
+        .then((response) => {
+          if (!response.ok) {
+            window.location.href = "/login.html?error=session_expired";
+          }
+        })
+        .catch(() => {});
+    }
+
     refreshApp().catch((error) => {
       setup.hidden = false;
       document.querySelector("#setup-title").textContent = "Could not load application settings";
@@ -2509,6 +2519,7 @@
     });
     refreshLogs();
     window.setInterval(refreshLogs, 2500);
+    window.setInterval(checkSession, 120000);
   </script>
 </body>
 </html>
