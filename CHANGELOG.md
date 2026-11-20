@@ -2,6 +2,20 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
+## [v3.2.1] - 2026-11-20
+
+### Added
+- Cloud Storage sync to persist `.data` directory across Cloud Run container restarts (scale-to-zero)
+- `CloudStorageSyncService` automatically downloads data on startup and uploads on shutdown
+- Configured via `CLOUD_STORAGE_BUCKET` environment variable, enabled by default on `cloud` profile
+
+### Fixed
+- GitHub Actions CI/CD workflow: split `--set-env-vars` into individual flags to prevent environment variable concatenation issues
+- Cloud Run deployment now correctly sets all environment variables (GEMINI_MODEL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, CLOUD_STORAGE_BUCKET)
+
+### Changed
+- Updated `CLOUD_DEPLOYMENT.md` with Cloud Storage setup instructions and free tier information
+
 ## [v3.2.0] - 2026-11-19
 
 ### Added

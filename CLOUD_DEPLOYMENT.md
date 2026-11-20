@@ -46,11 +46,15 @@ gcloud run deploy coveringletter `
   --platform managed `
   --region us-central1 `
   --allow-unauthenticated `
-  --set-env-vars GEMINI_API_KEY="your-api-key-here",GEMINI_MODEL="gemini-3.1-flash-lite",CLOUD_STORAGE_BUCKET="PROJECT_ID-coveringletter-data" `
+  --set-env-vars GEMINI_API_KEY="your-api-key-here" `
+  --set-env-vars GEMINI_MODEL="gemini-3.1-flash-lite" `
+  --set-env-vars CLOUD_STORAGE_BUCKET="PROJECT_ID-coveringletter-data" `
   --memory 512Mi `
   --cpu 1 `
   --max-instances 2
 ```
+
+> **Important:** Use separate `--set-env-vars` flags for each variable. Comma-separated values can cause all variables to be merged into a single environment variable.
 
 ### Security Note
 
@@ -82,8 +86,11 @@ The app requires these environment variables on Cloud Run:
 |----------|----------|-------------|
 | `GEMINI_API_KEY` | Yes | Your Google Gemini API key |
 | `GEMINI_MODEL` | No | Model ID (default: `gemini-3.1-flash-lite`) |
+| `GOOGLE_CLIENT_ID` | Yes | Google OAuth2 client ID for Sign-In |
+| `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth2 client secret |
+| `CLOUD_STORAGE_BUCKET` | Yes | Cloud Storage bucket name for data persistence |
 
-Set them via `gcloud run services update`:
+Set them via `gcloud run services update` (use separate `--set-env-vars` flags):
 
 ```powershell
 gcloud run services update coveringletter `
@@ -367,23 +374,18 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 | `GCP_REGION` | Cloud Run region | `us-central1` |
 | `GCP_SERVICE` | Cloud Run service name | `coveringletter` |
 | `WIF_PROVIDER` | Full Workload Identity Provider resource name | `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
+| `GOOGLE_CLIENT_ID` | Google OAuth2 client ID | `123456789-abc.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret | `GOCSPX-abc123...` |
+| `GEMINI_API_KEY` | Your Google Gemini API key | `AIza...` |
+| `CLOUD_STORAGE_BUCKET` | Cloud Storage bucket name | `my-project-coveringletter-data` |
 
-#### 6. Configure `GEMINI_API_KEY` on Cloud Run
+#### 6. Configure environment variables on Cloud Run
 
-The workflow sets `GEMINI_MODEL` automatically. For `GEMINI_API_KEY`, set it once on the Cloud Run service:
-
-```powershell
-gcloud run services update coveringletter `
-  --platform managed `
-  --region us-central1 `
-  --set-env-vars GEMINI_API_KEY="your-api-key-here"
-```
-
-The key persists across redeployments and is not overwritten by the workflow.
+The workflow sets all environment variables automatically on each deployment. Make sure all GitHub secrets are configured (see Step 5).
 
 ### First deployment
 
-Before enabling the automated workflow, deploy the service once manually (see Step 3 above) so the Cloud Run service exists. After that, every push to `main` will trigger an automatic redeployment.
+Before enabling the automated workflow, deploy the service once manually (see Step 3 above) so the Cloud Run service exists. After that, every push to `master` will trigger an automatic redeployment.
 
 ### Triggering manually
 
