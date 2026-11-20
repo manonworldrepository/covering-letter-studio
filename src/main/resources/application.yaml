@@ -51,6 +51,9 @@ coverletter:
     directory: ${COVERLETTER_STORAGE_DIR:.data}
   security:
     allowed-emails: ${ALLOWED_EMAILS:info@manonworld.de}
+  cloud-storage:
+    enabled: ${CLOUD_STORAGE_ENABLED:false}
+    bucket: ${CLOUD_STORAGE_BUCKET:}
 
 server:
   address: 127.0.0.1

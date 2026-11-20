@@ -5,3 +5,7 @@ spring:
   config:
     activate:
       on-profile: cloud
+
+coverletter:
+  cloud-storage:
+    enabled: true

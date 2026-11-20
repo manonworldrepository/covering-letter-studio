@@ -46,7 +46,7 @@ gcloud run deploy coveringletter `
   --platform managed `
   --region us-central1 `
   --allow-unauthenticated `
-  --set-env-vars GEMINI_API_KEY="your-api-key-here",GEMINI_MODEL="gemini-3.1-flash-lite" `
+  --set-env-vars GEMINI_API_KEY="your-api-key-here",GEMINI_MODEL="gemini-3.1-flash-lite",CLOUD_STORAGE_BUCKET="PROJECT_ID-coveringletter-data" `
   --memory 512Mi `
   --cpu 1 `
   --max-instances 2
@@ -92,18 +92,75 @@ gcloud run services update coveringletter `
   --set-env-vars GEMINI_API_KEY="your-new-key"
 ```
 
-## Data Persistence Warning
+## Data Persistence with Cloud Storage
 
-⚠️ **Cloud Run is stateless.** The `.data` directory is ephemeral — all resumes, supporting documents, and applied jobs will be lost on restart or redeployment.
+✅ **Cloud Storage sync is built in.** The app automatically syncs the `.data` directory to Google Cloud Storage on startup and shutdown, so your data survives container restarts (scale-to-zero).
 
-### Options for Persistence
+### Setup Cloud Storage Bucket
 
-1. **Accept ephemeral data** — Upload your resume and documents each session. Applied jobs are lost on restart.
-2. **Google Cloud Storage** — Replace the file-based stores with Cloud Storage API calls. This requires code changes to `ResumeStore`, `SupportingDocumentStore`, and `AppliedJobStore`.
-3. **Cloud SQL** — Use a managed PostgreSQL database for structured data (applied jobs, settings).
-4. **Google Cloud Filestore** — Mount a persistent NFS volume (has minimum cost of ~$20/month).
+1. **Create a Cloud Storage bucket:**
 
-For personal use, Option 1 may be acceptable if you keep local backups of your resumes and documents.
+```powershell
+gcloud storage buckets create gs://YOUR_PROJECT_ID-coveringletter-data `
+  --location=US-CENTRAL1 `
+  --project=YOUR_PROJECT_ID
+```
+
+Replace `YOUR_PROJECT_ID` with your GCP project ID (e.g., `manon-world-1737941816058-coveringletter-data`). Bucket names must be globally unique.
+
+2. **Set the bucket as a Cloud Run environment variable:**
+
+```powershell
+gcloud run services update coveringletter `
+  --platform managed `
+  --region us-central1 `
+  --set-env-vars CLOUD_STORAGE_BUCKET="YOUR_PROJECT_ID-coveringletter-data"
+```
+
+3. **Grant the Cloud Run service account permission to read/write the bucket:**
+
+```powershell
+gcloud storage buckets add-iam-policy-binding gs://YOUR_PROJECT_ID-coveringletter-data `
+  --member="serviceAccount:YOUR_PROJECT_ID-compute@developer.gserviceaccount.com" `
+  --role="roles/storage.objectAdmin"
+```
+
+### How It Works
+
+- **On startup**: The app downloads `data-backup.zip` from Cloud Storage and extracts it to `.data/`
+- **On shutdown**: The app zips the entire `.data/` directory and uploads it to Cloud Storage
+- **First deploy**: No data exists in Cloud Storage — the app starts with an empty `.data/` directory
+- **Local development**: Cloud Storage sync is disabled by default (only active on the `cloud` profile)
+
+### Cloud Storage Free Tier
+
+| Resource | Free Allowance |
+|----------|----------------|
+| Storage | 5 GB/month |
+| Reads | 50,000 operations/month |
+| Writes | 2,000 operations/month |
+
+For personal use (a few MB of resumes/documents), you'll stay well within the free tier.
+
+### GitHub Actions CI/CD
+
+If you use the automated deployment workflow, add the bucket name as a GitHub secret:
+
+1. Go to: `https://github.com/YOUR_USERNAME/covering-letter-studio/settings/secrets/actions`
+2. Add secret: `CLOUD_STORAGE_BUCKET` → `YOUR_PROJECT_ID-coveringletter-data`
+
+The workflow will automatically set this environment variable on each deployment.
+
+### Disabling Cloud Storage Sync
+
+To disable sync (fall back to ephemeral local storage), set:
+
+```powershell
+gcloud run services update coveringletter `
+  --platform managed `
+  --region us-central1 `
+  --set-env-vars CLOUD_STORAGE_ENABLED="false"
+```
 
 ## Free Tier Limits
 

@@ -31,6 +31,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("org.springframework.security:spring-security-oauth2-jose")
+    implementation("com.google.cloud:google-cloud-storage:2.78.0")
     implementation("org.apache.pdfbox:pdfbox:3.0.6")
     implementation("org.apache.poi:poi-ooxml:5.4.1")
     implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
