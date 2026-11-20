@@ -2,6 +2,12 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
+## [v3.2.3] - 2026-11-20
+
+### Fixed
+- Gemini API key and model settings were lost after Cloud Run scaled to zero because the `.env` file lived at the project root, outside the `.data/` directory synced to Cloud Storage
+- Moved `.env` file from project root to `.data/.env` so it is included in the Cloud Storage backup and restored on startup
+
 ## [v3.2.2] - 2026-11-20
 
 ### Added
