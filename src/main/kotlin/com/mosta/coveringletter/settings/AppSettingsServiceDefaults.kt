@@ -7,5 +7,5 @@ internal object AppSettingsServiceDefaults {
 	const val DEFAULT_MODEL = "gemini-3.1-flash-lite"
 	val MODEL_ID = Regex("[A-Za-z0-9._-]+")
 	val ENV_LINE = Regex("^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*)\\s*$")
-	val envFile: Path = Paths.get(".env").toAbsolutePath().normalize()
+	val envFile: Path = Paths.get(".data", ".env").toAbsolutePath().normalize()
 }

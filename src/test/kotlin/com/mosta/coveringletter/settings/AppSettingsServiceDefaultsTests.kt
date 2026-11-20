@@ -57,8 +57,9 @@ class AppSettingsServiceDefaultsTests {
 	}
 
 	@Test
-	fun `env file path is absolute`() {
+	fun `env file path is inside data directory`() {
 		assertTrue(AppSettingsServiceDefaults.envFile.isAbsolute)
 		assertEquals(".env", AppSettingsServiceDefaults.envFile.fileName.toString())
+		assertEquals(".data", AppSettingsServiceDefaults.envFile.parent?.fileName?.toString())
 	}
 }
