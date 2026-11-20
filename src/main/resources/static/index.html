@@ -2522,7 +2522,7 @@
     function silentRefresh() {
       const iframe = document.createElement("iframe");
       iframe.style.display = "none";
-      iframe.src = "/login/oauth2/authorization/google";
+      iframe.src = "/login/oauth2/authorization/google?prompt=none";
       iframe.onload = () => {
         setTimeout(() => {
           document.body.removeChild(iframe);
@@ -2533,7 +2533,7 @@
               }
             })
             .catch(() => {});
-        }, 2000);
+        }, 3000);
       };
       document.body.appendChild(iframe);
     }

@@ -44,7 +44,7 @@ class SecurityConfig(
             .userNameAttributeName("email")
             .jwkSetUri("https://www.googleapis.com/oauth2/v3/certs")
             .redirectUri("https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google")
-            .scope("email", "profile", "openid", "offline")
+            .scope("email", "profile", "openid")
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .build()
         return InMemoryReactiveClientRegistrationRepository(registration)
