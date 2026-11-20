@@ -105,7 +105,7 @@ class SecurityConfig(
         override fun onAuthenticationSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
             val name = authentication.name.lowercase()
             val targetUrl = if (allowedEmails.contains(name)) {
-                "/"
+                "/?refresh=true"
             } else {
                 "/login.html?error=access_denied"
             }

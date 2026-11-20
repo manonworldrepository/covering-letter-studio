@@ -2520,22 +2520,24 @@
     }
 
     function silentRefresh() {
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = "/login/oauth2/authorization/google?prompt=none";
-      iframe.onload = () => {
-        setTimeout(() => {
-          document.body.removeChild(iframe);
+      const popup = window.open("/login/oauth2/authorization/google", "silent_refresh", "width=500,height=600");
+      const checkInterval = setInterval(() => {
+        if (popup && popup.closed) {
+          clearInterval(checkInterval);
           fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
             .then((response) => {
-              if (!response.ok) {
+              if (response.ok) {
+                window.location.reload();
+              } else {
                 window.location.href = "/login.html?error=session_expired";
               }
             })
-            .catch(() => {});
-        }, 3000);
-      };
-      document.body.appendChild(iframe);
+            .catch(() => {
+              window.location.href = "/login.html?error=session_expired";
+            });
+        }
+      }, 1000);
+      setTimeout(() => clearInterval(checkInterval), 60000);
     }
 
     refreshApp().catch((error) => {
@@ -2544,6 +2546,15 @@
       document.querySelector("#setup-status").textContent = error.message;
       document.querySelector("#setup-status").classList.add("error");
     });
+
+    if (new URLSearchParams(window.location.search).get("refresh") === "true") {
+      if (window.opener) {
+        window.opener.location.reload();
+        window.close();
+      } else {
+        window.location.replace("/");
+      }
+    }
     refreshLogs();
     window.setInterval(refreshLogs, 2500);
     window.setInterval(checkSession, 120000);
