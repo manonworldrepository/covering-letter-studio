@@ -26,6 +26,8 @@ spring:
             scope:
               - email
               - profile
+              - openid
+              - offline
             authorization-grant-type: authorization_code
             redirect-uri: "https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google"
         provider:

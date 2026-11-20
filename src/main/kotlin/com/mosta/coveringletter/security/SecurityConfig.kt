@@ -44,7 +44,7 @@ class SecurityConfig(
             .userNameAttributeName("email")
             .jwkSetUri("https://www.googleapis.com/oauth2/v3/certs")
             .redirectUri("https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google")
-            .scope("email", "profile", "openid")
+            .scope("email", "profile", "openid", "offline")
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .build()
         return InMemoryReactiveClientRegistrationRepository(registration)
@@ -63,9 +63,9 @@ class SecurityConfig(
                     "/login.html",
                     "/error",
                     "/favicon.ico",
-                    "/login/oauth2/code/*"
+                    "/login/oauth2/code/*",
+                    "/login/oauth2/authorization/*"
                 ).permitAll()
-                auth.pathMatchers("/api/session/heartbeat").authenticated()
                 auth.anyExchange().authenticated()
             }
             .httpBasic { it.disable() }

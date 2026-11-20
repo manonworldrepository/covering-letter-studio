@@ -2501,14 +2501,41 @@
       }
     });
 
+    let sessionRefreshAttempted = false;
     function checkSession() {
       fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
         .then((response) => {
           if (!response.ok) {
-            window.location.href = "/login.html?error=session_expired";
+            if (!sessionRefreshAttempted) {
+              sessionRefreshAttempted = true;
+              silentRefresh();
+            } else {
+              window.location.href = "/login.html?error=session_expired";
+            }
+          } else {
+            sessionRefreshAttempted = false;
           }
         })
         .catch(() => {});
+    }
+
+    function silentRefresh() {
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = "/login/oauth2/authorization/google";
+      iframe.onload = () => {
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
+            .then((response) => {
+              if (!response.ok) {
+                window.location.href = "/login.html?error=session_expired";
+              }
+            })
+            .catch(() => {});
+        }, 2000);
+      };
+      document.body.appendChild(iframe);
     }
 
     refreshApp().catch((error) => {

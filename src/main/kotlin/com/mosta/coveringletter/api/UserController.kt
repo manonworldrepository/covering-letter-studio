@@ -23,6 +23,12 @@ class UserController {
 		}
 
 	@GetMapping("/api/session/heartbeat")
-	fun heartbeat(): Mono<String> =
-		Mono.just("""{"status":"ok"}""")
+	fun heartbeat(securityContext: Mono<SecurityContext>): Mono<String> =
+		securityContext.map { ctx ->
+			if (ctx.authentication != null) {
+				"""{"status":"ok"}"""
+			} else {
+				throw org.springframework.security.access.AccessDeniedException("Session expired")
+			}
+		}
 }
