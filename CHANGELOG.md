@@ -2,6 +2,12 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
+## [v3.2.2] - 2026-11-20
+
+### Added
+- Smooth scrolling throughout the UI with `scroll-behavior: smooth` CSS rule
+- Auto-scroll to the generated cover letter section when generation finishes, covering both the direct "Generate" button and the setup wizard's "Generate first draft" flow
+
 ## [v3.2.1] - 2026-11-20
 
 ### Added
