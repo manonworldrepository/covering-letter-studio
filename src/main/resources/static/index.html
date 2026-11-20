@@ -10,6 +10,7 @@
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #172033; background: #f5f6f8; }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body { margin: 0; }
     header { position: sticky; top: 0; z-index: 6; padding: 14px max(24px, calc((100% - 1040px) / 2)); background: #3158d5; border-bottom: 2px solid #2448bd; box-shadow: 0 2px 8px #17203318; color: #fff; }
     .header-inner { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -2051,6 +2052,7 @@
         updateGenerationProgress(100);
         generationOverlayTitle.textContent = motivationMessage ? "Your message is ready." : "Your letter is ready.";
         await new Promise((resolve) => setTimeout(resolve, 450));
+        result.scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (error) {
         status.textContent = error.message || "Something went wrong. Please try again.";
         status.classList.add("error");
