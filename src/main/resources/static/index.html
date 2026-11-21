@@ -2501,17 +2501,11 @@
       }
     });
 
-    let sessionRefreshAttempted = false;
     function checkSession() {
       fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
         .then((response) => {
           if (!response.ok) {
-            if (!sessionRefreshAttempted) {
-              sessionRefreshAttempted = true;
-              window.location.href = "/login/oauth2/authorization/google";
-            }
-          } else {
-            sessionRefreshAttempted = false;
+            window.location.href = "/login";
           }
         })
         .catch(() => {});
