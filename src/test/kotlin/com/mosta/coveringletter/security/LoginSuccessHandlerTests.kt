@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.security
 
+import com.mosta.coveringletter.activity.UserActionLogBuffer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -13,11 +14,18 @@ import org.springframework.web.server.WebFilterChain
 
 class LoginSuccessHandlerTests {
 
+	private val userActions = UserActionLogBuffer()
 	private lateinit var handler: SecurityConfig.LoginSuccessHandler
 
 	@BeforeEach
 	fun setup() {
-		handler = SecurityConfig.LoginSuccessHandler(setOf("info@manonworld.de", "admin@example.com"))
+		val config = SecurityConfig(
+			allowedEmailsProperty = "info@manonworld.de,admin@example.com",
+			clientId = "test",
+			clientSecret = "test",
+			userActions = userActions
+		)
+		handler = config.LoginSuccessHandler(setOf("info@manonworld.de", "admin@example.com"))
 	}
 
 	@Test
@@ -56,7 +64,13 @@ class LoginSuccessHandlerTests {
 
 	@Test
 	fun `redirects to access denied for empty allowed list`() {
-		val emptyHandler = SecurityConfig.LoginSuccessHandler(emptySet())
+		val emptyConfig = SecurityConfig(
+			allowedEmailsProperty = "",
+			clientId = "test",
+			clientSecret = "test",
+			userActions = UserActionLogBuffer()
+		)
+		val emptyHandler = emptyConfig.LoginSuccessHandler(emptySet())
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("anyone@example.com")
 

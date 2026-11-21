@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.security
 
+import com.mosta.coveringletter.activity.UserActionLogBuffer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -16,7 +17,8 @@ class SecurityConfigTests {
 		securityConfig = SecurityConfig(
 			allowedEmailsProperty = "info@manonworld.de, admin@example.com",
 			clientId = "test-client-id.apps.googleusercontent.com",
-			clientSecret = "test-client-secret"
+			clientSecret = "test-client-secret",
+			userActions = UserActionLogBuffer()
 		)
 	}
 
@@ -86,7 +88,8 @@ class SecurityConfigTests {
 		val singleConfig = SecurityConfig(
 			allowedEmailsProperty = "single@example.com",
 			clientId = "client-id",
-			clientSecret = "client-secret"
+			clientSecret = "client-secret",
+			userActions = UserActionLogBuffer()
 		)
 		val repo = singleConfig.clientRegistrationRepository()
 		val registration = repo.findByRegistrationId("google").block()
@@ -102,7 +105,13 @@ class SecurityConfigTests {
 
 	@Test
 	fun `LoginSuccessHandler is correctly instantiated`() {
-		val handler = SecurityConfig.LoginSuccessHandler(setOf("info@manonworld.de", "admin@example.com"))
+		val config = SecurityConfig(
+			allowedEmailsProperty = "info@manonworld.de,admin@example.com",
+			clientId = "test",
+			clientSecret = "test",
+			userActions = UserActionLogBuffer()
+		)
+		val handler = config.LoginSuccessHandler(setOf("info@manonworld.de", "admin@example.com"))
 		assertTrue(handler is SecurityConfig.LoginSuccessHandler)
 	}
 

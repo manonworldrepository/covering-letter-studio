@@ -175,6 +175,16 @@
     .user-email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .btn-logout { width: auto; max-width: none; flex: 0 0 auto; font-size: 12px; padding: 4px 10px; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.15s ease; }
     .btn-logout:hover { background: rgba(255,255,255,0.3); }
+    .btn-logout:disabled { opacity: 0.7; cursor: wait; }
+    .btn-logout .spinner { display: none; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 4px; }
+    .btn-logout.loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .logout-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9999; place-items: center; }
+    .logout-overlay.active { display: grid; }
+    .logout-overlay.active ~ .log-panel { z-index: 10000; }
+    .logout-overlay .overlay-content { text-align: center; color: #fff; }
+    .logout-overlay .overlay-spinner { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+    .logout-overlay .overlay-text { font-size: 16px; font-weight: 500; }
     .confirm-dialog { width: min(100%, 400px); padding: 28px 32px 24px; text-align: center; }
     .confirm-dialog h2 { margin: 0 0 10px; font-size: 18px; }
     .confirm-dialog p { margin: 0 0 22px; color: #59667e; font-size: 14px; line-height: 1.5; }
@@ -203,10 +213,16 @@
       <div id="user-info" class="user-info" hidden>
         <span class="user-avatar" id="user-avatar"></span>
         <span class="user-email" id="user-email"></span>
-        <button class="btn-logout" id="btn-logout" type="button" title="Sign out">Sign out</button>
+        <button class="btn-logout" id="btn-logout" type="button" title="Sign out"><span class="spinner"></span>Sign out</button>
       </div>
     </div>
   </header>
+  <div class="logout-overlay" id="logout-overlay">
+    <div class="overlay-content">
+      <div class="overlay-spinner"></div>
+      <div class="overlay-text">Signing out...</div>
+    </div>
+  </div>
   <main>
     <section class="card" id="setup" hidden aria-labelledby="setup-title">
       <div class="step-number">First-time setup</div>
@@ -894,6 +910,11 @@
     }
 
     document.querySelector("#btn-logout")?.addEventListener("click", async () => {
+      const btn = document.querySelector("#btn-logout");
+      const overlay = document.querySelector("#logout-overlay");
+      btn.disabled = true;
+      btn.classList.add("loading");
+      overlay.classList.add("active");
       try {
         await fetch("/logout", { method: "POST", credentials: "same-origin" });
         window.location.href = "/login.html";
@@ -2505,7 +2526,7 @@
       fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
         .then((response) => {
           if (!response.ok) {
-            window.location.href = "/login.html?error=session_expired";
+            window.location.href = "/login.html?error=session_expired&refresh=true";
           }
         })
         .catch(() => {});

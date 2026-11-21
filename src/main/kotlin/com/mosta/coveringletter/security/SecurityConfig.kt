@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.security
 
+import com.mosta.coveringletter.activity.UserActionLogBuffer
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -27,7 +28,8 @@ class SecurityConfig(
     @Value("\${spring.security.oauth2.client.registration.google.client-id:}")
     private val clientId: String,
     @Value("\${spring.security.oauth2.client.registration.google.client-secret:}")
-    private val clientSecret: String
+    private val clientSecret: String,
+    private val userActions: UserActionLogBuffer
 ) {
 
     private val allowedEmails: Set<String> = allowedEmailsProperty.split(",").map { it.trim().lowercase() }.toSet()
@@ -100,10 +102,16 @@ class SecurityConfig(
         }
     }
 
-    class LoginSuccessHandler(private val allowedEmails: Set<String>) : ServerAuthenticationSuccessHandler {
+    inner class LoginSuccessHandler(private val allowedEmails: Set<String>) : ServerAuthenticationSuccessHandler {
         override fun onAuthenticationSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
             val name = authentication.name.lowercase()
             val targetUrl = if (allowedEmails.contains(name)) {
+                val wasRefresh = exchange.exchange.request.queryParams["refresh"]?.firstOrNull() == "true"
+                if (wasRefresh) {
+                    userActions.record("Session refreshed via Google Sign-In")
+                } else {
+                    userActions.record("Signed in with Google: $name")
+                }
                 "/"
             } else {
                 "/login.html?error=access_denied"
