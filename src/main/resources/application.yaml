@@ -57,6 +57,9 @@ coverletter:
   cloud-storage:
     enabled: ${CLOUD_STORAGE_ENABLED:false}
     bucket: ${CLOUD_STORAGE_BUCKET:}
+  jwt:
+    access-token-validity-seconds: 900
+    refresh-token-validity-seconds: 604800
 
 server:
   address: 127.0.0.1

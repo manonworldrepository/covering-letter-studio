@@ -1,34 +1,119 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.security.JwtAuthenticationConverter
+import com.mosta.coveringletter.security.JwtService
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
+import org.springframework.http.ResponseCookie
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 
 @RestController
-class UserController {
-	@GetMapping("/api/user/me")
-	fun getCurrentUser(securityContext: Mono<SecurityContext>): Mono<UserInfoResponse> =
-		securityContext.flatMap { ctx ->
-			val auth = ctx.authentication ?: throw org.springframework.security.access.AccessDeniedException("Not authenticated")
-			val email = auth.name
-			val name = if (auth.principal is OAuth2User) {
-				val user = auth.principal as OAuth2User
-				user.getAttribute("name") ?: user.getAttribute("given_name") ?: email
-			} else {
-				email
-			}
-			Mono.just(UserInfoResponse(email = email, name = name))
-		}
+class UserController(
+    private val jwtService: JwtService
+) {
+    @GetMapping("/api/user/me")
+    fun getCurrentUser(securityContext: Mono<SecurityContext>): Mono<UserInfoResponse> =
+        securityContext.flatMap { ctx ->
+            val auth = ctx.authentication ?: throw org.springframework.security.access.AccessDeniedException("Not authenticated")
+            val email = auth.name
+            val name = if (auth.principal is OAuth2User) {
+                val user = auth.principal as OAuth2User
+                user.getAttribute("name") ?: user.getAttribute("given_name") ?: email
+            } else {
+                email
+            }
+            Mono.just(UserInfoResponse(email = email, name = name))
+        }
 
-	@GetMapping("/api/session/heartbeat")
-	fun heartbeat(securityContext: Mono<SecurityContext>): Mono<String> =
-		securityContext.map { ctx ->
-			if (ctx.authentication != null) {
-				"""{"status":"ok"}"""
-			} else {
-				throw org.springframework.security.access.AccessDeniedException("Session expired")
-			}
-		}
+    @GetMapping("/api/session/heartbeat")
+    fun heartbeat(securityContext: Mono<SecurityContext>): Mono<String> =
+        securityContext.map { ctx ->
+            if (ctx.authentication != null) {
+                """{"status":"ok"}"""
+            } else {
+                throw org.springframework.security.access.AccessDeniedException("Session expired")
+            }
+        }
+
+    @PostMapping("/api/auth/refresh")
+    fun refreshTokens(exchange: ServerWebExchange): Mono<Void> {
+        val refreshToken = exchange.request.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]?.firstOrNull()?.value
+            ?: return unauthorizedResponse(exchange)
+
+        return jwtService.validateRefreshToken(refreshToken)
+            .flatMap { email ->
+                val newAccessToken = jwtService.generateAccessToken(email)
+                val newRefreshToken = jwtService.generateRefreshToken(email)
+                val response = exchange.response
+                response.addCookie(createAccessTokenCookie(newAccessToken))
+                response.addCookie(createRefreshTokenCookie(newRefreshToken))
+                response.statusCode = HttpStatus.OK
+                response.headers.contentType = MediaType.APPLICATION_JSON
+                response.writeWith(
+                    Mono.just(
+                        response.bufferFactory().wrap(
+                            """{"status":"refreshed"}""".toByteArray()
+                        )
+                    )
+                )
+            }
+            .switchIfEmpty(unauthorizedResponse(exchange))
+    }
+
+    @PostMapping("/api/auth/logout")
+    fun logout(exchange: ServerWebExchange): Mono<Void> {
+        val response = exchange.response
+        response.addCookie(ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, "")
+            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build())
+        response.addCookie(ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, "")
+            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build())
+        response.statusCode = HttpStatus.OK
+        response.headers.contentType = MediaType.APPLICATION_JSON
+        return response.writeWith(
+            Mono.just(
+                response.bufferFactory().wrap(
+                    """{"status":"logged_out"}""".toByteArray()
+                )
+            )
+        )
+    }
+
+    private fun unauthorizedResponse(exchange: ServerWebExchange): Mono<Void> {
+        val response = exchange.response
+        response.statusCode = HttpStatus.UNAUTHORIZED
+        response.headers.contentType = MediaType.APPLICATION_JSON
+        return response.writeWith(
+            Mono.just(
+                response.bufferFactory().wrap(
+                    """{"message":"Refresh token expired. Please sign in again."}""".toByteArray()
+                )
+            )
+        )
+    }
+
+    private fun createAccessTokenCookie(token: String): ResponseCookie {
+        return ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, token)
+            .httpOnly(true)
+            .secure(true)
+            .sameSite("None")
+            .path("/")
+            .maxAge(900)
+            .build()
+    }
+
+    private fun createRefreshTokenCookie(token: String): ResponseCookie {
+        return ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, token)
+            .httpOnly(true)
+            .secure(true)
+            .sameSite("None")
+            .path("/")
+            .maxAge(604800)
+            .build()
+    }
 }

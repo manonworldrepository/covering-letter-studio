@@ -916,7 +916,7 @@
       btn.classList.add("loading");
       overlay.classList.add("active");
       try {
-        await fetch("/logout", { method: "POST", credentials: "same-origin" });
+        await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
         window.location.href = "/login.html";
       } catch (error) {
         console.error("Failed to logout:", error);
@@ -2526,7 +2526,14 @@
       fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
         .then((response) => {
           if (!response.ok) {
-            window.location.href = "/login.html?error=session_expired&refresh=true";
+            // Try silent token refresh
+            return fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" })
+              .then((refreshResponse) => {
+                if (!refreshResponse.ok) {
+                  // Refresh failed, redirect to login
+                  window.location.href = "/login.html?error=session_expired&refresh=true";
+                }
+              });
           }
         })
         .catch(() => {});

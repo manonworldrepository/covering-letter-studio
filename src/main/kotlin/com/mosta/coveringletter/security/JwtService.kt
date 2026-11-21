@@ -1,0 +1,102 @@
+package com.mosta.coveringletter.security
+
+import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.jose.jwk.JWKSet
+import com.nimbusds.jose.jwk.RSAKey
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
+import org.springframework.security.oauth2.jwt.JwsHeader
+import org.springframework.security.oauth2.jwt.JwtClaimsSet
+import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.jwt.JwtEncoder
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
+import org.springframework.stereotype.Service
+import reactor.core.publisher.Mono
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.interfaces.RSAPrivateCrtKey
+import java.security.interfaces.RSAPublicKey
+import java.time.Instant
+
+@Service
+class JwtService(
+    @Value("\${coverletter.jwt.access-token-validity-seconds:900}")
+    private val accessTokenValiditySeconds: Long,
+    @Value("\${coverletter.jwt.refresh-token-validity-seconds:604800}")
+    private val refreshTokenValiditySeconds: Long
+) {
+
+    private val keyPair: KeyPair by lazy { generateKeyPair() }
+    private val jwtEncoder: JwtEncoder by lazy { createEncoder() }
+    private val jwtDecoder: JwtDecoder by lazy { createDecoder() }
+
+    fun generateAccessToken(email: String): String {
+        val now = Instant.now()
+        val claims = JwtClaimsSet.builder()
+            .subject(email)
+            .issuer("coveringletter")
+            .issuedAt(now)
+            .expiresAt(now.plusSeconds(accessTokenValiditySeconds))
+            .claim("email_verified", true)
+            .claim("type", "access")
+            .build()
+        val header = JwsHeader.with(SignatureAlgorithm.RS256).build()
+        return jwtEncoder.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(header, claims)).tokenValue
+    }
+
+    fun generateRefreshToken(email: String): String {
+        val now = Instant.now()
+        val claims = JwtClaimsSet.builder()
+            .subject(email)
+            .issuer("coveringletter")
+            .issuedAt(now)
+            .expiresAt(now.plusSeconds(refreshTokenValiditySeconds))
+            .claim("email_verified", true)
+            .claim("type", "refresh")
+            .build()
+        val header = JwsHeader.with(SignatureAlgorithm.RS256).build()
+        return jwtEncoder.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(header, claims)).tokenValue
+    }
+
+    fun validateAccessToken(token: String): Mono<String> =
+        validateToken(token, "access")
+
+    fun validateRefreshToken(token: String): Mono<String> =
+        validateToken(token, "refresh")
+
+    private fun validateToken(token: String, expectedType: String): Mono<String> =
+        Mono.fromCallable {
+            val jwt = jwtDecoder.decode(token)
+            val type = jwt.claims["type"] as? String
+            if (type != expectedType) {
+                throw IllegalArgumentException("Invalid token type")
+            }
+            jwt.subject
+        }.onErrorMap { e ->
+            if (e is org.springframework.security.oauth2.jwt.JwtException || e is IllegalArgumentException) {
+                e
+            } else {
+                IllegalArgumentException("Invalid token", e)
+            }
+        }.onErrorResume { Mono.empty() }
+
+    private fun generateKeyPair(): KeyPair {
+        val keyPairGenerator = KeyPairGenerator.getInstance("RSA")
+        keyPairGenerator.initialize(2048)
+        return keyPairGenerator.generateKeyPair()
+    }
+
+    private fun createEncoder(): JwtEncoder {
+        val rsaKey = RSAKey.Builder(keyPair.public as RSAPublicKey)
+            .privateKey(keyPair.private as RSAPrivateCrtKey)
+            .algorithm(JWSAlgorithm.RS256)
+            .build()
+        return NimbusJwtEncoder(ImmutableJWKSet(JWKSet(rsaKey)))
+    }
+
+    private fun createDecoder(): JwtDecoder {
+        return NimbusJwtDecoder.withPublicKey(keyPair.public as RSAPublicKey).build()
+    }
+}

@@ -2,6 +2,33 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
+## [v3.3.0] - 2026-11-21
+
+### Added
+- JWT-based authentication replacing server-side session management for silent session renewal on Cloud Run
+- `JwtService` — generates and validates RS256-signed JWT access tokens (15 min) and refresh tokens (7 days) with RSA key pair generated at startup
+- `JwtAuthenticationConverter` — reads `access_token` HTTP-only cookie, validates JWT, and sets `SecurityContext`
+- `TokenResponse` DTO for token responses
+- `POST /api/auth/refresh` endpoint for silent token renewal — validates refresh token cookie and issues new JWT cookies
+- `POST /api/auth/logout` endpoint for cookie cleanup — clears both access and refresh token cookies
+- Silent token refresh in the frontend heartbeat — calls `/api/auth/refresh` on 401 before redirecting to login
+- JWT configuration in `application.yaml`: `access-token-validity-seconds` (900) and `refresh-token-validity-seconds` (604800)
+- 25 new tests for JWT authentication:
+  - `JwtServiceTests` (14 tests) — token generation, validation, type mismatch, malformed/tampered token rejection
+  - `JwtAuthenticationFilterTests` (6 tests) — cookie reading, JWT validation, missing/invalid cookie handling
+  - `TokenRefreshTests` (5 tests) — valid refresh, missing cookie, invalid token, wrong token type, logout cookie clearing
+
+### Changed
+- `SecurityConfig` rewritten: `LoginSuccessHandler` now issues JWT cookies on successful Google Sign-In instead of relying on server-side session
+- `UserController` updated with token refresh and logout endpoints
+- `index.html` updated: `checkSession()` calls `/api/auth/refresh` silently on heartbeat 401; logout button uses `/api/auth/logout`
+- All security tests updated to match new constructor signatures and JWT-based behavior
+- Authentication no longer depends on Cloud Run session lifetime — refresh tokens survive session expiration via HTTP-only cookies
+
+### Notes
+- JWT key pair is generated at startup and not persisted, so tokens are invalidated on Cloud Run restarts. Users will re-authenticate via Google Sign-In after a restart.
+- Cookies use `SameSite=None; Secure` for cross-site compatibility on Cloud Run HTTPS.
+
 ## [v3.2.9] - 2026-11-21
 
 ### Added

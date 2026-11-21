@@ -2,6 +2,7 @@ package com.mosta.coveringletter.security
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -15,11 +16,12 @@ import org.springframework.web.server.WebFilterChain
 class LoginSuccessHandlerTests {
 
 	private val userActions = UserActionLogBuffer()
+	private val jwtService = JwtService(900, 604800)
 	private lateinit var handler: SecurityConfig.LoginSuccessHandler
 
 	@BeforeEach
 	fun setup() {
-		val config = SecurityConfig(userActions)
+		val config = SecurityConfig(userActions, jwtService, JwtAuthenticationConverter(jwtService))
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(config, "info@manonworld.de,admin@example.com")
@@ -62,7 +64,7 @@ class LoginSuccessHandlerTests {
 
 	@Test
 	fun `redirects to access denied for empty allowed list`() {
-		val emptyConfig = SecurityConfig(UserActionLogBuffer())
+		val emptyConfig = SecurityConfig(UserActionLogBuffer(), jwtService, JwtAuthenticationConverter(jwtService))
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(emptyConfig, "")
@@ -85,6 +87,19 @@ class LoginSuccessHandlerTests {
 
 		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
 		assertEquals("/", exchange.exchange.response.headers.location?.path)
+	}
+
+	@Test
+	fun `sets JWT cookies on successful authentication`() {
+		val exchange = createExchange("/login/oauth2/code/google")
+		val authentication = MockAuthentication("info@manonworld.de")
+
+		handler.onAuthenticationSuccess(exchange, authentication).block()
+
+		val accessCookie = exchange.exchange.response.cookies["access_token"]
+		val refreshCookie = exchange.exchange.response.cookies["refresh_token"]
+		assertTrue(accessCookie?.isNotEmpty() == true)
+		assertTrue(refreshCookie?.isNotEmpty() == true)
 	}
 
 	private fun createExchange(path: String): WebFilterExchange {
