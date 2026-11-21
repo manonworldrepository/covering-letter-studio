@@ -30,10 +30,10 @@ spring:
             authorization-grant-type: authorization_code
             redirect-uri: "https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google"
             access-type: offline
-            user-name-attribute: email
         provider:
           google:
             issuer-uri: https://accounts.google.com
+            user-name-attribute: email
 
 web:
   error:
