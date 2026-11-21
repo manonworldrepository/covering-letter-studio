@@ -2,6 +2,24 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
+## [v3.2.9] - 2026-11-21
+
+### Added
+- Privacy Policy page (`/privacy.html`) for Google OAuth app verification
+- Terms of Service page (`/terms.html`) for Google OAuth app verification
+- `access_type=offline` parameter in Google OAuth2 registration for silent token refresh
+- Both privacy and terms pages are publicly accessible without authentication
+
+### Fixed
+- Authentication using Google user ID (`sub`) instead of email address — added `user-name-attribute: email` to OAuth2 provider configuration
+- `LoginSuccessHandler` reading `allowedEmails` at bean creation time before `@Value` injection — changed to lazy getter
+- "Access denied" error after sign-in caused by empty `allowedEmails` set at initialization
+
+### Changed
+- Removed custom `ClientRegistration` bean from `SecurityConfig` — now relies on Spring Boot auto-configuration from `application.yaml`
+- Simplified `SecurityConfig` constructor to accept only `UserActionLogBuffer`; OAuth2 credentials read from `application.yaml`
+- Updated tests to match new `SecurityConfig` constructor signature
+
 ## [v3.2.8] - 2026-11-21
 
 ### Added
