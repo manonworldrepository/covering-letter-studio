@@ -64,6 +64,7 @@ class SecurityConfig(
                     "/login",
                     "/login.html",
                     "/privacy.html",
+                    "/terms.html",
                     "/error",
                     "/favicon.ico",
                     "/login/oauth2/code/*"
