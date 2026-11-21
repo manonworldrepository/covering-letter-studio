@@ -2,7 +2,14 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
-## [v3.2.6] - 2026-11-21
+## [v3.2.8] - 2026-11-21
+
+### Added
+- Loading spinner on the logout button while the logout request is processing
+- Full-page dimming overlay with "Signing out..." text and spinner during logout
+- Event log panel remains visible above the logout overlay so activity logs are still accessible during logout
+
+## [v3.2.7] - 2026-11-21
 
 ### Added
 - Activity panel logging for Google authentication events: "Signed in with Google: {email}" on initial sign-in and "Session refreshed via Google Sign-In" when session is renewed
