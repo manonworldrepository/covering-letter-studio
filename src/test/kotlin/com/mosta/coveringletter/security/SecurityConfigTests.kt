@@ -16,7 +16,7 @@ class SecurityConfigTests {
 	@Test
 	fun `LoginSuccessHandler is correctly instantiated`() {
 		val config = SecurityConfig(UserActionLogBuffer())
-		val handler = config.LoginSuccessHandler(setOf("info@manonworld.de", "admin@example.com"))
+		val handler = config.LoginSuccessHandler()
 		assertTrue(handler is SecurityConfig.LoginSuccessHandler)
 	}
 

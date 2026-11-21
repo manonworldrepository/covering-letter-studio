@@ -20,7 +20,10 @@ class LoginSuccessHandlerTests {
 	@BeforeEach
 	fun setup() {
 		val config = SecurityConfig(userActions)
-		handler = config.LoginSuccessHandler(setOf("info@manonworld.de", "admin@example.com"))
+		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
+		field.isAccessible = true
+		field.set(config, "info@manonworld.de,admin@example.com")
+		handler = config.LoginSuccessHandler()
 	}
 
 	@Test
@@ -60,7 +63,10 @@ class LoginSuccessHandlerTests {
 	@Test
 	fun `redirects to access denied for empty allowed list`() {
 		val emptyConfig = SecurityConfig(UserActionLogBuffer())
-		val emptyHandler = emptyConfig.LoginSuccessHandler(emptySet())
+		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
+		field.isAccessible = true
+		field.set(emptyConfig, "")
+		val emptyHandler = emptyConfig.LoginSuccessHandler()
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("anyone@example.com")
 
