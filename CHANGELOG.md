@@ -2,6 +2,27 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
+## [v3.2.6] - 2026-11-21
+
+### Added
+- Activity panel logging for Google authentication events: "Signed in with Google: {email}" on initial sign-in and "Session refreshed via Google Sign-In" when session is renewed
+- Session heartbeat endpoint `/api/session/heartbeat` that checks authentication status every 2 minutes
+- Automatic redirect to login page when session expires, with `session_expired` error message on the login page
+- Session refresh flow: when session expires, user is redirected to login page and can sign in again to renew the session
+
+## [v3.2.5] - 2026-11-20
+
+### Added
+- Session heartbeat endpoint `/api/session/heartbeat` to detect expired sessions while the browser tab remains open
+- Automatic redirect to login page when session expires, showing "Your session has expired. Please sign in again." message
+- Heartbeat check runs every 2 minutes to detect session expiration before user actions fail
+
+## [v3.2.4] - 2026-11-20
+
+### Fixed
+- Gemini API key and model settings were lost after Cloud Run scaled to zero because the `.env` file lived at the project root, outside the `.data/` directory synced to Cloud Storage
+- Moved `.env` file from project root to `.data/.env` so it is included in the Cloud Storage backup and restored on startup
+
 ## [v3.2.3] - 2026-11-20
 
 ### Fixed
