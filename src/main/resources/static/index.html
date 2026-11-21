@@ -2526,7 +2526,7 @@
       fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
         .then((response) => {
           if (!response.ok) {
-            window.location.href = "/login?prompt=none&refresh=true";
+            window.location.href = "/login.html?error=session_expired&refresh=true";
           }
         })
         .catch(() => {});
