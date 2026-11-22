@@ -29,7 +29,6 @@ spring:
               - openid
             authorization-grant-type: authorization_code
             redirect-uri: "https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google"
-            access-type: offline
         provider:
           google:
             issuer-uri: https://accounts.google.com
