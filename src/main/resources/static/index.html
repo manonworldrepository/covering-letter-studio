@@ -2560,17 +2560,23 @@
       fetch("/api/session/heartbeat", { cache: "no-store", credentials: "same-origin" })
         .then((response) => {
           if (!response.ok) {
+            console.log("[Session] Heartbeat failed (" + response.status + "), trying silent refresh...");
             // Try silent token refresh
             return fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" })
               .then((refreshResponse) => {
-                if (!refreshResponse.ok) {
+                if (refreshResponse.ok) {
+                  console.log("[Session] Silent token refresh succeeded");
+                } else {
+                  console.log("[Session] Silent refresh failed (" + refreshResponse.status + "), redirecting to login");
                   // Refresh failed, redirect to login
                   window.location.href = "/login.html?error=session_expired&refresh=true";
                 }
               });
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.log("[Session] Heartbeat error:", err);
+        });
     }
 
     // Check session immediately when the page becomes visible (e.g., after PC wakes from sleep)

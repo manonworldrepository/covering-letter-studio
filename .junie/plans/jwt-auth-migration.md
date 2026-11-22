@@ -171,3 +171,8 @@ Comprehensive test coverage and build verification.
 - Update `LoginSuccessHandlerTests.kt` for JWT cookie issuance.
 - Update `SecurityConfigTests.kt` for new filter chain.
 - Run all 263 tests to verify no regressions.
+
+### ✓ Step 5: Fix silent refresh after PC wakes from sleep
+When the PC goes to sleep, JavaScript timers are paused, so the heartbeat interval doesn't fire. When the PC wakes, the access token may have expired but the app doesn't know until the next heartbeat interval completes. Added a `visibilitychange` listener that checks the session immediately when the page becomes visible again.
+- Add `document.addEventListener("visibilitychange", ...)` in `index.html` that calls `checkSession()` when the page becomes visible.
+- This ensures the silent token refresh triggers immediately after the PC wakes from sleep, before the user interacts with the app.
