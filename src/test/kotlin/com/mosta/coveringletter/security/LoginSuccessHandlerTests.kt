@@ -17,7 +17,7 @@ class LoginSuccessHandlerTests {
 
 	private val userActions = UserActionLogBuffer()
 	private val jwtService = JwtService(900, 604800)
-	private lateinit var handler: SecurityConfig.IssuingLoginSuccessHandler
+	private lateinit var handler: SecurityConfig.CookieIssuingSuccessHandler
 
 	@BeforeEach
 	fun setup() {
@@ -25,7 +25,7 @@ class LoginSuccessHandlerTests {
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(config, "info@manonworld.de,admin@example.com")
-		handler = config.IssuingLoginSuccessHandler()
+		handler = config.CookieIssuingSuccessHandler()
 	}
 
 	@Test
@@ -71,7 +71,7 @@ class LoginSuccessHandlerTests {
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(emptyConfig, "")
-		val emptyHandler = emptyConfig.IssuingLoginSuccessHandler()
+		val emptyHandler = emptyConfig.CookieIssuingSuccessHandler()
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("anyone@example.com")
 

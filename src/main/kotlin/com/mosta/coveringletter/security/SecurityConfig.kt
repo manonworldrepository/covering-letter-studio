@@ -14,6 +14,8 @@ import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.WebFilterExchange
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationFailureHandler
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler
 import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler
 import org.springframework.web.server.ServerWebExchange
@@ -57,7 +59,7 @@ class SecurityConfig(
             .httpBasic { it.disable() }
             .oauth2Login { oauth ->
                 oauth.loginPage("/login.html")
-                oauth.authenticationSuccessHandler(IssuingLoginSuccessHandler())
+                oauth.authenticationSuccessHandler(CookieIssuingSuccessHandler())
                 oauth.authenticationFailureHandler(LoginFailureHandler())
             }
             .logout { logout ->
@@ -93,7 +95,7 @@ class SecurityConfig(
         }
     }
 
-    inner class IssuingLoginSuccessHandler : ServerAuthenticationSuccessHandler {
+    inner class CookieIssuingSuccessHandler : ServerAuthenticationSuccessHandler {
         override fun onAuthenticationSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
             val name = authentication.name.lowercase()
             return if (allowedEmails.contains(name)) {
