@@ -69,6 +69,10 @@ class JwtService(
     private fun validateToken(token: String, expectedType: String): Mono<String> =
         Mono.fromCallable {
             val jwt = jwtDecoder.decode(token)
+            // Explicitly check expiry
+            if (Instant.now().isAfter(jwt.expiresAt)) {
+                throw IllegalArgumentException("Token expired")
+            }
             val type = jwt.claims["type"] as? String
             if (type != expectedType) {
                 throw IllegalArgumentException("Invalid token type")
