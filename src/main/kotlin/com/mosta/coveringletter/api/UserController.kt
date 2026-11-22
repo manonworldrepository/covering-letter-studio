@@ -41,31 +41,6 @@ class UserController(
             }
         }
 
-    @GetMapping("/api/auth/login-success")
-    fun loginSuccess(exchange: ServerWebExchange): Mono<Void> {
-        // Read the temporary email cookie set by CookieIssuingSuccessHandler
-        val email = exchange.request.cookies["temp_email"]?.firstOrNull()?.value
-            ?: return unauthorizedResponse(exchange)
-
-        val accessToken = jwtService.generateAccessToken(email)
-        val refreshToken = jwtService.generateRefreshToken(email)
-
-        val accessCookie = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, accessToken)
-            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(900).build()
-        val refreshCookie = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken)
-            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(604800).build()
-        val clearTempCookie = ResponseCookie.from("temp_email", "")
-            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()
-
-        val response = exchange.response
-        response.headers.add("Set-Cookie", accessCookie.toString())
-        response.headers.add("Set-Cookie", refreshCookie.toString())
-        response.headers.add("Set-Cookie", clearTempCookie.toString())
-        response.statusCode = HttpStatus.FOUND
-        response.headers.setLocation(java.net.URI.create("/"))
-        return response.setComplete()
-    }
-
     @PostMapping("/api/auth/refresh")
     fun refreshTokens(exchange: ServerWebExchange): Mono<Void> {
         val refreshToken = exchange.request.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]?.firstOrNull()?.value

@@ -14,11 +14,11 @@ class SecurityConfigTests {
 	}
 
 	@Test
-	fun `CookieIssuingSuccessHandler is correctly instantiated`() {
+	fun `EmailCheckingSuccessHandler is correctly instantiated`() {
 		val jwtService = JwtService(900, 604800)
 		val config = SecurityConfig(UserActionLogBuffer(), jwtService, JwtAuthenticationConverter(jwtService))
-		val handler = config.CookieIssuingSuccessHandler()
-		assertTrue(handler is SecurityConfig.CookieIssuingSuccessHandler)
+		val handler = config.EmailCheckingSuccessHandler()
+		assertTrue(handler is SecurityConfig.EmailCheckingSuccessHandler)
 	}
 
 	@Test

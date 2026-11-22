@@ -20,7 +20,9 @@ import org.springframework.security.web.server.authentication.ServerAuthenticati
 import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import reactor.util.context.Context
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
+import org.springframework.security.core.context.SecurityContextImpl
 
 @Configuration
 class SecurityConfig(
@@ -52,22 +54,27 @@ class SecurityConfig(
                     "/favicon.ico",
                     "/login/oauth2/code/*",
                     "/api/auth/refresh",
-                    "/api/auth/logout",
-                    "/api/auth/login-success"
+                    "/api/auth/logout"
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }
             .httpBasic { it.disable() }
             .oauth2Login { oauth ->
                 oauth.loginPage("/login.html")
-                oauth.authenticationSuccessHandler(CookieIssuingSuccessHandler())
+                oauth.authenticationSuccessHandler(EmailCheckingSuccessHandler())
                 oauth.authenticationFailureHandler(LoginFailureHandler())
             }
             .logout { logout ->
                 logout.logoutUrl("/logout")
             }
+            .addFilterBefore(authCookieIssueFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
         return http.build()
+    }
+
+    @Bean
+    fun authCookieIssueFilter(): AuthCookieIssueFilter {
+        return AuthCookieIssueFilter(jwtService)
     }
 
     @Bean
@@ -96,7 +103,7 @@ class SecurityConfig(
         }
     }
 
-    inner class CookieIssuingSuccessHandler : ServerAuthenticationSuccessHandler {
+    inner class EmailCheckingSuccessHandler : ServerAuthenticationSuccessHandler {
         override fun onAuthenticationSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
             val name = authentication.name.lowercase()
             return if (allowedEmails.contains(name)) {
@@ -106,14 +113,10 @@ class SecurityConfig(
                 } else {
                     userActions.record("Signed in with Google: $name")
                 }
-                // Set a temporary cookie with the email, then redirect to login-success endpoint
-                val tempCookie = ResponseCookie.from("temp_email", name)
-                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(30).build()
-                exchange.exchange.response.headers.add("Set-Cookie", tempCookie.toString())
-                val redirectUrl = if (wasRefresh) "/api/auth/login-success?refresh=true" else "/api/auth/login-success"
-                exchange.exchange.response.statusCode = HttpStatus.FOUND
-                exchange.exchange.response.headers.setLocation(java.net.URI.create(redirectUrl))
-                exchange.exchange.response.setComplete()
+                // Store email in exchange attributes for AuthCookieIssueFilter
+                exchange.exchange.attributes["authEmail"] = name
+                // Use Spring's built-in redirect handler - no cookies here
+                RedirectServerAuthenticationSuccessHandler("/").onAuthenticationSuccess(exchange, authentication)
             } else {
                 exchange.exchange.response.statusCode = HttpStatus.FOUND
                 exchange.exchange.response.headers.setLocation(java.net.URI.create("/login.html?error=access_denied"))
@@ -131,25 +134,45 @@ class SecurityConfig(
     }
 }
 
+/**
+ * WebFilter that issues JWT cookies on the first request after OAuth2 login.
+ * The AuthCookieIssueFilter runs BEFORE the JWT filter, so it can set cookies
+ * on the redirect response from the OAuth2 callback.
+ */
+class AuthCookieIssueFilter(
+    private val jwtService: JwtService
+) : org.springframework.web.server.WebFilter {
+    override fun filter(exchange: ServerWebExchange, chain: org.springframework.web.server.WebFilterChain): Mono<Void> {
+        val email = exchange.attributes["authEmail"] as? String
+        if (email != null) {
+            exchange.attributes.remove("authEmail")
+
+            val accessToken = jwtService.generateAccessToken(email)
+            val refreshToken = jwtService.generateRefreshToken(email)
+
+            val accessCookie = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, accessToken)
+                .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(900).build()
+            val refreshCookie = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken)
+                .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(604800).build()
+
+            exchange.response.headers.add("Set-Cookie", accessCookie.toString())
+            exchange.response.headers.add("Set-Cookie", refreshCookie.toString())
+        }
+        return chain.filter(exchange)
+    }
+}
+
 class JwtAuthenticationWebFilter(
     private val authenticationConverter: JwtAuthenticationConverter
 ) : org.springframework.web.server.WebFilter {
     override fun filter(exchange: ServerWebExchange, chain: org.springframework.web.server.WebFilterChain): Mono<Void> {
         return authenticationConverter.convert(exchange)
             .flatMap { auth: Authentication ->
-                val ctx = SecurityContextImpl(auth)
-                chain.filter(exchange)
-                    .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(ctx)))
+                val securityContext = SecurityContextImpl(auth)
+                chain.filter(exchange).contextWrite { ctx: Context ->
+                    ctx.put("securityContext", securityContext)
+                }
             }
             .switchIfEmpty(chain.filter(exchange))
-    }
-}
-
-class SecurityContextImpl(
-    private var authentication: Authentication
-) : org.springframework.security.core.context.SecurityContext {
-    override fun getAuthentication(): Authentication? = authentication
-    override fun setAuthentication(authentication: Authentication?) {
-        this.authentication = authentication ?: this.authentication
     }
 }

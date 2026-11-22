@@ -17,7 +17,7 @@ class LoginSuccessHandlerTests {
 
 	private val userActions = UserActionLogBuffer()
 	private val jwtService = JwtService(900, 604800)
-	private lateinit var handler: SecurityConfig.CookieIssuingSuccessHandler
+	private lateinit var handler: SecurityConfig.EmailCheckingSuccessHandler
 
 	@BeforeEach
 	fun setup() {
@@ -25,31 +25,29 @@ class LoginSuccessHandlerTests {
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(config, "info@manonworld.de,admin@example.com")
-		handler = config.CookieIssuingSuccessHandler()
+		handler = config.EmailCheckingSuccessHandler()
 	}
 
 	@Test
-	fun `sets temp_email cookie and redirects to login-success endpoint`() {
+	fun `stores email in exchange attributes for allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
-		assertTrue(setCookieHeaders.any { it.contains("temp_email=") })
+		assertEquals("info@manonworld.de", exchange.exchange.attributes["authEmail"])
 		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
+		assertEquals("/", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
-	fun `sets temp_email cookie and redirects to login-success with refresh param`() {
-		val exchange = createExchange("/login/oauth2/code/google?refresh=true")
-		val authentication = MockAuthentication("info@manonworld.de")
+	fun `stores email in exchange attributes case insensitive`() {
+		val exchange = createExchange("/login/oauth2/code/google")
+		val authentication = MockAuthentication("INFO@MANONWORLD.DE")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
-		assertTrue(exchange.exchange.response.headers.location?.query?.contains("refresh=true") == true)
+		assertEquals("info@manonworld.de", exchange.exchange.attributes["authEmail"])
 	}
 
 	@Test
@@ -70,7 +68,7 @@ class LoginSuccessHandlerTests {
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(emptyConfig, "")
-		val emptyHandler = emptyConfig.CookieIssuingSuccessHandler()
+		val emptyHandler = emptyConfig.EmailCheckingSuccessHandler()
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("anyone@example.com")
 
@@ -81,27 +79,24 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `redirects to login-success for second allowed email`() {
+	fun `stores email for second allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("admin@example.com")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
+		assertEquals("admin@example.com", exchange.exchange.attributes["authEmail"])
 	}
 
 	@Test
-	fun `sets temp_email cookie with correct email`() {
-		val exchange = createExchange("/login/oauth2/code/google")
+	fun `records session refresh action log`() {
+		val exchange = createExchange("/login/oauth2/code/google?refresh=true")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
-		val tempCookie = setCookieHeaders.find { it.contains("temp_email=") }
-		assertTrue(tempCookie != null)
-		assertTrue(tempCookie!!.contains("info@manonworld.de"))
+		val logs = userActions.latest()
+		assertTrue(logs.any { it.action.contains("Session refreshed") })
 	}
 
 	private fun createExchange(path: String): WebFilterExchange {
