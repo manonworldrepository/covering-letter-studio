@@ -809,8 +809,46 @@
       }
     }
 
+    let isRefreshing = false;
+    let refreshSubscribers = [];
+
+    function onRefreshSuccess() {
+      refreshSubscribers.forEach((cb) => cb());
+      refreshSubscribers = [];
+    }
+
+    async function attemptRefresh() {
+      if (isRefreshing) {
+        return new Promise((resolve) => refreshSubscribers.push(resolve));
+      }
+      isRefreshing = true;
+      try {
+        const refreshResponse = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
+        if (refreshResponse.ok) {
+          console.log("[Session] Silent token refresh succeeded");
+          onRefreshSuccess();
+        } else {
+          console.log("[Session] Silent refresh failed (" + refreshResponse.status + "), redirecting to login");
+          window.location.href = "/login.html?error=session_expired&refresh=true";
+        }
+      } catch (err) {
+        console.log("[Session] Silent refresh error:", err);
+        window.location.href = "/login.html?error=session_expired&refresh=true";
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     async function requestJson(url, options = {}) {
       const response = await fetch(url, { cache: "no-store", credentials: "same-origin", ...options });
+      if (response.status === 401 && !url.includes("/api/auth/refresh")) {
+        console.log("[Session] API call got 401, attempting silent refresh...");
+        await attemptRefresh();
+        // Retry the original request with the new tokens
+        const retryResponse = await fetch(url, { cache: "no-store", credentials: "same-origin", ...options });
+        if (!retryResponse.ok) throw new Error(await responseError(retryResponse, "Request failed."));
+        return retryResponse.json();
+      }
       if (!response.ok) throw new Error(await responseError(response, "Request failed."));
       return response.json();
     }
@@ -2561,17 +2599,7 @@
         .then((response) => {
           if (!response.ok) {
             console.log("[Session] Heartbeat failed (" + response.status + "), trying silent refresh...");
-            // Try silent token refresh
-            return fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" })
-              .then((refreshResponse) => {
-                if (refreshResponse.ok) {
-                  console.log("[Session] Silent token refresh succeeded");
-                } else {
-                  console.log("[Session] Silent refresh failed (" + refreshResponse.status + "), redirecting to login");
-                  // Refresh failed, redirect to login
-                  window.location.href = "/login.html?error=session_expired&refresh=true";
-                }
-              });
+            attemptRefresh();
           }
         })
         .catch((err) => {
