@@ -11,6 +11,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.web.server.SecurityWebFilterChain
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
 import org.springframework.security.web.server.WebFilterExchange
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler
@@ -62,6 +63,7 @@ class SecurityConfig(
             .logout { logout ->
                 logout.logoutUrl("/logout")
             }
+            .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
         return http.build()
     }
 
