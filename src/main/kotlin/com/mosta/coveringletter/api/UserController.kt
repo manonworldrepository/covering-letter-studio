@@ -51,8 +51,8 @@ class UserController(
                 val newAccessToken = jwtService.generateAccessToken(email)
                 val newRefreshToken = jwtService.generateRefreshToken(email)
                 val response = exchange.response
-                response.addCookie(createAccessTokenCookie(newAccessToken))
-                response.addCookie(createRefreshTokenCookie(newRefreshToken))
+                response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(createAccessTokenCookie(newAccessToken)))
+                response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(createRefreshTokenCookie(newRefreshToken)))
                 response.statusCode = HttpStatus.OK
                 response.headers.contentType = MediaType.APPLICATION_JSON
                 response.writeWith(
@@ -69,10 +69,12 @@ class UserController(
     @PostMapping("/api/auth/logout")
     fun logout(exchange: ServerWebExchange): Mono<Void> {
         val response = exchange.response
-        response.addCookie(ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, "")
-            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build())
-        response.addCookie(ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, "")
-            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build())
+        val clearAccess = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, "")
+            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()
+        val clearRefresh = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, "")
+            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()
+        response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(clearAccess))
+        response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(clearRefresh))
         response.statusCode = HttpStatus.OK
         response.headers.contentType = MediaType.APPLICATION_JSON
         return response.writeWith(
