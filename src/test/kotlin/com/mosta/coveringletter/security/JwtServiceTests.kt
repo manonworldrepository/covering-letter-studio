@@ -112,4 +112,18 @@ class JwtServiceTests {
         val token2 = jwtService.generateAccessToken("user2@example.com")
         assertTrue(token1 != token2)
     }
+
+    @Test
+    fun `validateAccessToken rejects expired token`() {
+        // Create a service with 1-second token expiry
+        val shortLivedService = JwtService(
+            accessTokenValiditySeconds = 1,
+            refreshTokenValiditySeconds = 604800
+        )
+        val token = shortLivedService.generateAccessToken("test@example.com")
+        // Wait for token to expire
+        Thread.sleep(1500)
+        val email = shortLivedService.validateAccessToken(token).block()
+        assertTrue(email.isNullOrEmpty(), "Expired token should be rejected")
+    }
 }
