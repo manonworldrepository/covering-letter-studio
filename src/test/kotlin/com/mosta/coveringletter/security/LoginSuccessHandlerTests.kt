@@ -29,28 +29,27 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `passes through filter chain for allowed email`() {
+	fun `sets temp_email cookie and redirects to login-success endpoint`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
 		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
-		assertTrue(setCookieHeaders.any { it.contains("access_token=") })
-		assertTrue(setCookieHeaders.any { it.contains("refresh_token=") })
+		assertTrue(setCookieHeaders.any { it.contains("temp_email=") })
 		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/", exchange.exchange.response.headers.location?.path)
+		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
-	fun `passes through filter chain for allowed email case insensitive`() {
-		val exchange = createExchange("/login/oauth2/code/google")
-		val authentication = MockAuthentication("INFO@MANONWORLD.DE")
+	fun `sets temp_email cookie and redirects to login-success with refresh param`() {
+		val exchange = createExchange("/login/oauth2/code/google?refresh=true")
+		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/", exchange.exchange.response.headers.location?.path)
+		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
+		assertTrue(exchange.exchange.response.headers.location?.query?.contains("refresh=true") == true)
 	}
 
 	@Test
@@ -82,26 +81,27 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `passes through filter chain for second allowed email`() {
+	fun `redirects to login-success for second allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("admin@example.com")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
 		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/", exchange.exchange.response.headers.location?.path)
+		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
-	fun `sets JWT cookies on successful authentication`() {
+	fun `sets temp_email cookie with correct email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
 		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
-		assertTrue(setCookieHeaders.any { it.contains("access_token=") })
-		assertTrue(setCookieHeaders.any { it.contains("refresh_token=") })
+		val tempCookie = setCookieHeaders.find { it.contains("temp_email=") }
+		assertTrue(tempCookie != null)
+		assertTrue(tempCookie!!.contains("info@manonworld.de"))
 	}
 
 	private fun createExchange(path: String): WebFilterExchange {

@@ -52,7 +52,8 @@ class SecurityConfig(
                     "/favicon.ico",
                     "/login/oauth2/code/*",
                     "/api/auth/refresh",
-                    "/api/auth/logout"
+                    "/api/auth/logout",
+                    "/api/auth/login-success"
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }
@@ -105,18 +106,14 @@ class SecurityConfig(
                 } else {
                     userActions.record("Signed in with Google: $name")
                 }
-                val accessToken = jwtService.generateAccessToken(name)
-                val refreshToken = jwtService.generateRefreshToken(name)
-                val response = exchange.exchange.response
-                val accessCookie = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, accessToken)
-                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(900).build()
-                val refreshCookie = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken)
-                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(604800).build()
-                response.headers.add("Set-Cookie", accessCookie.toString())
-                response.headers.add("Set-Cookie", refreshCookie.toString())
-                response.statusCode = HttpStatus.FOUND
-                response.headers.setLocation(java.net.URI.create("/"))
-                response.setComplete()
+                // Set a temporary cookie with the email, then redirect to login-success endpoint
+                val tempCookie = ResponseCookie.from("temp_email", name)
+                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(30).build()
+                exchange.exchange.response.headers.add("Set-Cookie", tempCookie.toString())
+                val redirectUrl = if (wasRefresh) "/api/auth/login-success?refresh=true" else "/api/auth/login-success"
+                exchange.exchange.response.statusCode = HttpStatus.FOUND
+                exchange.exchange.response.headers.setLocation(java.net.URI.create(redirectUrl))
+                exchange.exchange.response.setComplete()
             } else {
                 exchange.exchange.response.statusCode = HttpStatus.FOUND
                 exchange.exchange.response.headers.setLocation(java.net.URI.create("/login.html?error=access_denied"))
