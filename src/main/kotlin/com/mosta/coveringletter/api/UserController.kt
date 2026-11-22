@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.security.JwtAuthenticationConverter
 import com.mosta.coveringletter.security.JwtService
 import org.springframework.http.HttpStatus
@@ -15,7 +16,8 @@ import reactor.core.publisher.Mono
 
 @RestController
 class UserController(
-    private val jwtService: JwtService
+    private val jwtService: JwtService,
+    private val userActions: UserActionLogBuffer
 ) {
     @GetMapping("/api/user/me")
     fun getCurrentUser(securityContext: Mono<SecurityContext>): Mono<UserInfoResponse> =
@@ -46,15 +48,21 @@ class UserController(
         val refreshToken = exchange.request.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]?.firstOrNull()?.value
             ?: return unauthorizedResponse(exchange)
 
+        userActions.record("Token refresh attempted")
+
         return jwtService.validateRefreshToken(refreshToken)
             .flatMap { email ->
+                Mono.just<Pair<String, String>>(email to jwtService.generateRefreshToken(email))
+            }
+            .switchIfEmpty(Mono.empty())
+            .flatMap { (email, newRefreshToken) ->
                 val newAccessToken = jwtService.generateAccessToken(email)
-                val newRefreshToken = jwtService.generateRefreshToken(email)
                 val response = exchange.response
                 response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(createAccessTokenCookie(newAccessToken)))
                 response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(createRefreshTokenCookie(newRefreshToken)))
                 response.statusCode = HttpStatus.OK
                 response.headers.contentType = MediaType.APPLICATION_JSON
+                userActions.record("Token refreshed successfully")
                 response.writeWith(
                     Mono.just(
                         response.bufferFactory().wrap(
@@ -63,7 +71,12 @@ class UserController(
                     )
                 )
             }
-            .switchIfEmpty(unauthorizedResponse(exchange))
+            .switchIfEmpty(unauthorizedResponseWithLog(exchange))
+    }
+
+    private fun unauthorizedResponseWithLog(exchange: ServerWebExchange): Mono<Void> {
+        userActions.record("Token refresh failed: refresh token expired")
+        return unauthorizedResponse(exchange)
     }
 
     @PostMapping("/api/auth/logout")

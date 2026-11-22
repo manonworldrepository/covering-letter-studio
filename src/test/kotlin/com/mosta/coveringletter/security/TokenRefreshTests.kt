@@ -1,7 +1,9 @@
 package com.mosta.coveringletter.security
 
+import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.UserController
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpCookie
@@ -13,11 +15,13 @@ class TokenRefreshTests {
 
     private lateinit var jwtService: JwtService
     private lateinit var controller: UserController
+    private lateinit var userActions: UserActionLogBuffer
 
     @BeforeEach
     fun setup() {
         jwtService = JwtService(900, 604800)
-        controller = UserController(jwtService)
+        userActions = UserActionLogBuffer()
+        controller = UserController(jwtService, userActions)
     }
 
     @Test
@@ -86,5 +90,34 @@ class TokenRefreshTests {
         val refreshCookie = exchange.response.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]
         assertEquals(true, accessCookie?.isNotEmpty() == true)
         assertEquals(true, refreshCookie?.isNotEmpty() == true)
+    }
+
+    @Test
+    fun `refreshTokens logs success message on valid refresh`() {
+        val refreshToken = jwtService.generateRefreshToken("test@example.com")
+        val request = MockServerHttpRequest.post("/api/auth/refresh")
+            .cookie(HttpCookie(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken))
+            .build()
+        val exchange = MockServerWebExchange.from(request)
+
+        controller.refreshTokens(exchange).block()
+
+        val logs = userActions.latest()
+        assertTrue(logs.any { it.action.contains("Token refresh attempted") })
+        assertTrue(logs.any { it.action.contains("Token refreshed successfully") })
+    }
+
+    @Test
+    fun `refreshTokens logs failure message on expired token`() {
+        val request = MockServerHttpRequest.post("/api/auth/refresh")
+            .cookie(HttpCookie(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, "invalid.token.here"))
+            .build()
+        val exchange = MockServerWebExchange.from(request)
+
+        controller.refreshTokens(exchange).block()
+
+        val logs = userActions.latest()
+        assertTrue(logs.any { it.action.contains("Token refresh attempted") })
+        assertTrue(logs.any { it.action.contains("Token refresh failed") })
     }
 }

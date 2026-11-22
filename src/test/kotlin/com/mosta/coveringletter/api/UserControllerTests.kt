@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.security.JwtService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -14,10 +15,11 @@ import reactor.core.publisher.Mono
 class UserControllerTests {
 
 	private val jwtService = JwtService(900, 604800)
+	private val userActions = UserActionLogBuffer()
 
 	@Test
 	fun `getCurrentUser returns email and name from OAuth2 user`() {
-		val controller = UserController(jwtService)
+		val controller = UserController(jwtService, userActions)
 		val oAuth2User = createMockOAuth2User(
 			email = "test@example.com",
 			name = "Test User",
@@ -34,7 +36,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser falls back to given_name when name is null`() {
-		val controller = UserController(jwtService)
+		val controller = UserController(jwtService, userActions)
 		val oAuth2User = createMockOAuth2User(
 			email = "test@example.com",
 			name = null,
@@ -51,7 +53,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser falls back to email when both name and given_name are null`() {
-		val controller = UserController(jwtService)
+		val controller = UserController(jwtService, userActions)
 		val oAuth2User = createMockOAuth2User(
 			email = "test@example.com",
 			name = null,
@@ -68,7 +70,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser throws when authentication is null`() {
-		val controller = UserController(jwtService)
+		val controller = UserController(jwtService, userActions)
 		val securityContext = createMockSecurityContext(null)
 
 		assertThrows<org.springframework.security.access.AccessDeniedException> {
@@ -78,7 +80,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser uses email as name when principal is not OAuth2User`() {
-		val controller = UserController(jwtService)
+		val controller = UserController(jwtService, userActions)
 		val authentication = createMockAuthentication("simple@example.com", "simple@example.com")
 		val securityContext = createMockSecurityContext(authentication)
 
