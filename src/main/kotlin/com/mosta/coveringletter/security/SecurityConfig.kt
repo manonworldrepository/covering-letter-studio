@@ -63,14 +63,8 @@ class SecurityConfig(
             .logout { logout ->
                 logout.logoutUrl("/logout")
             }
-            .addFilterBefore(jwtCookieIssueFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
         return http.build()
-    }
-
-    @Bean
-    fun jwtCookieIssueFilter(): JwtCookieIssueFilter {
-        return JwtCookieIssueFilter(jwtService, userActions)
     }
 
     @Bean
@@ -109,11 +103,18 @@ class SecurityConfig(
                 } else {
                     userActions.record("Signed in with Google: $name")
                 }
-                // Store email in a request attribute for the JwtCookieIssueFilter to pick up
-                exchange.exchange.attributes["jwtIssueEmail"] = name
-                exchange.exchange.attributes["jwtIssueWasRefresh"] = wasRefresh
-                // Let the filter chain continue - JwtCookieIssueFilter will add cookies
-                exchange.chain.filter(exchange.exchange)
+                val accessToken = jwtService.generateAccessToken(name)
+                val refreshToken = jwtService.generateRefreshToken(name)
+                val response = exchange.exchange.response
+                val accessCookie = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, accessToken)
+                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(900).build()
+                val refreshCookie = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken)
+                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(604800).build()
+                response.headers.add("Set-Cookie", accessCookie.toString())
+                response.headers.add("Set-Cookie", refreshCookie.toString())
+                response.statusCode = HttpStatus.FOUND
+                response.headers.setLocation(java.net.URI.create("/"))
+                response.setComplete()
             } else {
                 exchange.exchange.response.statusCode = HttpStatus.FOUND
                 exchange.exchange.response.headers.setLocation(java.net.URI.create("/login.html?error=access_denied"))
@@ -128,39 +129,6 @@ class SecurityConfig(
             exchange.exchange.response.headers.setLocation(java.net.URI.create("/login.html?error=authentication_failed"))
             return exchange.exchange.response.setComplete()
         }
-    }
-}
-
-/**
- * WebFilter that issues JWT cookies after successful OAuth2 login.
- * Checks for the jwtIssueEmail request attribute set by IssuingLoginSuccessHandler.
- */
-class JwtCookieIssueFilter(
-    private val jwtService: JwtService,
-    private val userActions: UserActionLogBuffer
-) : org.springframework.web.server.WebFilter {
-    override fun filter(exchange: ServerWebExchange, chain: org.springframework.web.server.WebFilterChain): Mono<Void> {
-        val email = exchange.attributes["jwtIssueEmail"] as? String ?: return chain.filter(exchange)
-        val wasRefresh = exchange.attributes["jwtIssueWasRefresh"] as? Boolean ?: false
-
-        val accessToken = jwtService.generateAccessToken(email)
-        val refreshToken = jwtService.generateRefreshToken(email)
-
-        val accessCookie = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, accessToken)
-            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(900).build()
-        val refreshCookie = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken)
-            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(604800).build()
-
-        exchange.response.headers.add("Set-Cookie", accessCookie.toString())
-        exchange.response.headers.add("Set-Cookie", refreshCookie.toString())
-        exchange.response.statusCode = HttpStatus.FOUND
-        exchange.response.headers.setLocation(java.net.URI.create("/"))
-
-        // Clear the attributes so they don't persist
-        exchange.attributes.remove("jwtIssueEmail")
-        exchange.attributes.remove("jwtIssueWasRefresh")
-
-        return exchange.response.setComplete()
     }
 }
 

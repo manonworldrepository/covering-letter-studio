@@ -35,8 +35,11 @@ class LoginSuccessHandlerTests {
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		// IssuingLoginSuccessHandler passes through the chain; JwtCookieIssueFilter handles the redirect
-		assertEquals("info@manonworld.de", exchange.exchange.attributes["jwtIssueEmail"])
+		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
+		assertTrue(setCookieHeaders.any { it.contains("access_token=") })
+		assertTrue(setCookieHeaders.any { it.contains("refresh_token=") })
+		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
+		assertEquals("/", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
@@ -46,7 +49,8 @@ class LoginSuccessHandlerTests {
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals("info@manonworld.de", exchange.exchange.attributes["jwtIssueEmail"])
+		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
+		assertEquals("/", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
@@ -84,18 +88,20 @@ class LoginSuccessHandlerTests {
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals("admin@example.com", exchange.exchange.attributes["jwtIssueEmail"])
+		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
+		assertEquals("/", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
-	fun `sets jwtIssueEmail attribute for cookie issue filter`() {
+	fun `sets JWT cookies on successful authentication`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		val email = exchange.exchange.attributes["jwtIssueEmail"] as? String
-		assertEquals("info@manonworld.de", email)
+		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
+		assertTrue(setCookieHeaders.any { it.contains("access_token=") })
+		assertTrue(setCookieHeaders.any { it.contains("refresh_token=") })
 	}
 
 	private fun createExchange(path: String): WebFilterExchange {
