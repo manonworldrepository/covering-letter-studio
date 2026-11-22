@@ -2573,6 +2573,13 @@
         .catch(() => {});
     }
 
+    // Check session immediately when the page becomes visible (e.g., after PC wakes from sleep)
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        checkSession();
+      }
+    });
+
     refreshApp().catch((error) => {
       setup.hidden = false;
       document.querySelector("#setup-title").textContent = "Could not load application settings";
