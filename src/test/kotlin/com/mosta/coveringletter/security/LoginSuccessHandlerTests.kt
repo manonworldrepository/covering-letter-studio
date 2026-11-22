@@ -96,10 +96,11 @@ class LoginSuccessHandlerTests {
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		val accessCookie = exchange.exchange.response.cookies["access_token"]
-		val refreshCookie = exchange.exchange.response.cookies["refresh_token"]
-		assertTrue(accessCookie?.isNotEmpty() == true)
-		assertTrue(refreshCookie?.isNotEmpty() == true)
+		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
+		val hasAccessCookie = setCookieHeaders.any { it.contains("access_token=") }
+		val hasRefreshCookie = setCookieHeaders.any { it.contains("refresh_token=") }
+		assertTrue(hasAccessCookie, "Should set access_token cookie")
+		assertTrue(hasRefreshCookie, "Should set refresh_token cookie")
 	}
 
 	private fun createExchange(path: String): WebFilterExchange {
