@@ -10,8 +10,12 @@ import org.springframework.security.oauth2.jwt.JwsHeader
 import org.springframework.security.oauth2.jwt.JwtClaimsSet
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtEncoder
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
+import org.springframework.security.oauth2.jwt.JwtValidators
+import org.springframework.security.oauth2.core.OAuth2TokenValidator
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import java.security.KeyPair
@@ -69,10 +73,6 @@ class JwtService(
     private fun validateToken(token: String, expectedType: String): Mono<String> =
         Mono.fromCallable {
             val jwt = jwtDecoder.decode(token)
-            // Explicitly check expiry
-            if (Instant.now().isAfter(jwt.expiresAt)) {
-                throw IllegalArgumentException("Token expired")
-            }
             val type = jwt.claims["type"] as? String
             if (type != expectedType) {
                 throw IllegalArgumentException("Invalid token type")
@@ -101,6 +101,9 @@ class JwtService(
     }
 
     private fun createDecoder(): JwtDecoder {
-        return NimbusJwtDecoder.withPublicKey(keyPair.public as RSAPublicKey).build()
+        val decoder = NimbusJwtDecoder.withPublicKey(keyPair.public as RSAPublicKey).build()
+        // Explicitly set expiry validation - NimbusJwtDecoder withPublicKey() does NOT validate expiry by default
+        decoder.setJwtValidator(JwtValidators.createDefault())
+        return decoder
     }
 }
