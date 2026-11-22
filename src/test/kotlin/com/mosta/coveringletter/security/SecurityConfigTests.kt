@@ -14,11 +14,11 @@ class SecurityConfigTests {
 	}
 
 	@Test
-	fun `LoginSuccessHandler is correctly instantiated`() {
+	fun `IssuingLoginSuccessHandler is correctly instantiated`() {
 		val jwtService = JwtService(900, 604800)
 		val config = SecurityConfig(UserActionLogBuffer(), jwtService, JwtAuthenticationConverter(jwtService))
-		val handler = config.LoginSuccessHandler()
-		assertTrue(handler is SecurityConfig.LoginSuccessHandler)
+		val handler = config.IssuingLoginSuccessHandler()
+		assertTrue(handler is SecurityConfig.IssuingLoginSuccessHandler)
 	}
 
 	@Test

@@ -17,7 +17,7 @@ class LoginSuccessHandlerTests {
 
 	private val userActions = UserActionLogBuffer()
 	private val jwtService = JwtService(900, 604800)
-	private lateinit var handler: SecurityConfig.LoginSuccessHandler
+	private lateinit var handler: SecurityConfig.IssuingLoginSuccessHandler
 
 	@BeforeEach
 	fun setup() {
@@ -25,29 +25,28 @@ class LoginSuccessHandlerTests {
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(config, "info@manonworld.de,admin@example.com")
-		handler = config.LoginSuccessHandler()
+		handler = config.IssuingLoginSuccessHandler()
 	}
 
 	@Test
-	fun `redirects to home for allowed email`() {
+	fun `passes through filter chain for allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/", exchange.exchange.response.headers.location?.path)
+		// IssuingLoginSuccessHandler passes through the chain; JwtCookieIssueFilter handles the redirect
+		assertEquals("info@manonworld.de", exchange.exchange.attributes["jwtIssueEmail"])
 	}
 
 	@Test
-	fun `redirects to home for allowed email case insensitive`() {
+	fun `passes through filter chain for allowed email case insensitive`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("INFO@MANONWORLD.DE")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/", exchange.exchange.response.headers.location?.path)
+		assertEquals("info@manonworld.de", exchange.exchange.attributes["jwtIssueEmail"])
 	}
 
 	@Test
@@ -68,7 +67,7 @@ class LoginSuccessHandlerTests {
 		val field = SecurityConfig::class.java.getDeclaredField("allowedEmailsProperty")
 		field.isAccessible = true
 		field.set(emptyConfig, "")
-		val emptyHandler = emptyConfig.LoginSuccessHandler()
+		val emptyHandler = emptyConfig.IssuingLoginSuccessHandler()
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("anyone@example.com")
 
@@ -79,28 +78,24 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `redirects to home for second allowed email`() {
+	fun `passes through filter chain for second allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("admin@example.com")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/", exchange.exchange.response.headers.location?.path)
+		assertEquals("admin@example.com", exchange.exchange.attributes["jwtIssueEmail"])
 	}
 
 	@Test
-	fun `sets JWT cookies on successful authentication`() {
+	fun `sets jwtIssueEmail attribute for cookie issue filter`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		val setCookieHeaders = exchange.exchange.response.headers.get("Set-Cookie") ?: emptyList()
-		val hasAccessCookie = setCookieHeaders.any { it.contains("access_token=") }
-		val hasRefreshCookie = setCookieHeaders.any { it.contains("refresh_token=") }
-		assertTrue(hasAccessCookie, "Should set access_token cookie")
-		assertTrue(hasRefreshCookie, "Should set refresh_token cookie")
+		val email = exchange.exchange.attributes["jwtIssueEmail"] as? String
+		assertEquals("info@manonworld.de", email)
 	}
 
 	private fun createExchange(path: String): WebFilterExchange {
