@@ -106,8 +106,8 @@ class SecurityConfig(
                 val accessToken = jwtService.generateAccessToken(name)
                 val refreshToken = jwtService.generateRefreshToken(name)
                 val response = exchange.exchange.response
-                response.addCookie(createAccessTokenCookie(accessToken))
-                response.addCookie(createRefreshTokenCookie(refreshToken))
+                response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(createAccessTokenCookie(accessToken)))
+                response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(createRefreshTokenCookie(refreshToken)))
                 response.statusCode = HttpStatus.FOUND
                 response.headers.setLocation(java.net.URI.create("/"))
                 response.setComplete()
