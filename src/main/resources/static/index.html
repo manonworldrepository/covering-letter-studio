@@ -844,8 +844,8 @@
           const data = await refreshResponse.json();
           // Set cookies from response body
           if (data.access_token && data.refresh_token) {
-            document.cookie = "access_token=" + data.access_token + "; path=/; max-age=900; SameSite=Lax";
-            document.cookie = "refresh_token=" + data.refresh_token + "; path=/; max-age=604800; SameSite=Lax";
+            document.cookie = "access_token=" + data.access_token + "; path=/; max-age=900";
+            document.cookie = "refresh_token=" + data.refresh_token + "; path=/; max-age=604800";
           }
           console.log("[Session] Silent token refresh succeeded");
           onRefreshSuccess();
@@ -2634,17 +2634,10 @@
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
       if (accessToken && refreshToken) {
-        // Set cookies via document.cookie (not http-only, but necessary for Cloud Run)
         const maxAgeAccess = 900; // 15 minutes
         const maxAgeRefresh = 604800; // 7 days
-        const expiresAccess = new Date(Date.now() + maxAgeAccess * 1000).toUTCString();
-        const expiresRefresh = new Date(Date.now() + maxAgeRefresh * 1000).toUTCString();
-        document.cookie = "access_token=" + accessToken + "; path=/; max-age=" + maxAgeAccess + "; SameSite=Lax";
-        document.cookie = "refresh_token=" + refreshToken + "; path=/; max-age=" + maxAgeRefresh + "; SameSite=Lax";
-        // Record session refresh if applicable
-        if (params.get("refresh") === "true") {
-          // Will be logged by the backend
-        }
+        document.cookie = "access_token=" + accessToken + "; path=/; max-age=" + maxAgeAccess;
+        document.cookie = "refresh_token=" + refreshToken + "; path=/; max-age=" + maxAgeRefresh;
         // Clean the URL to remove the tokens
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
