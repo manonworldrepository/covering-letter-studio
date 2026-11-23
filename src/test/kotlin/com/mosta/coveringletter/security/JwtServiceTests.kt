@@ -13,7 +13,9 @@ class JwtServiceTests {
     fun setup() {
         jwtService = JwtService(
             accessTokenValiditySeconds = 900,
-            refreshTokenValiditySeconds = 604800
+            refreshTokenValiditySeconds = 604800,
+            privateKeyBase64 = "",
+            publicKeyBase64 = ""
         )
     }
 
@@ -118,7 +120,9 @@ class JwtServiceTests {
         // Create a service with 1-second token expiry
         val shortLivedService = JwtService(
             accessTokenValiditySeconds = 1,
-            refreshTokenValiditySeconds = 604800
+            refreshTokenValiditySeconds = 604800,
+            privateKeyBase64 = "",
+            publicKeyBase64 = ""
         )
         val token = shortLivedService.generateAccessToken("test@example.com")
         // Wait for token to expire

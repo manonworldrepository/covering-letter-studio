@@ -22,7 +22,7 @@ class JwtAuthenticationFilterTests {
 
     @BeforeEach
     fun setup() {
-        jwtService = JwtService(900, 604800)
+        jwtService = JwtService(900, 604800, "", "")
         converter = JwtAuthenticationConverter(jwtService)
     }
 

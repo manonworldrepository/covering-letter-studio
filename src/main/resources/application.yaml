@@ -59,6 +59,14 @@ coverletter:
   jwt:
     access-token-validity-seconds: 900
     refresh-token-validity-seconds: 604800
+    # Shared RSA key pair for Cloud Run multi-instance deployment.
+    # When set, all instances use the same key so JWT tokens are valid across instances.
+    # Generate with: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
+    #               openssl pkey -in jwt-private.pem -pubout -out jwt-public.pem
+    # Then base64-encode both files and set the environment variables below.
+    # If not set, a random key pair is generated at startup (works for single-instance only).
+    private-key-base64: ${JWT_PRIVATE_KEY_BASE64:}
+    public-key-base64: ${JWT_PUBLIC_KEY_BASE64:}
 
 server:
   address: 127.0.0.1

@@ -49,6 +49,8 @@ gcloud run deploy coveringletter `
   --set-env-vars GEMINI_API_KEY="your-api-key-here" `
   --set-env-vars GEMINI_MODEL="gemini-3.1-flash-lite" `
   --set-env-vars CLOUD_STORAGE_BUCKET="PROJECT_ID-coveringletter-data" `
+  --set-env-vars JWT_PRIVATE_KEY_BASE64="base64-encoded-private-key" `
+  --set-env-vars JWT_PUBLIC_KEY_BASE64="base64-encoded-public-key" `
   --memory 512Mi `
   --cpu 1 `
   --max-instances 2
@@ -89,6 +91,52 @@ The app requires these environment variables on Cloud Run:
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth2 client ID for Sign-In |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth2 client secret |
 | `CLOUD_STORAGE_BUCKET` | Yes | Cloud Storage bucket name for data persistence |
+| `JWT_PRIVATE_KEY_BASE64` | Yes (multi-instance) | Base64-encoded RSA private key for JWT signing (see below) |
+| `JWT_PUBLIC_KEY_BASE64` | Yes (multi-instance) | Base64-encoded RSA public key for JWT verification (see below) |
+
+### JWT Key Pair Generation (Required for Multi-Instance)
+
+Cloud Run may scale to multiple instances. Each instance must share the same RSA key pair so that JWT tokens signed by one instance are valid on all instances. Without a shared key, you will see `401 Unauthorized` errors in an infinite refresh loop.
+
+**Generate the key pair:**
+
+```powershell
+# Generate RSA private key
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
+
+# Extract public key
+openssl pkey -in jwt-private.pem -pubout -out jwt-public.pem
+
+# Base64-encode both keys (PowerShell)
+$privateKey = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes("jwt-private.pem"))
+$publicKey = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes("jwt-public.pem"))
+Write-Host "Private Key Base64:"
+Write-Host $privateKey
+Write-Host "Public Key Base64:"
+Write-Host $publicKey
+```
+
+**Or on Linux/macOS:**
+
+```bash
+# Generate RSA private key
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
+
+# Extract public key
+openssl pkey -in jwt-private.pem -pubout -out jwt-public.pem
+
+# Base64-encode both keys
+PRIVATE_KEY_B64=$(base64 -w 0 jwt-private.pem)
+PUBLIC_KEY_B64=$(base64 -w 0 jwt-public.pem)
+echo "Private Key Base64:"
+echo "$PRIVATE_KEY_B64"
+echo "Public Key Base64:"
+echo "$PUBLIC_KEY_B64"
+```
+
+Set the encoded values as `JWT_PRIVATE_KEY_BASE64` and `JWT_PUBLIC_KEY_BASE64` environment variables on Cloud Run.
+
+> **Security:** Keep the private key secret. Do not commit it to Git. After deployment, you can safely delete the `.pem` files locally.
 
 Set them via `gcloud run services update` (use separate `--set-env-vars` flags):
 
@@ -378,6 +426,8 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret | `GOCSPX-abc123...` |
 | `GEMINI_API_KEY` | Your Google Gemini API key | `AIza...` |
 | `CLOUD_STORAGE_BUCKET` | Cloud Storage bucket name | `my-project-coveringletter-data` |
+| `JWT_PRIVATE_KEY_BASE64` | Base64-encoded RSA private key | (see JWT Key Pair Generation) |
+| `JWT_PUBLIC_KEY_BASE64` | Base64-encoded RSA public key | (see JWT Key Pair Generation) |
 
 #### 6. Configure environment variables on Cloud Run
 

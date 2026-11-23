@@ -15,21 +15,35 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
+import java.security.KeyFactory
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPrivateCrtKey
 import java.security.interfaces.RSAPublicKey
+import java.security.spec.PKCS8EncodedKeySpec
+import java.security.spec.X509EncodedKeySpec
 import java.time.Instant
+import java.util.Base64
 
 @Service
 class JwtService(
     @Value("\${coverletter.jwt.access-token-validity-seconds:900}")
     private val accessTokenValiditySeconds: Long,
     @Value("\${coverletter.jwt.refresh-token-validity-seconds:604800}")
-    private val refreshTokenValiditySeconds: Long
+    private val refreshTokenValiditySeconds: Long,
+    @Value("\${coverletter.jwt.private-key-base64:}")
+    private val privateKeyBase64: String,
+    @Value("\${coverletter.jwt.public-key-base64:}")
+    private val publicKeyBase64: String
 ) {
 
-    private val keyPair: KeyPair by lazy { generateKeyPair() }
+    private val keyPair: KeyPair by lazy {
+        if (privateKeyBase64.isNotBlank() && publicKeyBase64.isNotBlank()) {
+            loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
+        } else {
+            generateKeyPair()
+        }
+    }
     private val jwtEncoder: JwtEncoder by lazy { createEncoder() }
     private val jwtDecoder: JwtDecoder by lazy { createDecoder() }
 
@@ -86,6 +100,17 @@ class JwtService(
                 IllegalArgumentException("Invalid token", e)
             }
         }.onErrorResume { Mono.empty() }
+
+    private fun loadKeyPairFromBase64(privateKeyB64: String, publicKeyB64: String): KeyPair {
+        val kf = KeyFactory.getInstance("RSA")
+        val privateKey = kf.generatePrivate(
+            PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyB64))
+        ) as RSAPrivateCrtKey
+        val publicKey = kf.generatePublic(
+            X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyB64))
+        ) as RSAPublicKey
+        return KeyPair(publicKey, privateKey)
+    }
 
     private fun generateKeyPair(): KeyPair {
         val keyPairGenerator = KeyPairGenerator.getInstance("RSA")

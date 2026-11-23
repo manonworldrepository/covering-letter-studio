@@ -9,7 +9,7 @@
 # Setup required (see CLOUD_DEPLOYMENT.md for details):
 # - Enable Cloud Run, Cloud Build, and Artifact Registry APIs
 # - Set up Workload Identity Federation between GitHub and GCP
-# - Add GitHub secrets: GCP_PROJECT_ID, GCP_REGION, GCP_SERVICE, WIF_PROVIDER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, CLOUD_STORAGE_BUCKET
+# - Add GitHub secrets: GCP_PROJECT_ID, GCP_REGION, GCP_SERVICE, WIF_PROVIDER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, CLOUD_STORAGE_BUCKET, JWT_PRIVATE_KEY_BASE64, JWT_PUBLIC_KEY_BASE64
 
 name: Deploy to Cloud Run
 
@@ -69,4 +69,6 @@ jobs:
             --set-env-vars GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
             --set-env-vars GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
             --set-env-vars CLOUD_STORAGE_BUCKET=${{ secrets.CLOUD_STORAGE_BUCKET }} \
+            --set-env-vars JWT_PRIVATE_KEY_BASE64=${{ secrets.JWT_PRIVATE_KEY_BASE64 }} \
+            --set-env-vars JWT_PUBLIC_KEY_BASE64=${{ secrets.JWT_PUBLIC_KEY_BASE64 }} \
             --quiet

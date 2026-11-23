@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono
 
 class UserControllerTests {
 
-	private val jwtService = JwtService(900, 604800)
+	private val jwtService = JwtService(900, 604800, "", "")
 	private val userActions = UserActionLogBuffer()
 
 	@Test

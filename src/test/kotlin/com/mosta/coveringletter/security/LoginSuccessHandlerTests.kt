@@ -16,7 +16,7 @@ import org.springframework.web.server.WebFilterChain
 class LoginSuccessHandlerTests {
 
 	private val userActions = UserActionLogBuffer()
-	private val jwtService = JwtService(900, 604800)
+	private val jwtService = JwtService(900, 604800, "", "")
 	private lateinit var handler: SecurityConfig.EmailCheckingSuccessHandler
 
 	@BeforeEach
