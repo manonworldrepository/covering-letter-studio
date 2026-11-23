@@ -103,11 +103,12 @@ class JwtService(
 
     private fun loadKeyPairFromBase64(privateKeyB64: String, publicKeyB64: String): KeyPair {
         val kf = KeyFactory.getInstance("RSA")
+        val decoder = Base64.getMimeDecoder()
         val privateKey = kf.generatePrivate(
-            PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyB64))
+            PKCS8EncodedKeySpec(decoder.decode(privateKeyB64))
         ) as RSAPrivateCrtKey
         val publicKey = kf.generatePublic(
-            X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyB64))
+            X509EncodedKeySpec(decoder.decode(publicKeyB64))
         ) as RSAPublicKey
         return KeyPair(publicKey, privateKey)
     }
