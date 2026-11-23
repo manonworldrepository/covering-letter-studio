@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.security
 
+import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Component
@@ -14,6 +15,7 @@ class JwtAuthenticationConverter(
     companion object {
         const val ACCESS_TOKEN_COOKIE = "access_token"
         const val REFRESH_TOKEN_COOKIE = "refresh_token"
+        private val log = LoggerFactory.getLogger(JwtAuthenticationConverter::class.java)
     }
 
     fun convert(exchange: ServerWebExchange): Mono<Authentication> {
@@ -24,9 +26,11 @@ class JwtAuthenticationConverter(
         } else {
             null
         }
+        val path = exchange.request.path.value()
         val token = tokenFromHeader ?: exchange.request.cookies[ACCESS_TOKEN_COOKIE]?.firstOrNull()?.value
             ?: return Mono.empty()
-
+        val source = if (tokenFromHeader != null) "header" else "cookie"
+        log.warn("JwtAuthenticationConverter: path={}, token_source={}, token_length={}, token_first_50={}", path, source, token.length, token.take(50))
         return jwtService.validateAccessToken(token)
             .map { email ->
                 UsernamePasswordAuthenticationToken(email, null)

@@ -42,6 +42,8 @@ logging:
   level:
     root: WARN
     com.mosta.coveringletter.security.JwtService: WARN
+    com.mosta.coveringletter.security.JwtAuthenticationConverter: WARN
+    com.mosta.coveringletter.api.UserController: WARN
     com.mosta.coveringletter.aspects: WARN
     org.apache.pdfbox.pdmodel.font.PDSimpleFont: ERROR
     org.apache.pdfbox.pdmodel.font.PDType0Font: ERROR

@@ -123,11 +123,12 @@ class JwtService(
             val jwt = jwtDecoder.decode(token)
             // Validate expiry manually - NimbusJwtDecoder withPublicKey() doesn't validate by default
             if (jwt.expiresAt != null && Instant.now().isAfter(jwt.expiresAt)) {
+                log.warn("JwtService: Token expired - expected_type={}, expired_at={}, now={}", expectedType, jwt.expiresAt, Instant.now())
                 throw IllegalArgumentException("Token expired")
             }
             val type = jwt.claims["type"] as? String
             if (type != expectedType) {
-                log.warn("JwtService: Token type mismatch - expected={}, actual={}, token length={}, token prefix={}", expectedType, type, token.length, token.take(50))
+                log.warn("JwtService: Token type mismatch - expected={}, actual={}, token_length={}, token_first_80={}, token_last_20={}", expectedType, type, token.length, token.take(80), token.takeLast(20))
                 throw IllegalArgumentException("Invalid token type")
             }
             jwt.subject
