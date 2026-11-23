@@ -4,6 +4,7 @@ import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet
+import jakarta.annotation.PostConstruct
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
 import org.springframework.security.oauth2.jwt.JwsHeader
@@ -13,7 +14,6 @@ import org.springframework.security.oauth2.jwt.JwtEncoder
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import java.security.KeyFactory
@@ -38,30 +38,34 @@ class JwtService(
     private val publicKeyBase64: String
 ) {
 
-    companion object {
-        private val log = LoggerFactory.getLogger(JwtService::class.java)
-    }
+    private lateinit var keyPair: KeyPair
 
-    private val keyPair: KeyPair by lazy {
+    private fun initializeKeyPair() {
         val hasPrivate = privateKeyBase64.isNotBlank()
         val hasPublic = publicKeyBase64.isNotBlank()
-        log.info("JwtService: privateKeyBase64 length={}, publicKeyBase64 length={}", 
-            privateKeyBase64.length, publicKeyBase64.length)
+        System.err.println("JwtService INIT: privateKeyBase64 length=${privateKeyBase64.length}, publicKeyBase64 length=${publicKeyBase64.length}")
+        System.err.println("JwtService INIT: hasPrivate=$hasPrivate, hasPublic=$hasPublic")
         if (hasPrivate && hasPublic) {
             try {
-                val loaded = loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
-                val pubFingerprint = Base64.getEncoder().encodeToString(loaded.public.encoded).take(20)
-                log.info("JwtService: Loaded shared key pair from env vars. Public key fingerprint: {}", pubFingerprint)
-                loaded
+                keyPair = loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
+                val pubFingerprint = Base64.getEncoder().encodeToString(keyPair.public.encoded).take(20)
+                System.err.println("JwtService INIT: Loaded shared key pair. Public key fingerprint: $pubFingerprint")
             } catch (e: Exception) {
-                log.error("JwtService: Failed to load shared key pair: {}. Generating random key.", e.message)
-                generateKeyPair()
+                System.err.println("JwtService INIT: Failed to load shared key pair: ${e.message}. Generating random key.")
+                e.printStackTrace()
+                keyPair = generateKeyPair()
             }
         } else {
-            log.info("JwtService: No shared keys configured (hasPrivate={}, hasPublic={}), generating random key pair", hasPrivate, hasPublic)
-            generateKeyPair()
+            System.err.println("JwtService INIT: No shared keys configured, generating random key pair")
+            keyPair = generateKeyPair()
         }
     }
+
+    @PostConstruct
+    fun init() {
+        initializeKeyPair()
+    }
+
     private val jwtEncoder: JwtEncoder by lazy { createEncoder() }
     private val jwtDecoder: JwtDecoder by lazy { createDecoder() }
 

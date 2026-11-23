@@ -17,6 +17,7 @@ class JwtServiceTests {
             privateKeyBase64 = "",
             publicKeyBase64 = ""
         )
+        jwtService.init()
     }
 
     @Test
@@ -123,7 +124,7 @@ class JwtServiceTests {
             refreshTokenValiditySeconds = 604800,
             privateKeyBase64 = "",
             publicKeyBase64 = ""
-        )
+        ).also { it.init() }
         val token = shortLivedService.generateAccessToken("test@example.com")
         // Wait for token to expire
         Thread.sleep(1500)
@@ -142,7 +143,7 @@ class JwtServiceTests {
             refreshTokenValiditySeconds = 604800,
             privateKeyBase64 = privateKeyB64,
             publicKeyBase64 = publicKeyB64
-        )
+        ).also { it.init() }
 
         // Generate and validate an access token
         val token = service.generateAccessToken("test@example.com")
@@ -162,7 +163,7 @@ class JwtServiceTests {
             refreshTokenValiditySeconds = 604800,
             privateKeyBase64 = privateKeyB64,
             publicKeyBase64 = publicKeyB64
-        )
+        ).also { it.init() }
 
         val token = service.generateAccessToken("test@example.com")
         val email = service.validateAccessToken(token).block()

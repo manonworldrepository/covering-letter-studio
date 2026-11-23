@@ -19,7 +19,7 @@ class TokenRefreshTests {
 
     @BeforeEach
     fun setup() {
-        jwtService = JwtService(900, 604800, "", "")
+        jwtService = JwtService(900, 604800, "", "").also { it.init() }
         userActions = UserActionLogBuffer()
         controller = UserController(jwtService, userActions)
     }
