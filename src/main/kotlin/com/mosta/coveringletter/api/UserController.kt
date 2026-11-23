@@ -86,8 +86,12 @@ class UserController(
             .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()
         val clearRefresh = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, "")
             .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()
+        // Also clear the Spring Security session cookie
+        val clearSession = ResponseCookie.from("SESSION", "")
+            .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()
         response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(clearAccess))
         response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(clearRefresh))
+        response.cookies.put("SESSION", listOf(clearSession))
         response.statusCode = HttpStatus.OK
         response.headers.contentType = MediaType.APPLICATION_JSON
         return response.writeWith(
