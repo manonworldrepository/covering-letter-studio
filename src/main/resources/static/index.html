@@ -897,7 +897,6 @@
       if (!response.ok) {
         const error = new Error(await responseError(response, "Request failed."));
         error.status = response.status;
-        error.isAuthError = response.status === 401;
         throw error;
       }
       return response.json();

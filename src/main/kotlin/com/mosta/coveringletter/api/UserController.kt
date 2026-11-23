@@ -3,7 +3,6 @@ package com.mosta.coveringletter.api
 import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.security.JwtAuthenticationConverter
 import com.mosta.coveringletter.security.JwtService
-import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseCookie
@@ -20,9 +19,6 @@ class UserController(
     private val jwtService: JwtService,
     private val userActions: UserActionLogBuffer
 ) {
-    companion object {
-        private val log = LoggerFactory.getLogger(UserController::class.java)
-    }
     @GetMapping("/api/user/me")
     fun getCurrentUser(securityContext: Mono<SecurityContext>): Mono<UserInfoResponse> =
         securityContext.flatMap { ctx ->
@@ -105,7 +101,6 @@ class UserController(
             .switchIfEmpty(Mono.empty())
             .flatMap { (email, newRefreshToken) ->
                 val newAccessToken = jwtService.generateAccessToken(email)
-                log.warn("UserController: Refresh succeeded for {}, access_token length={}, refresh_token length={}", email, newAccessToken.length, newRefreshToken.length)
                 val response = exchange.response
                 response.statusCode = HttpStatus.OK
                 response.headers.contentType = MediaType.APPLICATION_JSON
@@ -113,11 +108,11 @@ class UserController(
                 // Return tokens in response body for client-side storage - properly escape for JSON
                 val escapedAccessToken = newAccessToken.replace("\\", "\\\\").replace("\"", "\\\"")
                 val escapedRefreshToken = newRefreshToken.replace("\\", "\\\\").replace("\"", "\\\"")
-                val responseBody = """{"status":"refreshed","access_token":"$escapedAccessToken","refresh_token":"$escapedRefreshToken"}"""
-                log.warn("UserController: Response body length={}, first_100={}", responseBody.length, responseBody.take(100))
                 response.writeWith(
                     Mono.just(
-                        response.bufferFactory().wrap(responseBody.toByteArray())
+                        response.bufferFactory().wrap(
+                            """{"status":"refreshed","access_token":"$escapedAccessToken","refresh_token":"$escapedRefreshToken"}""".toByteArray()
+                        )
                     )
                 )
             }
