@@ -34,10 +34,18 @@ class UserController(
         }
 
     @GetMapping("/api/session/heartbeat")
-    fun heartbeat(exchange: ServerWebExchange, securityContext: Mono<SecurityContext>): Mono<String> {
+    fun heartbeat(exchange: ServerWebExchange, securityContext: Mono<SecurityContext>): Mono<Void> {
         return securityContext.flatMap { ctx ->
             if (ctx.authentication != null) {
-                Mono.just("""{"status":"ok"}""")
+                exchange.response.statusCode = HttpStatus.OK
+                exchange.response.headers.contentType = MediaType.APPLICATION_JSON
+                exchange.response.writeWith(
+                    Mono.just(
+                        exchange.response.bufferFactory().wrap(
+                            """{"status":"ok"}""".toByteArray()
+                        )
+                    )
+                )
             } else {
                 // Return 401 so the frontend triggers silent token refresh
                 exchange.response.statusCode = HttpStatus.UNAUTHORIZED
@@ -49,7 +57,6 @@ class UserController(
                         )
                     )
                 )
-                Mono.empty()
             }
         }
     }
