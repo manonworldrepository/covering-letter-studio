@@ -34,15 +34,25 @@ class UserController(
         }
 
     @GetMapping("/api/session/heartbeat")
-    fun heartbeat(securityContext: Mono<SecurityContext>): Mono<String> =
-        securityContext.map { ctx ->
+    fun heartbeat(exchange: ServerWebExchange, securityContext: Mono<SecurityContext>): Mono<String> {
+        return securityContext.flatMap { ctx ->
             if (ctx.authentication != null) {
-                """{"status":"ok"}"""
+                Mono.just("""{"status":"ok"}""")
             } else {
                 // Return 401 so the frontend triggers silent token refresh
-                throw org.springframework.security.access.AccessDeniedException("No valid access token")
+                exchange.response.statusCode = HttpStatus.UNAUTHORIZED
+                exchange.response.headers.contentType = MediaType.APPLICATION_JSON
+                exchange.response.writeWith(
+                    Mono.just(
+                        exchange.response.bufferFactory().wrap(
+                            """{"status":"unauthorized"}""".toByteArray()
+                        )
+                    )
+                )
+                Mono.empty()
             }
         }
+    }
 
     @PostMapping("/api/auth/refresh")
     fun refreshTokens(exchange: ServerWebExchange): Mono<Void> {
