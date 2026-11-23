@@ -29,25 +29,25 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `redirects to login-success for allowed email`() {
+	fun `sets JWT cookies and redirects for allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
 		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
-		assertTrue(exchange.exchange.response.headers.location?.query?.contains("email=info@manonworld.de") == true)
+		assertEquals("/", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
-	fun `redirects to login-success case insensitive`() {
+	fun `sets JWT cookies and redirects case insensitive`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("INFO@MANONWORLD.DE")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertTrue(exchange.exchange.response.headers.location?.query?.contains("email=info@manonworld.de") == true)
+		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
+		assertEquals("/", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
@@ -79,13 +79,14 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `redirects to login-success for second allowed email`() {
+	fun `sets JWT cookies for second allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("admin@example.com")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertTrue(exchange.exchange.response.headers.location?.query?.contains("email=admin@example.com") == true)
+		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
+		assertEquals("/", exchange.exchange.response.headers.location?.path)
 	}
 
 	@Test
