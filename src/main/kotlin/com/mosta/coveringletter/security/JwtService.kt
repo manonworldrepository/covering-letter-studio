@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import java.security.KeyFactory
@@ -37,15 +38,27 @@ class JwtService(
     private val publicKeyBase64: String
 ) {
 
+    companion object {
+        private val log = LoggerFactory.getLogger(JwtService::class.java)
+    }
+
     private val keyPair: KeyPair by lazy {
-        if (privateKeyBase64.isNotBlank() && publicKeyBase64.isNotBlank()) {
-            val loaded = loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
-            // Log key fingerprint for debugging - first 20 chars of base64-encoded public key
-            val pubFingerprint = Base64.getEncoder().encodeToString(loaded.public.encoded).take(20)
-            println("JwtService: Loaded shared key pair from env vars. Public key fingerprint: $pubFingerprint")
-            loaded
+        val hasPrivate = privateKeyBase64.isNotBlank()
+        val hasPublic = publicKeyBase64.isNotBlank()
+        log.info("JwtService: privateKeyBase64 length={}, publicKeyBase64 length={}", 
+            privateKeyBase64.length, publicKeyBase64.length)
+        if (hasPrivate && hasPublic) {
+            try {
+                val loaded = loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
+                val pubFingerprint = Base64.getEncoder().encodeToString(loaded.public.encoded).take(20)
+                log.info("JwtService: Loaded shared key pair from env vars. Public key fingerprint: {}", pubFingerprint)
+                loaded
+            } catch (e: Exception) {
+                log.error("JwtService: Failed to load shared key pair: {}. Generating random key.", e.message)
+                generateKeyPair()
+            }
         } else {
-            println("JwtService: No shared keys configured, generating random key pair")
+            log.info("JwtService: No shared keys configured (hasPrivate={}, hasPublic={}), generating random key pair", hasPrivate, hasPublic)
             generateKeyPair()
         }
     }
@@ -131,6 +144,7 @@ class JwtService(
         val rsaKey = RSAKey.Builder(keyPair.public as RSAPublicKey)
             .privateKey(keyPair.private as RSAPrivateCrtKey)
             .algorithm(JWSAlgorithm.RS256)
+            .keyID("coveringletter-key")
             .build()
         return NimbusJwtEncoder(ImmutableJWKSet(JWKSet(rsaKey)))
     }
