@@ -29,25 +29,25 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `stores email in exchange attributes for allowed email`() {
+	fun `redirects to login-success for allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("info@manonworld.de")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals("info@manonworld.de", exchange.exchange.attributes["authEmail"])
 		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/", exchange.exchange.response.headers.location?.path)
+		assertEquals("/api/auth/login-success", exchange.exchange.response.headers.location?.path)
+		assertTrue(exchange.exchange.response.headers.location?.query?.contains("email=info@manonworld.de") == true)
 	}
 
 	@Test
-	fun `stores email in exchange attributes case insensitive`() {
+	fun `redirects to login-success case insensitive`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("INFO@MANONWORLD.DE")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals("info@manonworld.de", exchange.exchange.attributes["authEmail"])
+		assertTrue(exchange.exchange.response.headers.location?.query?.contains("email=info@manonworld.de") == true)
 	}
 
 	@Test
@@ -79,13 +79,13 @@ class LoginSuccessHandlerTests {
 	}
 
 	@Test
-	fun `stores email for second allowed email`() {
+	fun `redirects to login-success for second allowed email`() {
 		val exchange = createExchange("/login/oauth2/code/google")
 		val authentication = MockAuthentication("admin@example.com")
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		assertEquals("admin@example.com", exchange.exchange.attributes["authEmail"])
+		assertTrue(exchange.exchange.response.headers.location?.query?.contains("email=admin@example.com") == true)
 	}
 
 	@Test

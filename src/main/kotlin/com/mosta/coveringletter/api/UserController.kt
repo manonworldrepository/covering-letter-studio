@@ -54,6 +54,24 @@ class UserController(
         }
     }
 
+    @GetMapping("/api/auth/login-success")
+    fun loginSuccess(exchange: ServerWebExchange): Mono<Void> {
+        val email = exchange.request.queryParams["email"]?.firstOrNull() ?: return unauthorizedResponse(exchange)
+        val wasRefresh = exchange.request.queryParams["refresh"]?.firstOrNull() == "true"
+
+        val accessToken = jwtService.generateAccessToken(email)
+        val refreshToken = jwtService.generateRefreshToken(email)
+
+        val response = exchange.response
+        response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(createAccessTokenCookie(accessToken)))
+        response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(createRefreshTokenCookie(refreshToken)))
+
+        // Redirect to main page
+        response.statusCode = HttpStatus.FOUND
+        response.headers.setLocation(java.net.URI.create("/"))
+        return response.setComplete()
+    }
+
     @PostMapping("/api/auth/refresh")
     fun refreshTokens(exchange: ServerWebExchange): Mono<Void> {
         val refreshToken = exchange.request.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]?.firstOrNull()?.value
