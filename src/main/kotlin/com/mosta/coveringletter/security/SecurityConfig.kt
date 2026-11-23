@@ -107,22 +107,15 @@ class SecurityConfig(
                 } else {
                     userActions.record("Signed in with Google: $name")
                 }
-                // Set JWT cookies directly in the success handler, then redirect
+                // Generate JWT tokens and pass them via URL params for client-side cookie setting
                 val accessToken = jwtService.generateAccessToken(name)
                 val refreshToken = jwtService.generateRefreshToken(name)
-
-                val response = exchange.exchange.response
-                val accessCookie = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, accessToken)
-                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(900).build()
-                val refreshCookie = ResponseCookie.from(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken)
-                    .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(604800).build()
-
-                response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(accessCookie))
-                response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(refreshCookie))
-
-                response.statusCode = HttpStatus.FOUND
-                response.headers.setLocation(java.net.URI.create("/"))
-                response.setComplete()
+                val refreshParam = if (wasRefresh) "&refresh=true" else ""
+                exchange.exchange.response.statusCode = HttpStatus.FOUND
+                exchange.exchange.response.headers.setLocation(
+                    java.net.URI.create("/?access_token=$accessToken&refresh_token=$refreshToken$refreshParam")
+                )
+                exchange.exchange.response.setComplete()
             } else {
                 exchange.exchange.response.statusCode = HttpStatus.FOUND
                 exchange.exchange.response.headers.setLocation(java.net.URI.create("/login.html?error=access_denied"))

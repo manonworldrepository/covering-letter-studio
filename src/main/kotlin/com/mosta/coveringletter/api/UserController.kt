@@ -94,15 +94,14 @@ class UserController(
             .flatMap { (email, newRefreshToken) ->
                 val newAccessToken = jwtService.generateAccessToken(email)
                 val response = exchange.response
-                response.cookies.put(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, listOf(createAccessTokenCookie(newAccessToken)))
-                response.cookies.put(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, listOf(createRefreshTokenCookie(newRefreshToken)))
                 response.statusCode = HttpStatus.OK
                 response.headers.contentType = MediaType.APPLICATION_JSON
                 userActions.record("Token refreshed successfully")
+                // Return tokens in response body for client-side cookie setting
                 response.writeWith(
                     Mono.just(
                         response.bufferFactory().wrap(
-                            """{"status":"refreshed"}""".toByteArray()
+                            """{"status":"refreshed","access_token":"$newAccessToken","refresh_token":"$newRefreshToken"}""".toByteArray()
                         )
                     )
                 )

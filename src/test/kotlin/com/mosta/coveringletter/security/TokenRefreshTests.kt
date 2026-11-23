@@ -35,10 +35,10 @@ class TokenRefreshTests {
         controller.refreshTokens(exchange).block()
 
         assertEquals(HttpStatus.OK, exchange.response.statusCode)
-        val newAccessCookie = exchange.response.cookies[JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE]
-        val newRefreshCookie = exchange.response.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]
-        assertEquals(true, newAccessCookie?.isNotEmpty() == true)
-        assertEquals(true, newRefreshCookie?.isNotEmpty() == true)
+        // Tokens are now returned in the response body, not as cookies
+        val body = exchange.response.bodyAsString.block() ?: ""
+        assertTrue(body.contains("\"access_token\""))
+        assertTrue(body.contains("\"refresh_token\""))
     }
 
     @Test
