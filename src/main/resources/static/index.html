@@ -809,14 +809,48 @@
       }
     }
 
-    // Global fetch wrapper to intercept 401 responses and trigger silent refresh once
+    // JWT token storage in memory (not cookies, because Cloud Run strips Set-Cookie headers)
+    let jwtAccessToken = null;
+    let jwtRefreshToken = null;
+
+    // Set JWT tokens from URL params (after Google Sign-In redirect)
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      if (accessToken && refreshToken) {
+        jwtAccessToken = accessToken;
+        jwtRefreshToken = refreshToken;
+        // Clean the URL to remove the tokens
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    })();
+
+    // Global fetch wrapper to add Authorization header and intercept 401 responses
     const originalFetch = window.fetch;
     let globalRefreshTriggered = false;
     let refreshPromise = null;
     window.fetch = async function(...args) {
-      const response = await originalFetch.apply(this, args);
-      // The refresh endpoint and logs polling have dedicated recovery handling.
       const url = args[0].toString();
+      const isRefresh = url.includes("/api/auth/refresh");
+      // Add Authorization header if we have a token
+      let fetchArgs = args;
+      if (jwtAccessToken && !isRefresh) {
+        const origUrl = args[0];
+        const origOptions = args[1] || {};
+        const headers = new Headers(origOptions.headers || {});
+        headers.set("Authorization", "Bearer " + jwtAccessToken);
+        fetchArgs = [origUrl, { ...origOptions, headers }];
+      } else if (jwtRefreshToken && isRefresh) {
+        const origUrl = args[0];
+        const origOptions = args[1] || {};
+        const headers = new Headers(origOptions.headers || {});
+        headers.set("Authorization", "Bearer " + jwtRefreshToken);
+        fetchArgs = [origUrl, { ...origOptions, headers }];
+      }
+      const response = await originalFetch.apply(this, fetchArgs);
+      // Intercept 401 for non-refresh, non-logs requests
       if (response.status === 401 && !url.includes("/api/auth/refresh") && !url.includes("/api/logs") && !globalRefreshTriggered) {
         console.log("[Session] Global fetch got 401 for:", url);
         globalRefreshTriggered = true;
@@ -830,14 +864,16 @@
       if (refreshPromise) return refreshPromise;
       refreshPromise = (async () => {
         try {
-          const refreshResponse = await originalFetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
+          const headers = new Headers();
+          if (jwtRefreshToken) headers.set("Authorization", "Bearer " + jwtRefreshToken);
+          const refreshResponse = await originalFetch("/api/auth/refresh", { method: "POST", headers });
           if (refreshResponse.ok) {
             const data = await refreshResponse.json();
             if (!data.access_token || !data.refresh_token) {
               throw new Error("Refresh response did not contain both tokens.");
             }
-            document.cookie = "access_token=" + data.access_token + "; path=/; max-age=900";
-            document.cookie = "refresh_token=" + data.refresh_token + "; path=/; max-age=604800";
+            jwtAccessToken = data.access_token;
+            jwtRefreshToken = data.refresh_token;
             console.log("[Session] Silent token refresh succeeded");
             return true;
           }
@@ -2639,22 +2675,6 @@
         checkSession();
       }
     });
-
-    // Set JWT cookies from URL params (after Google Sign-In redirect)
-    (function() {
-      const params = new URLSearchParams(window.location.search);
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-      if (accessToken && refreshToken) {
-        const maxAgeAccess = 900; // 15 minutes
-        const maxAgeRefresh = 604800; // 7 days
-        document.cookie = "access_token=" + accessToken + "; path=/; max-age=" + maxAgeAccess;
-        document.cookie = "refresh_token=" + refreshToken + "; path=/; max-age=" + maxAgeRefresh;
-        // Clean the URL to remove the tokens
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
-      }
-    })();
 
     refreshApp().catch((error) => {
       setup.hidden = false;

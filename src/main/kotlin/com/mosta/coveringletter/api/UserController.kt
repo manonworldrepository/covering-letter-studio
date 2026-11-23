@@ -81,7 +81,15 @@ class UserController(
 
     @PostMapping("/api/auth/refresh")
     fun refreshTokens(exchange: ServerWebExchange): Mono<Void> {
-        val refreshToken = exchange.request.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]?.firstOrNull()?.value
+        // Try Authorization header first, then fall back to cookie
+        val authHeader = exchange.request.headers.getFirst("Authorization")
+        val refreshTokenFromHeader = if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            authHeader.substring(7)
+        } else {
+            null
+        }
+        val refreshToken = refreshTokenFromHeader
+            ?: exchange.request.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]?.firstOrNull()?.value
             ?: return unauthorizedResponse(exchange)
 
         userActions.record("Token refresh attempted")
@@ -97,7 +105,7 @@ class UserController(
                 response.statusCode = HttpStatus.OK
                 response.headers.contentType = MediaType.APPLICATION_JSON
                 userActions.record("Token refreshed successfully")
-                // Return tokens in response body for client-side cookie setting
+                // Return tokens in response body for client-side storage
                 response.writeWith(
                     Mono.just(
                         response.bufferFactory().wrap(

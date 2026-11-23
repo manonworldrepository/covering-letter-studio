@@ -17,7 +17,14 @@ class JwtAuthenticationConverter(
     }
 
     fun convert(exchange: ServerWebExchange): Mono<Authentication> {
-        val token = exchange.request.cookies[ACCESS_TOKEN_COOKIE]?.firstOrNull()?.value
+        // Try Authorization header first, then fall back to cookie
+        val authHeader = exchange.request.headers.getFirst("Authorization")
+        val tokenFromHeader = if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            authHeader.substring(7)
+        } else {
+            null
+        }
+        val token = tokenFromHeader ?: exchange.request.cookies[ACCESS_TOKEN_COOKIE]?.firstOrNull()?.value
             ?: return Mono.empty()
 
         return jwtService.validateAccessToken(token)
