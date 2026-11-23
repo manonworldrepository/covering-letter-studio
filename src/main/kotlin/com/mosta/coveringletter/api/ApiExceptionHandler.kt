@@ -2,6 +2,7 @@ package com.mosta.coveringletter.api
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.server.reactive.ServerHttpResponse
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.bind.support.WebExchangeBindException
@@ -22,6 +23,20 @@ class ApiExceptionHandler {
 			?: "Request validation failed."
 		response.statusCode = HttpStatus.BAD_REQUEST
 		return ApiErrorResponse(message)
+	}
+
+	@ExceptionHandler(IllegalArgumentException::class)
+	fun handleIllegalArgument(exception: IllegalArgumentException, response: ServerHttpResponse): ApiErrorResponse {
+		// JWT validation failures (expired token, invalid signature, wrong type) throw IllegalArgumentException
+		// These should return 401 Unauthorized, not 500 Internal Server Error
+		response.statusCode = HttpStatus.UNAUTHORIZED
+		return ApiErrorResponse(exception.message ?: "Unauthorized.")
+	}
+
+	@ExceptionHandler(AccessDeniedException::class)
+	fun handleAccessDenied(exception: AccessDeniedException, response: ServerHttpResponse): ApiErrorResponse {
+		response.statusCode = HttpStatus.FORBIDDEN
+		return ApiErrorResponse("Access denied.")
 	}
 
 	@ExceptionHandler(Exception::class)

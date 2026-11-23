@@ -66,7 +66,7 @@ class SecurityConfig(
             .logout { logout ->
                 logout.logoutUrl("/logout")
             }
-            .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHORIZATION)
         return http.build()
     }
 
