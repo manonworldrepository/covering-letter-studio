@@ -112,47 +112,31 @@ class JwtService(
         return jwtEncoder.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(header, claims)).tokenValue
     }
 
-    fun validateAccessToken(token: String): Mono<String> {
-        log.warn("JwtService validateAccessToken: ENTRY - token_len={}, token_first_50={}", token.length, token.take(50))
-        return validateToken(token, "access")
-    }
+    fun validateAccessToken(token: String): Mono<String> =
+        validateToken(token, "access")
 
-    fun validateRefreshToken(token: String): Mono<String> {
-        log.warn("JwtService validateRefreshToken: ENTRY - token_len={}, token_first_50={}", token.length, token.take(50))
-        return validateToken(token, "refresh")
-    }
+    fun validateRefreshToken(token: String): Mono<String> =
+        validateToken(token, "refresh")
 
     private fun validateToken(token: String, expectedType: String): Mono<String> =
         Mono.fromCallable {
-            log.warn("JwtService VALIDATE: START - expected_type={}, token_len={}, token_first_50={}", expectedType, token.length, token.take(50))
             val jwt = jwtDecoder.decode(token)
-            log.warn("JwtService VALIDATE: DECODE OK - subject={}, type={}, expiresAt={}", jwt.subject, jwt.claims["type"], jwt.expiresAt)
             // Validate expiry manually - NimbusJwtDecoder withPublicKey() doesn't validate by default
             if (jwt.expiresAt != null && Instant.now().isAfter(jwt.expiresAt)) {
-                log.warn("JwtService VALIDATE: TOKEN EXPIRED - expired_at={}, now={}", jwt.expiresAt, Instant.now())
                 throw IllegalArgumentException("Token expired")
             }
             val type = jwt.claims["type"] as? String
             if (type != expectedType) {
-                log.warn("JwtService VALIDATE: TYPE MISMATCH - expected={}, actual={}", expectedType, type)
                 throw IllegalArgumentException("Invalid token type")
             }
             jwt.subject
-        }.doOnSubscribe {
-            log.warn("JwtService VALIDATE: SUBSCRIBED - expected_type={}, token_len={}", expectedType, token.length)
-        }.doOnError { e ->
-            log.error("JwtService VALIDATE: doOnError - {}: {}", e.javaClass.simpleName, e.message, e)
-        }.onErrorMap { e ->
-            log.error("JwtService VALIDATE: onErrorMap - {}: {}", e.javaClass.simpleName, e.message)
-            if (e is org.springframework.security.oauth2.jwt.JwtException || e is IllegalArgumentException) {
-                e
+        }.onErrorMap {
+            if (it is org.springframework.security.oauth2.jwt.JwtException || it is IllegalArgumentException) {
+                it
             } else {
-                IllegalArgumentException("Invalid token", e)
+                IllegalArgumentException("Invalid token", it)
             }
-        }.onErrorResume { e ->
-            log.error("JwtService VALIDATE: onErrorResume returning empty - {}: {}", e.javaClass.simpleName, e.message)
-            Mono.empty()
-        }
+        }.onErrorResume { Mono.empty() }
 
     private fun loadKeyPairFromBase64(privateKeyB64: String, publicKeyB64: String): KeyPair {
         val kf = KeyFactory.getInstance("RSA")
