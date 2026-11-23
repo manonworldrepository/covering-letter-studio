@@ -105,11 +105,13 @@ class UserController(
                 response.statusCode = HttpStatus.OK
                 response.headers.contentType = MediaType.APPLICATION_JSON
                 userActions.record("Token refreshed successfully")
-                // Return tokens in response body for client-side storage
+                // Return tokens in response body for client-side storage - properly escape for JSON
+                val escapedAccessToken = newAccessToken.replace("\\", "\\\\").replace("\"", "\\\"")
+                val escapedRefreshToken = newRefreshToken.replace("\\", "\\\\").replace("\"", "\\\"")
                 response.writeWith(
                     Mono.just(
                         response.bufferFactory().wrap(
-                            """{"status":"refreshed","access_token":"$newAccessToken","refresh_token":"$newRefreshToken"}""".toByteArray()
+                            """{"status":"refreshed","access_token":"$escapedAccessToken","refresh_token":"$escapedRefreshToken"}""".toByteArray()
                         )
                     )
                 )
