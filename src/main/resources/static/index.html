@@ -809,6 +809,19 @@
       }
     }
 
+    // Global fetch wrapper to intercept ALL 401 responses and trigger silent refresh
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+      const response = await originalFetch.apply(this, args);
+      if (response.status === 401 && !args[0].toString().includes("/api/auth/refresh")) {
+        console.log("[Session] Global fetch got 401 for:", args[0]);
+        await attemptRefresh();
+        // Retry the original request with new tokens
+        return originalFetch.apply(this, args);
+      }
+      return response;
+    };
+
     let isRefreshing = false;
     let refreshSubscribers = [];
 
@@ -841,14 +854,6 @@
 
     async function requestJson(url, options = {}) {
       const response = await fetch(url, { cache: "no-store", credentials: "same-origin", ...options });
-      if (response.status === 401 && !url.includes("/api/auth/refresh")) {
-        console.log("[Session] API call got 401, attempting silent refresh...");
-        await attemptRefresh();
-        // Retry the original request with the new tokens
-        const retryResponse = await fetch(url, { cache: "no-store", credentials: "same-origin", ...options });
-        if (!retryResponse.ok) throw new Error(await responseError(retryResponse, "Request failed."));
-        return retryResponse.json();
-      }
       if (!response.ok) throw new Error(await responseError(response, "Request failed."));
       return response.json();
     }
