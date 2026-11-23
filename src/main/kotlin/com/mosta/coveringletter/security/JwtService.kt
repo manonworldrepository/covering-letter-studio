@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet
 import jakarta.annotation.PostConstruct
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm
 import org.springframework.security.oauth2.jwt.JwsHeader
@@ -40,23 +41,29 @@ class JwtService(
 
     private lateinit var keyPair: KeyPair
 
+    private val log = LoggerFactory.getLogger(JwtService::class.java)
+
     private fun initializeKeyPair() {
         val hasPrivate = privateKeyBase64.isNotBlank()
         val hasPublic = publicKeyBase64.isNotBlank()
-        System.err.println("JwtService INIT: privateKeyBase64 length=${privateKeyBase64.length}, publicKeyBase64 length=${publicKeyBase64.length}")
-        System.err.println("JwtService INIT: hasPrivate=$hasPrivate, hasPublic=$hasPublic")
+        log.warn("JwtService INIT: privateKeyBase64 length={}, publicKeyBase64 length={}", privateKeyBase64.length, publicKeyBase64.length)
+        log.warn("JwtService INIT: hasPrivate={}, hasPublic={}", hasPrivate, hasPublic)
         if (hasPrivate && hasPublic) {
             try {
                 keyPair = loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
                 val pubFingerprint = Base64.getEncoder().encodeToString(keyPair.public.encoded).take(20)
-                System.err.println("JwtService INIT: Loaded shared key pair. Public key fingerprint: $pubFingerprint")
+                log.warn("JwtService INIT: Loaded shared key pair. Public key fingerprint: {}", pubFingerprint)
             } catch (e: Exception) {
-                System.err.println("JwtService INIT: Failed to load shared key pair: ${e.message}. Generating random key.")
-                e.printStackTrace()
+                log.error("JwtService INIT: ERROR - Failed to load shared key pair: {}. Generating random key.", e.message, e)
+                log.warn("JwtService INIT: WARNING - If running on Cloud Run with multiple instances, 401 Unauthorized errors will occur because each instance uses a different key.")
+                log.warn("JwtService INIT: FIX - Set JWT_PRIVATE_KEY_BASE64 and JWT_PUBLIC_KEY_BASE64 environment variables with valid base64-encoded RSA keys.")
                 keyPair = generateKeyPair()
             }
         } else {
-            System.err.println("JwtService INIT: No shared keys configured, generating random key pair")
+            log.warn("JwtService INIT: WARNING - No shared JWT keys configured (JWT_PRIVATE_KEY_BASE64 and JWT_PUBLIC_KEY_BASE64 are empty).")
+            log.warn("JwtService INIT: WARNING - Generating random key pair. On Cloud Run with multiple instances, this causes 401 Unauthorized errors.")
+            log.warn("JwtService INIT: FIX - Generate a shared RSA key pair and set JWT_PRIVATE_KEY_BASE64 and JWT_PUBLIC_KEY_BASE64 environment variables.")
+            log.warn("JwtService INIT: See CLOUD_DEPLOYMENT.md section 'JWT Key Pair Generation' for instructions.")
             keyPair = generateKeyPair()
         }
     }

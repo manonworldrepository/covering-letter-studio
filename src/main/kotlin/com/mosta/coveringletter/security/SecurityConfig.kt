@@ -109,10 +109,12 @@ class SecurityConfig(
                 // Generate JWT tokens and pass them via URL params for client-side cookie setting
                 val accessToken = jwtService.generateAccessToken(name)
                 val refreshToken = jwtService.generateRefreshToken(name)
+                val encodedAccessToken = java.net.URLEncoder.encode(accessToken, java.nio.charset.StandardCharsets.UTF_8)
+                val encodedRefreshToken = java.net.URLEncoder.encode(refreshToken, java.nio.charset.StandardCharsets.UTF_8)
                 val refreshParam = if (wasRefresh) "&refresh=true" else ""
                 exchange.exchange.response.statusCode = HttpStatus.FOUND
                 exchange.exchange.response.headers.setLocation(
-                    java.net.URI.create("/?access_token=$accessToken&refresh_token=$refreshToken$refreshParam")
+                    java.net.URI.create("/?access_token=$encodedAccessToken&refresh_token=$encodedRefreshToken$refreshParam")
                 )
                 exchange.exchange.response.setComplete()
             } else {
@@ -137,6 +139,11 @@ class JwtAuthenticationWebFilter(
     private val authenticationConverter: JwtAuthenticationConverter
 ) : org.springframework.web.server.WebFilter {
     override fun filter(exchange: ServerWebExchange, chain: org.springframework.web.server.WebFilterChain): Mono<Void> {
+        // Skip JWT validation for token refresh endpoint - it handles its own validation
+        val path = exchange.request.path.value()
+        if (path == "/api/auth/refresh") {
+            return chain.filter(exchange)
+        }
         return authenticationConverter.convert(exchange)
             .materialize()
             .flatMap { signal ->

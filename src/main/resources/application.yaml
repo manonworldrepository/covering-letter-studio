@@ -40,6 +40,9 @@ web:
 
 logging:
   level:
+    root: WARN
+    com.mosta.coveringletter.security.JwtService: WARN
+    com.mosta.coveringletter.aspects: WARN
     org.apache.pdfbox.pdmodel.font.PDSimpleFont: ERROR
     org.apache.pdfbox.pdmodel.font.PDType0Font: ERROR
     org.apache.fontbox.ttf.PostScriptTable: ERROR
