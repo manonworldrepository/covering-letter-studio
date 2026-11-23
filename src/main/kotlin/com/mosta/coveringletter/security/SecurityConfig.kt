@@ -53,7 +53,8 @@ class SecurityConfig(
                     "/api/auth/refresh",
                     "/api/auth/logout",
                     "/api/auth/login-success",
-                    "/api/session/heartbeat"
+                    "/api/session/heartbeat",
+                    "/api/logs"
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }
