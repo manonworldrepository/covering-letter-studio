@@ -144,19 +144,15 @@ class JwtAuthenticationWebFilter(
         if (path == "/api/auth/refresh") {
             return chain.filter(exchange)
         }
+        // Use flatMap so authentication is resolved BEFORE downstream filters run
         return authenticationConverter.convert(exchange)
-            .materialize()
-            .flatMap { signal ->
-                val downstream = chain.filter(exchange)
-                if (signal.hasValue()) {
-                    downstream.contextWrite(
-                        ReactiveSecurityContextHolder.withSecurityContext(
-                            Mono.just(SecurityContextImpl(signal.get()))
-                        )
+            .flatMap { auth ->
+                chain.filter(exchange).contextWrite(
+                    ReactiveSecurityContextHolder.withSecurityContext(
+                        Mono.just(SecurityContextImpl(auth))
                     )
-                } else {
-                    downstream
-                }
+                )
             }
+            .switchIfEmpty(chain.filter(exchange))
     }
 }

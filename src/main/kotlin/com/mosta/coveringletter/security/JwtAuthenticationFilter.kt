@@ -31,8 +31,11 @@ class JwtAuthenticationConverter(
             ?: return Mono.empty()
         val source = if (tokenFromHeader != null) "header" else "cookie"
         log.warn("JwtAuthenticationConverter: path={}, token_source={}, token_length={}, token_first_50={}", path, source, token.length, token.take(50))
-        return jwtService.validateAccessToken(token)
-            .map { email ->
+        val mono = jwtService.validateAccessToken(token)
+        log.warn("JwtAuthenticationConverter: validateAccessToken returned Mono, now mapping")
+        return mono
+            .map<Authentication> { email ->
+                log.warn("JwtAuthenticationConverter: validateAccessToken SUCCEEDED for {}", email)
                 UsernamePasswordAuthenticationToken(email, null)
             }
     }
