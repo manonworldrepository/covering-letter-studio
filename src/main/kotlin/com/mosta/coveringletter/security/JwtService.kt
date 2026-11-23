@@ -39,8 +39,13 @@ class JwtService(
 
     private val keyPair: KeyPair by lazy {
         if (privateKeyBase64.isNotBlank() && publicKeyBase64.isNotBlank()) {
-            loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
+            val loaded = loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
+            // Log key fingerprint for debugging - first 20 chars of base64-encoded public key
+            val pubFingerprint = Base64.getEncoder().encodeToString(loaded.public.encoded).take(20)
+            println("JwtService: Loaded shared key pair from env vars. Public key fingerprint: $pubFingerprint")
+            loaded
         } else {
+            println("JwtService: No shared keys configured, generating random key pair")
             generateKeyPair()
         }
     }
@@ -104,11 +109,14 @@ class JwtService(
     private fun loadKeyPairFromBase64(privateKeyB64: String, publicKeyB64: String): KeyPair {
         val kf = KeyFactory.getInstance("RSA")
         val decoder = Base64.getMimeDecoder()
+        // Strip any whitespace that might be embedded in the env var value
+        val cleanPrivateKey = privateKeyB64.replace(Regex("\\s"), "")
+        val cleanPublicKey = publicKeyB64.replace(Regex("\\s"), "")
         val privateKey = kf.generatePrivate(
-            PKCS8EncodedKeySpec(decoder.decode(privateKeyB64))
+            PKCS8EncodedKeySpec(decoder.decode(cleanPrivateKey))
         ) as RSAPrivateCrtKey
         val publicKey = kf.generatePublic(
-            X509EncodedKeySpec(decoder.decode(publicKeyB64))
+            X509EncodedKeySpec(decoder.decode(cleanPublicKey))
         ) as RSAPublicKey
         return KeyPair(publicKey, privateKey)
     }
