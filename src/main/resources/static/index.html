@@ -812,9 +812,10 @@
     // Global fetch wrapper to intercept 401 responses and trigger silent refresh once
     const originalFetch = window.fetch;
     let globalRefreshTriggered = false;
+    let refreshPromise = null;
     window.fetch = async function(...args) {
       const response = await originalFetch.apply(this, args);
-      // Only trigger refresh for non-refresh, non-logs 401s to avoid infinite loops
+      // The refresh endpoint and logs polling have dedicated recovery handling.
       const url = args[0].toString();
       if (response.status === 401 && !url.includes("/api/auth/refresh") && !url.includes("/api/logs") && !globalRefreshTriggered) {
         console.log("[Session] Global fetch got 401 for:", url);
@@ -825,45 +826,43 @@
       return response;
     };
 
-    let isRefreshing = false;
-    let refreshSubscribers = [];
-
-    function onRefreshSuccess() {
-      refreshSubscribers.forEach((cb) => cb());
-      refreshSubscribers = [];
-    }
-
     async function attemptRefresh() {
-      if (isRefreshing) {
-        return new Promise((resolve) => refreshSubscribers.push(resolve));
-      }
-      isRefreshing = true;
-      try {
-        const refreshResponse = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
-        if (refreshResponse.ok) {
-          const data = await refreshResponse.json();
-          // Set cookies from response body
-          if (data.access_token && data.refresh_token) {
+      if (refreshPromise) return refreshPromise;
+      refreshPromise = (async () => {
+        try {
+          const refreshResponse = await originalFetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
+          if (refreshResponse.ok) {
+            const data = await refreshResponse.json();
+            if (!data.access_token || !data.refresh_token) {
+              throw new Error("Refresh response did not contain both tokens.");
+            }
             document.cookie = "access_token=" + data.access_token + "; path=/; max-age=900";
             document.cookie = "refresh_token=" + data.refresh_token + "; path=/; max-age=604800";
+            console.log("[Session] Silent token refresh succeeded");
+            return true;
           }
-          console.log("[Session] Silent token refresh succeeded");
-          onRefreshSuccess();
-        } else {
           console.log("[Session] Silent refresh failed (" + refreshResponse.status + "), redirecting to login");
           window.location.href = "/login.html?error=session_expired&refresh=true";
+        } catch (err) {
+          console.log("[Session] Silent refresh error:", err);
+          window.location.href = "/login.html?error=session_expired&refresh=true";
         }
-      } catch (err) {
-        console.log("[Session] Silent refresh error:", err);
-        window.location.href = "/login.html?error=session_expired&refresh=true";
+        return false;
+      })();
+      try {
+        return await refreshPromise;
       } finally {
-        isRefreshing = false;
+        refreshPromise = null;
       }
     }
 
     async function requestJson(url, options = {}) {
       const response = await fetch(url, { cache: "no-store", credentials: "same-origin", ...options });
-      if (!response.ok) throw new Error(await responseError(response, "Request failed."));
+      if (!response.ok) {
+        const error = new Error(await responseError(response, "Request failed."));
+        error.status = response.status;
+        throw error;
+      }
       return response.json();
     }
 
@@ -1414,7 +1413,11 @@
         document.querySelector("#documents").files.length === 0;
     }
 
+    let logsPollingPaused = false;
+    let logsRequestInProgress = false;
     async function refreshLogs() {
+      if (logsPollingPaused || logsRequestInProgress) return;
+      logsRequestInProgress = true;
       try {
         const entries = await requestJson("/api/logs");
         document.querySelector("#log-state").textContent = "Live";
@@ -1436,8 +1439,17 @@
           container.append(line);
         }
         container.scrollTop = container.scrollHeight;
-      } catch {
+      } catch (error) {
         document.querySelector("#log-state").textContent = "Unavailable";
+        if (error.status === 401) {
+          logsPollingPaused = true;
+          if (await attemptRefresh()) {
+            logsPollingPaused = false;
+            window.setTimeout(refreshLogs, 0);
+          }
+        }
+      } finally {
+        logsRequestInProgress = false;
       }
     }
 

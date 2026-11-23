@@ -18,7 +18,6 @@ import org.springframework.security.web.server.authentication.ServerAuthenticati
 import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
-import reactor.util.context.Context
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.security.core.context.SecurityContextImpl
 
@@ -139,12 +138,18 @@ class JwtAuthenticationWebFilter(
 ) : org.springframework.web.server.WebFilter {
     override fun filter(exchange: ServerWebExchange, chain: org.springframework.web.server.WebFilterChain): Mono<Void> {
         return authenticationConverter.convert(exchange)
-            .flatMap { auth: Authentication ->
-                val securityContext = SecurityContextImpl(auth)
-                chain.filter(exchange).contextWrite { ctx: Context ->
-                    ctx.put("securityContext", securityContext)
+            .materialize()
+            .flatMap { signal ->
+                val downstream = chain.filter(exchange)
+                if (signal.hasValue()) {
+                    downstream.contextWrite(
+                        ReactiveSecurityContextHolder.withSecurityContext(
+                            Mono.just(SecurityContextImpl(signal.get()))
+                        )
+                    )
+                } else {
+                    downstream
                 }
             }
-            .switchIfEmpty(chain.filter(exchange))
     }
 }

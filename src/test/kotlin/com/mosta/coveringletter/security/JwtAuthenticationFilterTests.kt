@@ -9,6 +9,11 @@ import org.springframework.http.HttpCookie
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.ReactiveSecurityContextHolder
+import org.springframework.web.server.WebFilterChain
+import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class JwtAuthenticationFilterTests {
 
@@ -82,6 +87,42 @@ class JwtAuthenticationFilterTests {
 
         assertEquals("user1@example.com", result1?.name)
         assertEquals("user2@example.com", result2?.name)
+    }
+
+    @Test
+    fun `filter invokes downstream once and exposes valid JWT authentication`() {
+        val token = jwtService.generateAccessToken("test@example.com")
+        val exchange = createExchangeWithCookie(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, token)
+        val invocations = AtomicInteger()
+        val authenticatedName = AtomicReference<String>()
+        val filter = JwtAuthenticationWebFilter(converter)
+        val chain = WebFilterChain {
+            invocations.incrementAndGet()
+            ReactiveSecurityContextHolder.getContext()
+                .map { it.authentication?.name ?: error("Authentication missing from reactive context.") }
+                .doOnNext(authenticatedName::set)
+                .then()
+        }
+
+        filter.filter(exchange, chain).block()
+
+        assertEquals(1, invocations.get())
+        assertEquals("test@example.com", authenticatedName.get())
+    }
+
+    @Test
+    fun `filter invokes downstream once when JWT is missing`() {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/").build())
+        val invocations = AtomicInteger()
+        val filter = JwtAuthenticationWebFilter(converter)
+        val chain = WebFilterChain {
+            invocations.incrementAndGet()
+            Mono.empty()
+        }
+
+        filter.filter(exchange, chain).block()
+
+        assertEquals(1, invocations.get())
     }
 
     private fun createExchangeWithCookie(cookieName: String, cookieValue: String): MockServerWebExchange {
