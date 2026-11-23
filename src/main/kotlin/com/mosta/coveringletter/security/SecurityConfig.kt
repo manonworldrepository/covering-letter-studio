@@ -54,7 +54,8 @@ class SecurityConfig(
                     "/favicon.ico",
                     "/login/oauth2/code/*",
                     "/api/auth/refresh",
-                    "/api/auth/logout"
+                    "/api/auth/logout",
+                    "/api/session/heartbeat"
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }

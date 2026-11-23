@@ -39,7 +39,8 @@ class UserController(
             if (ctx.authentication != null) {
                 """{"status":"ok"}"""
             } else {
-                throw org.springframework.security.access.AccessDeniedException("Session expired")
+                // Return 401 so the frontend triggers silent token refresh
+                throw org.springframework.security.access.AccessDeniedException("No valid access token")
             }
         }
 
