@@ -811,13 +811,15 @@
 
     // Global fetch wrapper to intercept ALL 401 responses and trigger silent refresh
     const originalFetch = window.fetch;
+    let globalRefreshTriggered = false;
     window.fetch = async function(...args) {
       const response = await originalFetch.apply(this, args);
-      if (response.status === 401 && !args[0].toString().includes("/api/auth/refresh")) {
+      if (response.status === 401 && !args[0].toString().includes("/api/auth/refresh") && !globalRefreshTriggered) {
         console.log("[Session] Global fetch got 401 for:", args[0]);
+        globalRefreshTriggered = true;
         await attemptRefresh();
-        // Retry the original request with new tokens
-        return originalFetch.apply(this, args);
+        globalRefreshTriggered = false;
+        // Don't retry — let the next natural request use the new tokens
       }
       return response;
     };
