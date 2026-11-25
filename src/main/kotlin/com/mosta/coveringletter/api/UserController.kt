@@ -34,31 +34,46 @@ class UserController(
         }
 
     @GetMapping("/api/session/heartbeat")
-    fun heartbeat(exchange: ServerWebExchange, securityContext: Mono<SecurityContext>): Mono<Void> {
-        return securityContext.flatMap { ctx ->
-            if (ctx.authentication != null) {
-                exchange.response.statusCode = HttpStatus.OK
-                exchange.response.headers.contentType = MediaType.APPLICATION_JSON
-                exchange.response.writeWith(
-                    Mono.just(
-                        exchange.response.bufferFactory().wrap(
-                            """{"status":"ok"}""".toByteArray()
-                        )
-                    )
-                )
-            } else {
-                // Return 401 so the frontend triggers silent token refresh
-                exchange.response.statusCode = HttpStatus.UNAUTHORIZED
-                exchange.response.headers.contentType = MediaType.APPLICATION_JSON
-                exchange.response.writeWith(
-                    Mono.just(
-                        exchange.response.bufferFactory().wrap(
-                            """{"status":"unauthorized"}""".toByteArray()
-                        )
-                    )
-                )
-            }
+    fun heartbeat(exchange: ServerWebExchange): Mono<Void> {
+        // Read token directly from cookie/header without relying on SecurityContext
+        // This endpoint is permitAll() so SecurityContext may not be populated
+        val authHeader = exchange.request.headers.getFirst("Authorization")
+        val tokenFromHeader = if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            authHeader.substring(7)
+        } else {
+            null
         }
+        val token = tokenFromHeader
+            ?: exchange.request.cookies[JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE]?.firstOrNull()?.value
+            ?: return unauthorizedHeartbeat(exchange)
+
+        return jwtService.validateAccessToken(token)
+            .flatMap { _ ->
+                okHeartbeat(exchange)
+            }
+            .switchIfEmpty(unauthorizedHeartbeat(exchange))
+    }
+
+    private fun okHeartbeat(exchange: ServerWebExchange): Mono<Void> {
+        val response = exchange.response
+        response.statusCode = HttpStatus.OK
+        response.headers.contentType = MediaType.APPLICATION_JSON
+        return response.writeWith(
+            Mono.just(
+                response.bufferFactory().wrap("""{"status":"ok"}""".toByteArray())
+            )
+        )
+    }
+
+    private fun unauthorizedHeartbeat(exchange: ServerWebExchange): Mono<Void> {
+        val response = exchange.response
+        response.statusCode = HttpStatus.UNAUTHORIZED
+        response.headers.contentType = MediaType.APPLICATION_JSON
+        return response.writeWith(
+            Mono.just(
+                response.bufferFactory().wrap("""{"status":"unauthorized"}""".toByteArray())
+            )
+        )
     }
 
     @GetMapping("/api/auth/login-success")

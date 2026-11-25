@@ -2,11 +2,17 @@
 
 All notable changes to the Cover Letter Studio app are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Cloud Run deploy now supplies all environment variables in a single `--set-env-vars` assignment, preventing later flags from replacing earlier settings
+- Cloud Run requires a valid shared JWT key pair and fails startup for missing, invalid, or mismatched keys instead of generating per-instance keys
+
 ## [v3.3.0] - 2026-11-21
 
 ### Added
 - JWT-based authentication replacing server-side session management for silent session renewal on Cloud Run
-- `JwtService` — generates and validates RS256-signed JWT access tokens (15 min) and refresh tokens (7 days) with RSA key pair generated at startup
+- `JwtService` — generates and validates RS256-signed JWT access tokens (15 min) and refresh tokens (7 days), using a configured shared key pair on Cloud Run
 - `JwtAuthenticationConverter` — reads `access_token` HTTP-only cookie, validates JWT, and sets `SecurityContext`
 - `TokenResponse` DTO for token responses
 - `POST /api/auth/refresh` endpoint for silent token renewal — validates refresh token cookie and issues new JWT cookies
@@ -26,7 +32,7 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 - Authentication no longer depends on Cloud Run session lifetime — refresh tokens survive session expiration via HTTP-only cookies
 
 ### Notes
-- JWT key pair is generated at startup and not persisted, so tokens are invalidated on Cloud Run restarts. Users will re-authenticate via Google Sign-In after a restart.
+- Local development generates an ephemeral JWT key pair when no keys are configured; Cloud Run uses the configured shared key pair so tokens remain valid across instances and restarts.
 - Cookies use `SameSite=None; Secure` for cross-site compatibility on Cloud Run HTTPS.
 
 ## [v3.2.9] - 2026-11-21
@@ -95,8 +101,7 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 - Configured via `CLOUD_STORAGE_BUCKET` environment variable, enabled by default on `cloud` profile
 
 ### Fixed
-- GitHub Actions CI/CD workflow: split `--set-env-vars` into individual flags to prevent environment variable concatenation issues
-- Cloud Run deployment now correctly sets all environment variables (GEMINI_MODEL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, CLOUD_STORAGE_BUCKET)
+- GitHub Actions deployment supplies Cloud Run environment variables using a single `--set-env-vars` list, avoiding replacement of previously specified variables
 
 ### Changed
 - Updated `CLOUD_DEPLOYMENT.md` with Cloud Storage setup instructions and free tier information

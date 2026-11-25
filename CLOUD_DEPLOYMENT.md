@@ -46,17 +46,13 @@ gcloud run deploy coveringletter `
   --platform managed `
   --region us-central1 `
   --allow-unauthenticated `
-  --set-env-vars GEMINI_API_KEY="your-api-key-here" `
-  --set-env-vars GEMINI_MODEL="gemini-3.1-flash-lite" `
-  --set-env-vars CLOUD_STORAGE_BUCKET="PROJECT_ID-coveringletter-data" `
-  --set-env-vars JWT_PRIVATE_KEY_BASE64="base64-encoded-private-key" `
-  --set-env-vars JWT_PUBLIC_KEY_BASE64="base64-encoded-public-key" `
+  --set-env-vars "GEMINI_API_KEY=your-api-key-here,GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=your-client-id,GOOGLE_CLIENT_SECRET=your-client-secret,CLOUD_STORAGE_BUCKET=PROJECT_ID-coveringletter-data,JWT_PRIVATE_KEY_BASE64=base64-encoded-private-key,JWT_PUBLIC_KEY_BASE64=base64-encoded-public-key" `
   --memory 512Mi `
   --cpu 1 `
   --max-instances 2
 ```
 
-> **Important:** Use separate `--set-env-vars` flags for each variable. Comma-separated values can cause all variables to be merged into a single environment variable.
+> **Important:** `--set-env-vars` replaces the service's complete environment-variable set. Pass all variables in one comma-separated assignment, as above. To change only some variables later, use `--update-env-vars` so existing values are preserved.
 
 ### Security Note
 
@@ -70,7 +66,7 @@ gcloud run deploy coveringletter `
   --platform managed `
   --region us-central1 `
   --no-allow-unauthenticated `
-  --set-env-vars GEMINI_MODEL="gemini-3.1-flash-lite" `
+  --update-env-vars GEMINI_MODEL="gemini-3.1-flash-lite" `
   --memory 512Mi
 ```
 
@@ -91,12 +87,12 @@ The app requires these environment variables on Cloud Run:
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth2 client ID for Sign-In |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth2 client secret |
 | `CLOUD_STORAGE_BUCKET` | Yes | Cloud Storage bucket name for data persistence |
-| `JWT_PRIVATE_KEY_BASE64` | Yes (multi-instance) | Base64-encoded RSA private key for JWT signing (see below) |
-| `JWT_PUBLIC_KEY_BASE64` | Yes (multi-instance) | Base64-encoded RSA public key for JWT verification (see below) |
+| `JWT_PRIVATE_KEY_BASE64` | Yes | Base64-encoded RSA private key for JWT signing (see below) |
+| `JWT_PUBLIC_KEY_BASE64` | Yes | Base64-encoded RSA public key for JWT verification (see below) |
 
-### JWT Key Pair Generation (Required for Multi-Instance)
+### JWT Key Pair Generation (Required for Cloud Run)
 
-Cloud Run may scale to multiple instances. Each instance must share the same RSA key pair so that JWT tokens signed by one instance are valid on all instances. Without a shared key, you will see `401 Unauthorized` errors in an infinite refresh loop.
+Each Cloud Run instance must share the same RSA key pair so that JWT tokens signed by one instance are valid on all instances and across restarts. The cloud profile refuses to start when either key is missing or the configured pair is invalid, rather than silently generating per-instance keys that cause `401 Unauthorized` errors.
 
 **Generate the key pair:**
 
@@ -138,13 +134,13 @@ Set the encoded values as `JWT_PRIVATE_KEY_BASE64` and `JWT_PUBLIC_KEY_BASE64` e
 
 > **Security:** Keep the private key secret. Do not commit it to Git. After deployment, you can safely delete the `.pem` files locally.
 
-Set them via `gcloud run services update` (use separate `--set-env-vars` flags):
+Set them via `gcloud run services update`. Use `--update-env-vars` to preserve the other configured variables:
 
 ```powershell
 gcloud run services update coveringletter `
   --platform managed `
   --region us-central1 `
-  --set-env-vars GEMINI_API_KEY="your-new-key"
+  --update-env-vars "JWT_PRIVATE_KEY_BASE64=base64-encoded-private-key,JWT_PUBLIC_KEY_BASE64=base64-encoded-public-key"
 ```
 
 ## Data Persistence with Cloud Storage
@@ -169,7 +165,7 @@ Replace `YOUR_PROJECT_ID` with your GCP project ID (e.g., `manon-world-173794181
 gcloud run services update coveringletter `
   --platform managed `
   --region us-central1 `
-  --set-env-vars CLOUD_STORAGE_BUCKET="YOUR_PROJECT_ID-coveringletter-data"
+  --update-env-vars CLOUD_STORAGE_BUCKET="YOUR_PROJECT_ID-coveringletter-data"
 ```
 
 3. **Grant the Cloud Run service account permission to read/write the bucket:**
@@ -214,7 +210,7 @@ To disable sync (fall back to ephemeral local storage), set:
 gcloud run services update coveringletter `
   --platform managed `
   --region us-central1 `
-  --set-env-vars CLOUD_STORAGE_ENABLED="false"
+  --update-env-vars CLOUD_STORAGE_ENABLED="false"
 ```
 
 ## Free Tier Limits

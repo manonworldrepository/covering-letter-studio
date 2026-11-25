@@ -36,7 +36,9 @@ class JwtService(
     @Value("\${coverletter.jwt.private-key-base64:}")
     private val privateKeyBase64: String,
     @Value("\${coverletter.jwt.public-key-base64:}")
-    private val publicKeyBase64: String
+    private val publicKeyBase64: String,
+    @Value("\${coverletter.jwt.require-shared-key:false}")
+    private val requireSharedKey: Boolean = false
 ) {
 
     private lateinit var keyPair: KeyPair
@@ -46,20 +48,32 @@ class JwtService(
     private fun initializeKeyPair() {
         val hasPrivate = privateKeyBase64.isNotBlank()
         val hasPublic = publicKeyBase64.isNotBlank()
-        if (hasPrivate && hasPublic) {
-            try {
-                keyPair = loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
-                val pubFingerprint = Base64.getEncoder().encodeToString(keyPair.public.encoded).take(20)
-                log.info("JwtService: Loaded shared key pair. Public key fingerprint: {}", pubFingerprint)
-            } catch (e: Exception) {
-                log.error("JwtService: Failed to load shared key pair: {}. Generating random key.", e.message, e)
-                log.warn("JwtService: No shared JWT keys configured. On Cloud Run with multiple instances, this causes 401 errors.")
-                keyPair = generateKeyPair()
+        if (hasPrivate != hasPublic) {
+            throw IllegalStateException("Both JWT_PRIVATE_KEY_BASE64 and JWT_PUBLIC_KEY_BASE64 must be configured together.")
+        }
+
+        if (!hasPrivate) {
+            if (requireSharedKey) {
+                throw IllegalStateException("A shared JWT key pair is required by this deployment profile.")
             }
-        } else {
             log.warn("JwtService: No shared JWT keys configured (JWT_PRIVATE_KEY_BASE64 and JWT_PUBLIC_KEY_BASE64 are empty). Generating random key pair.")
             keyPair = generateKeyPair()
+            return
         }
+
+        val loadedKeyPair = try {
+            loadKeyPairFromBase64(privateKeyBase64, publicKeyBase64)
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to load configured shared JWT key pair.", e)
+        }
+        val privateKey = loadedKeyPair.private as RSAPrivateCrtKey
+        val publicKey = loadedKeyPair.public as RSAPublicKey
+        if (privateKey.modulus != publicKey.modulus) {
+            throw IllegalStateException("Configured JWT public and private keys do not match.")
+        }
+        keyPair = loadedKeyPair
+        val pubFingerprint = Base64.getEncoder().encodeToString(keyPair.public.encoded).take(20)
+        log.info("JwtService: Loaded shared key pair. Public key fingerprint: {}", pubFingerprint)
     }
 
     @PostConstruct

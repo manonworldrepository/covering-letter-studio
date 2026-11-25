@@ -7,5 +7,7 @@ spring:
       on-profile: cloud
 
 coverletter:
+  jwt:
+    require-shared-key: true
   cloud-storage:
     enabled: true

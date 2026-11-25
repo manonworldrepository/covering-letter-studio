@@ -2669,10 +2669,13 @@
         });
     }
 
-    // Check session immediately when the page becomes visible (e.g., after PC wakes from sleep)
+    let sessionTabWasHidden = false;
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        checkSession();
+      if (document.visibilityState === "hidden") {
+        sessionTabWasHidden = true;
+      } else if (sessionTabWasHidden) {
+        sessionTabWasHidden = false;
+        attemptRefresh();
       }
     });
 

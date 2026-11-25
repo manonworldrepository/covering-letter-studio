@@ -1,6 +1,9 @@
 package com.mosta.coveringletter.security
 
+import java.security.KeyPairGenerator
+import java.util.Base64
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -133,16 +136,56 @@ class JwtServiceTests {
     }
 
     @Test
+    fun `partial shared key configuration fails instead of generating a random key`() {
+        val keyPair = encodedKeyPair()
+
+        assertThrows(IllegalStateException::class.java) {
+            JwtService(900, 604800, keyPair.first, "").init()
+        }
+    }
+
+    @Test
+    fun `invalid shared key configuration fails instead of generating a random key`() {
+        assertThrows(IllegalStateException::class.java) {
+            JwtService(900, 604800, "invalid", "invalid").init()
+        }
+    }
+
+    @Test
+    fun `mismatched shared public and private keys fail initialization`() {
+        val signingKeys = encodedKeyPair()
+        val verificationKeys = encodedKeyPair()
+
+        assertThrows(IllegalStateException::class.java) {
+            JwtService(900, 604800, signingKeys.first, verificationKeys.second).init()
+        }
+    }
+
+    @Test
+    fun `required shared key pair fails initialization when missing`() {
+        assertThrows(IllegalStateException::class.java) {
+            JwtService(900, 604800, "", "", requireSharedKey = true).init()
+        }
+    }
+
+    @Test
+    fun `matching shared key pair signs and validates tokens`() {
+        val keys = encodedKeyPair()
+        val service = JwtService(900, 604800, keys.first, keys.second).also { it.init() }
+
+        val token = service.generateAccessToken("test@example.com")
+        assertEquals("test@example.com", service.validateAccessToken(token).block())
+    }
+
+    @Test
     fun `shared key pair from base64 loads correctly and validates tokens`() {
-        // Use the actual keys from the deployment plan to verify they work
-        val privateKeyB64 = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCVljU8eHkRoLw3SQkPdD3EH3bq5B/LBu9x/dJSRWf6uqoCH7R+75yjnrGA8+kdjlErXDvpYke5QAGaGhFNvbX+t+AWBqTMSDqLL9e/sCnw1+mBbyHPkg+WppTPuW1BO9nkS4pqwKZGs8ET67os8u8L46AQKCnaCaJswwTKxfQ46eclEQ57Whpse3i7AjiXeEWHaMZR9skPeogXPqlQXr1ZNAo2xX7xPAKzisYuOe+rUhIGtVQyO1zjWoQxWkrsnlTlVfvPAWpUecHLVsadKjRXwdQPUK1TUu2CAbEyCOl6ywqHUI8Tk9GmcD7bUHFbeH4DKzGeKSiUUljJMGmKfeslAgMBAAECggEACHfnTflAsAufoX5G1Iikods+0gprIFp6qMM7/8CtI8fN2G6aEHZD3GF0tBOwNqZNbb0m084RYxPpY04m0ktd/RcaHl/EPvUMghUJy5t6AbKqJf6NdUupX+0l+eKJ+bTyihbwCvNwFmBBGyhvsvFn22OeC/wcw8Vi3BxoQ4sptHph8N5ZJNKl/FNL+yLnYwV25JeqqEilILoXOTRk9xwh1djbREEEIck3slj9i/FvKGM+jdkRpaTDVH9u9wO5IKep9el0ra+J0sRssUZlXljZvEMsxNff8KHDZf+VOsnyPBQ2Ii0tFfcX913sLskf/jkhNhNkpNaooNv+VRcHa7DSSwKBgQDI+P5p44Kp+j0DqcAQIXvSZhe5c0mGpSZ+TptXQ08u68DERkIpBRb/zFk/dg60snqLLF5NpxHevlyZyRslCgYwcB4vG1buKnFtF/iJAb1GcAuikhrL5M93Q1DKIPckbzpNfe97JhhVTnpgSB3TE+DqGvC01AT4zfmFMCDNLCBPGwKBgQC+i11D4N50tuzSNcFy/0J0qs5BfEYlSImzSKuK8N4iKDgNXRxCE2GYHDfeuLL92cadSGuZauZEFhqw6UBeYZdIj/vsuxpbEb00X0Bjb8eWzu9+zUk9CimfUOtxzJkiQBnNjusGQYjUkuTM0+Xq4TMhYGsmyeP2N2T4ADyHYKkSvwKBgHmelPengq8yjDHnTB924+PTfI/xwJEG6GCPWVpZlVWjvagJjIgeWGi8VVYeL5ASYi5Oz1LWw+2z7X3zQcYMZupxLxL6zISckr+ePf1LXCuAKspa+HRjJ1nZFs77XBRkazfx+jbgOuGE+HHDsqjF4tpJK1mC5O9cVp/PHEqNZY/5AoGBAKZGq36ebsHfF05hRoz5n557pz2SGwxR/ogLNFcs1ktsWW2gARbQHuxEQ6UB/IB1WFLMbckVdheYSnZzNY6nDwNtUmRE6jzqf/eB34hmdP9vWaOHtQ+lHKlAThWie0deNKYiv4lYCvWlsi/kAdEz8BCCOT9CEsI7mMqqOifQ+/m1AoGALHrZgZ0Rz4HoMWNShTnHOUGw4ahVu7oQBwt5Y0ADcP791LzQi3zDMbCiDmfLsJ+FkfZoVDUWWVrJVyORe7NAtaHUmWkrmy9zIgqIh/kW/J/Dhd38zDkIxss2FHIJ1w4FBR5XEOY4O0hSe6jlEq36mh4JN7Gd+L7Mn3WFdVSdlKs="
-        val publicKeyB64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlZY1PHh5EaC8N0kJD3Q9xB926uQfywbvcf3SUkVn+rqqAh+0fu+co56xgPPpHY5RK1w76WJHuUABmhoRTb21/rfgFgakzEg6iy/Xv7Ap8NfpgW8hz5IPlqaUz7ltQTvZ5EuKasCmRrPBE+u6LPLvC+OgECgp2gmibMMEysX0OOnnJREOe1oabHt4uwI4l3hFh2jGUfbJD3qIFz6pUF69WTQKNsV+8TwCs4rGLjnvq1ISBrVUMjtc41qEMVpK7J5U5VX7zwFqVHnBy1bGnSo0V8HUD1CtU1LtggGxMgjpessKh1CPE5PRpnA+21BxW3h+AysxnikolFJYyTBpin3rJQIDAQAB"
+        val keys = encodedKeyPair()
 
         val service = JwtService(
             accessTokenValiditySeconds = 900,
             refreshTokenValiditySeconds = 604800,
-            privateKeyBase64 = privateKeyB64,
-            publicKeyBase64 = publicKeyB64
+            privateKeyBase64 = keys.first,
+            publicKeyBase64 = keys.second
         ).also { it.init() }
 
         // Generate and validate an access token
@@ -155,8 +198,9 @@ class JwtServiceTests {
     @Test
     fun `shared key pair with newlines in base64 still works`() {
         // Simulate Cloud Run storing base64 with line breaks (YAML block scalar format)
-        val privateKeyB64 = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCVljU8eHkRoLw3SQkPdD3EH3bq5B/LBu9x/dJSRWf6uqoCH7R+75yjnrGA8+kdjlErXDvpYke5QAGaGhFNvbX+t+AWBqTMSDqLL9e/sCnw1+mBbyHPkg+WppTPuW1BO9nkS4pqwKZGs8ET67os8u8L46AQKCnaCaJswwTKxfQ46eclEQ57Whpse3i7AjiXeEWHaMZR9skPeogXPqlQXr1ZNAo2xX7xPAKzisYuOe+rUhIGtVQyO1zjWoQxWkrsnlTlVfvPAWpUecHLVsadKjRXwdQPUK1TUu2CAbEyCOl6ywqHUI8Tk9GmcD7bUHFbeH4DKzGeKSiUUljJMGmKfeslAgMBAAECggEACHfnTflAsAufoX5G1Iikods+0gprIFp6qMM7/8CtI8fN2G6aEHZD3GF0tBOwNqZNbb0m084RYxPpY04m0ktd/RcaHl/EPvUMghUJy5t6AbKqJf6NdUupX+0l+eKJ+bTyihbwCvNwFmBBGyhvsvFn22OeC/wcw8Vi3BxoQ4sptHph8N5ZJNKl/FNL+yLnYwV25JeqqEilILoXOTRk9xwh1djbREEEIck3slj9i/FvKGM+jdkRpaTDVH9u9wO5IKep9el0ra+J0sRssUZlXljZvEMsxNff8KHDZf+VOsnyPBQ2Ii0tFfcX913sLskf/jkhNhNkpNaooNv+VRcHa7DSSwKBgQDI+P5p44Kp+j0DqcAQIXvSZhe5c0mGpSZ+TptXQ08u68DERkIpBRb/zFk/dg60snqLLF5NpxHevlyZyRslCgYwcB4vG1buKnFtF/iJAb1GcAuikhrL5M93Q1DKIPckbzpNfe97JhhVTnpgSB3TE+DqGvC01AT4zfmFMCDNLCBPGwKBgQC+i11D4N50tuzSNcFy/0J0qs5BfEYlSImzSKuK8N4iKDgNXRxCE2GYHDfeuLL92cadSGuZauZEFhqw6UBeYZdIj/vsuxpbEb00X0Bjb8eWzu9+zUk9CimfUOtxzJkiQBnNjusGQYjUkuTM0+Xq4TMhYGsmyeP2N2T4ADyHYKkSvwKBgHmelPengq8yjDHnTB924+PTfI/xwJEG6GCPWVpZlVWjvagJjIgeWGi8VVYeL5ASYi5Oz1LWw+2z7X3zQcYMZupxLxL6zISckr+ePf1LXCuAKspa+HRjJ1nZFs77XBRkazfx+jbgOuGE+HHDsqjF4tpJK1mC5O9cVp/PHEqNZY/5AoGBAKZGq36ebsHfF05hRoz5n557pz2SGwxR/ogLNFcs1ktsWW2gARbQHuxEQ6UB/IB1WFLMbckVdheYSnZzNY6nDwNtUmRE6jzqf/eB34hmdP9vWaOHtQ+lHKlAThWie0deNKYiv4lYCvWlsi/kAdEz8BCCOT9CEsI7mMqqOifQ+/m1AoGALHrZgZ0Rz4HoMWNShTnHOUGw4ahVu7oQBwt5Y0ADcP791LzQi3zDMbCiDmfLsJ+FkfZoVDUWWVrJVyORe7NAtaHUmWkrmy9zIgqIh/kW/J/Dhd38zDkIxss2FHIJ1w4FBR5XEOY4O0hSe6jlEq36mh4JN7Gd+L7Mn3WFdVSdlKs="
-        val publicKeyB64 = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlZY1PHh5EaC8N0kJD3Q9xB926uQfywbvcf3SUkVn+rqqAh+0fu+co56xgPPpHY5RK1w76WJHuUABmhoRTb21/rfgFgakzEg6iy/Xv7Ap8NfpgW8hz5IPlqaUz7ltQTvZ5EuKasCmRrPBE+u6LPLvC+OgECgp2gmibMMEysX0OOnnJREOe1oabHt4uwI4l3hFh2jGUfbJD3qIFz6pUF69WTQKNsV+8TwCs4rGLjnvq1ISBrVUMjtc41qEMVpK7J5U5VX7zwFqVHnBy1bGnSo0V8HUD1CtU1LtggGxMgjpessKh1CPE5PRpnA+21BxW3h+AysxnikolFJYyTBpin3rJQIDAQAB"
+        val keys = encodedKeyPair()
+        val privateKeyB64 = keys.first.chunked(64).joinToString("\n")
+        val publicKeyB64 = keys.second.chunked(64).joinToString("\n")
 
         val service = JwtService(
             accessTokenValiditySeconds = 900,
@@ -168,5 +212,11 @@ class JwtServiceTests {
         val token = service.generateAccessToken("test@example.com")
         val email = service.validateAccessToken(token).block()
         assertEquals("test@example.com", email, "Token should validate with shared key pair")
+    }
+
+    private fun encodedKeyPair(): Pair<String, String> {
+        val keyPair = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
+        return Base64.getEncoder().encodeToString(keyPair.private.encoded) to
+            Base64.getEncoder().encodeToString(keyPair.public.encoded)
     }
 }
