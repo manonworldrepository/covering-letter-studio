@@ -5,6 +5,9 @@ import com.mosta.coveringletter.security.JwtService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.http.HttpStatus
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.context.SecurityContext
@@ -88,6 +91,42 @@ class UserControllerTests {
 
 		assertEquals("simple@example.com", result?.email)
 		assertEquals("simple@example.com", result?.name)
+	}
+
+	@Test
+	fun `successful token refresh does not log a refresh failure`() {
+		val controller = UserController(jwtService, userActions)
+		val refreshToken = jwtService.generateRefreshToken("test@example.com")
+		val exchange = createRefreshExchange(refreshToken)
+
+		controller.refreshTokens(exchange).block()
+
+		assertEquals(HttpStatus.OK, exchange.response.statusCode)
+		assertEquals(
+			listOf("Token refresh attempted", "Token refreshed successfully"),
+			userActions.latest().map { it.action }
+		)
+	}
+
+	@Test
+	fun `invalid refresh token logs failure and returns unauthorized`() {
+		val controller = UserController(jwtService, userActions)
+		val exchange = createRefreshExchange("invalid-refresh-token")
+
+		controller.refreshTokens(exchange).block()
+
+		assertEquals(HttpStatus.UNAUTHORIZED, exchange.response.statusCode)
+		assertEquals(
+			listOf("Token refresh attempted", "Token refresh failed: refresh token expired"),
+			userActions.latest().map { it.action }
+		)
+	}
+
+	private fun createRefreshExchange(refreshToken: String): MockServerWebExchange {
+		val request = MockServerHttpRequest.post("/api/auth/refresh")
+			.header("Authorization", "Bearer $refreshToken")
+			.build()
+		return MockServerWebExchange.builder(request).build()
 	}
 
 	private fun createMockOAuth2User(email: String, name: String?, givenName: String?): OAuth2User {

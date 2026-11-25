@@ -110,10 +110,7 @@ class UserController(
         userActions.record("Token refresh attempted")
 
         return jwtService.validateRefreshToken(refreshToken)
-            .flatMap { email ->
-                Mono.just<Pair<String, String>>(email to jwtService.generateRefreshToken(email))
-            }
-            .switchIfEmpty(Mono.empty())
+            .map { email -> email to jwtService.generateRefreshToken(email) }
             .flatMap { (email, newRefreshToken) ->
                 val newAccessToken = jwtService.generateAccessToken(email)
                 val response = exchange.response
@@ -130,8 +127,12 @@ class UserController(
                         )
                     )
                 )
+                    .thenReturn(Unit)
             }
-            .switchIfEmpty(unauthorizedResponseWithLog(exchange))
+            .switchIfEmpty(Mono.defer {
+                unauthorizedResponseWithLog(exchange).thenReturn(Unit)
+            })
+            .then()
     }
 
     private fun unauthorizedResponseWithLog(exchange: ServerWebExchange): Mono<Void> {
