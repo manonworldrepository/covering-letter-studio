@@ -4,6 +4,11 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.15] - 2026-11-27
+
+### Fixed
+- Upgraded GitHub Actions used by the Cloud Run deployment workflow to Node.js 24-compatible releases, removing Node.js 20 deprecation warnings
+
 ## [v3.3.14] - 2026-11-27
 
 ### Changed
