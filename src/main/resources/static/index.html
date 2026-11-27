@@ -195,6 +195,7 @@
     .confirm-dialog p { margin: 0 0 22px; color: #59667e; font-size: 14px; line-height: 1.5; }
     .confirm-dialog .confirm-actions { display: flex; justify-content: center; gap: 12px; }
     .confirm-dialog .confirm-actions button { width: auto; max-width: none; flex: 0 0 auto; padding: 8px 28px; font-size: 14px; }
+    .duplicate-job-modal { z-index: 10; }
   </style>
 </head>
 <body>
@@ -596,6 +597,15 @@
       </div>
     </div>
   </div>
+  <div class="modal-backdrop duplicate-job-modal" id="duplicate-applied-job-modal" hidden>
+    <section class="card modal confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="duplicate-applied-job-title">
+      <h2 id="duplicate-applied-job-title">Already applied</h2>
+      <p>You have already applied for this job.</p>
+      <div class="confirm-actions">
+        <button class="primary" id="duplicate-applied-job-ok" type="button">OK</button>
+      </div>
+    </section>
+  </div>
   <script>
     const setup = document.querySelector("#setup");
     const workspace = document.querySelector("#workspace");
@@ -648,6 +658,22 @@
     let documentViewerCurrentText = "";
     let documentViewerRawUrl = "";
     let documentViewerDownloadFilename = "";
+    const duplicateAppliedJobModal = document.querySelector("#duplicate-applied-job-modal");
+    const duplicateAppliedJobOk = document.querySelector("#duplicate-applied-job-ok");
+    let duplicateAppliedJobModalReturnFocus = null;
+
+    function showDuplicateAppliedJobModal() {
+      duplicateAppliedJobModalReturnFocus = document.activeElement;
+      duplicateAppliedJobModal.hidden = false;
+      duplicateAppliedJobOk.focus();
+    }
+
+    duplicateAppliedJobOk.addEventListener("click", () => {
+      duplicateAppliedJobModal.hidden = true;
+      if (duplicateAppliedJobModalReturnFocus && !duplicateAppliedJobModalReturnFocus.disabled) {
+        duplicateAppliedJobModalReturnFocus.focus();
+      }
+    });
 
     generationFormat.addEventListener("change", () => {
       const motivationMessage = generationFormat.value === "motivation-message";
@@ -2242,6 +2268,7 @@
         detectedJobTitle = body.jobTitle;
         detectedApplicantName = body.applicantName;
         detectedCompanyName = body.companyName || "";
+        await refreshAppliedJobButtons("cover-letter");
         document.querySelector("#detected-details").textContent =
           `Resume name: ${detectedApplicantName}${detectedCompanyName ? ` · Company: ${detectedCompanyName}` : ""} · Detected job title: ${detectedJobTitle}`;
         result.hidden = false;
@@ -2284,6 +2311,7 @@
         tailoredResumeJobTitle = body.jobTitle;
         tailoredResumeApplicantName = body.applicantName;
         tailoredResumeCompanyName = body.companyName || "";
+        await refreshAppliedJobButtons("resume-tailoring");
         document.querySelector("#tailored-resume-details").textContent =
           `Resume name: ${tailoredResumeApplicantName}${tailoredResumeCompanyName ? ` · Company: ${tailoredResumeCompanyName}` : ""} · Tailored for: ${tailoredResumeJobTitle}`;
         tailoredResumeResult.hidden = false;
@@ -2496,9 +2524,11 @@
       navResumeTailoring.classList.toggle("active", page === "resume-tailoring");
       navAppliedJobs.classList.toggle("active", page === "applied-jobs");
       if (page === "cover-letter") {
+        refreshAppliedJobButtons("cover-letter");
         return;
       }
       if (page === "resume-tailoring") {
+        refreshAppliedJobButtons("resume-tailoring");
         return;
       } else if (page === "applied-jobs") {
         loadAppliedJobs();
@@ -2731,6 +2761,59 @@
 
     const addAppliedJobBtn = document.querySelector("#add-applied-job");
     const addAppliedJobOriginalText = addAppliedJobBtn.textContent;
+    const addTailoredAppliedJobBtn = document.querySelector("#add-tailored-applied-job");
+    const addTailoredAppliedJobOriginalText = addTailoredAppliedJobBtn.textContent;
+    let appliedJobsForDuplicateCheck = [];
+
+    function normalizeAppliedJobField(value) {
+      return String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+    }
+
+    function isAlreadyApplied(company, jobTitle, jobDescription) {
+      if (!company.trim() || !jobTitle.trim()) return false;
+      const normalizedCompany = normalizeAppliedJobField(company);
+      const normalizedJobTitle = normalizeAppliedJobField(jobTitle);
+      const normalizedJobDescription = normalizeAppliedJobField(jobDescription);
+      return appliedJobsForDuplicateCheck.some((job) =>
+        normalizeAppliedJobField(job.company) === normalizedCompany &&
+        normalizeAppliedJobField(job.jobTitle) === normalizedJobTitle &&
+        normalizeAppliedJobField(job.jobDescription) === normalizedJobDescription
+      );
+    }
+
+    function updateAppliedJobButtons() {
+      const coverLetterDuplicate = isAlreadyApplied(detectedCompanyName, detectedJobTitle, jobDescription.value);
+      const tailoredResumeDuplicate = isAlreadyApplied(tailoredResumeCompanyName, tailoredResumeJobTitle, resumeTailoringJob.value);
+      addAppliedJobBtn.disabled = coverLetterDuplicate;
+      addAppliedJobBtn.textContent = coverLetterDuplicate ? "Already applied" : addAppliedJobOriginalText;
+      addAppliedJobBtn.title = coverLetterDuplicate ? "This job is already in your applied jobs." : "";
+      addTailoredAppliedJobBtn.disabled = tailoredResumeDuplicate;
+      addTailoredAppliedJobBtn.textContent = tailoredResumeDuplicate ? "Already applied" : addTailoredAppliedJobOriginalText;
+      addTailoredAppliedJobBtn.title = tailoredResumeDuplicate ? "This job is already in your applied jobs." : "";
+      return { coverLetterDuplicate, tailoredResumeDuplicate };
+    }
+
+    async function refreshAppliedJobButtons(showDuplicateMessageFor = null) {
+      try {
+        appliedJobsForDuplicateCheck = await requestJson("/api/applied-jobs");
+      } catch {
+        appliedJobsForDuplicateCheck = [];
+      }
+      const duplicateStates = updateAppliedJobButtons();
+      const activePageHasDuplicate = showDuplicateMessageFor === "cover-letter"
+        ? duplicateStates.coverLetterDuplicate
+        : showDuplicateMessageFor === "resume-tailoring" && duplicateStates.tailoredResumeDuplicate;
+      if (activePageHasDuplicate) showDuplicateAppliedJobModal();
+      return duplicateStates;
+    }
+
+    function rememberAppliedJob(job) {
+      appliedJobsForDuplicateCheck.push(job);
+      updateAppliedJobButtons();
+    }
+
+    jobDescription.addEventListener("input", updateAppliedJobButtons);
+    resumeTailoringJob.addEventListener("input", updateAppliedJobButtons);
 
     async function downloadSingleJobPdf(id, button, originalText) {
       button.textContent = "Loading...";
@@ -2791,48 +2874,52 @@
       }
     });
 
-    addAppliedJobBtn.addEventListener("click", async () => {
-      const company = detectedCompanyName.trim();
-      const jobTitle = detectedJobTitle.trim();
-      const jobDesc = jobDescription.value.trim();
+    async function addAppliedJob(button, originalText, company, jobTitle, jobDescription, missingMessage) {
       if (!company || !jobTitle) {
-        showButtonMessage(addAppliedJobBtn, "Generate a letter first", 3000, addAppliedJobOriginalText);
+        showButtonMessage(button, missingMessage, 3000, originalText);
         return;
       }
+      const appliedJob = { company, jobTitle, jobDescription };
+      button.disabled = true;
       try {
         await requestJson("/api/applied-jobs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ company, jobTitle, jobDescription: jobDesc })
+          body: JSON.stringify(appliedJob)
         });
-        showButtonMessage(addAppliedJobBtn, "Added!", 2000, addAppliedJobOriginalText);
+        rememberAppliedJob(appliedJob);
         await recordUserAction(`Added ${jobTitle} at ${company} to applied jobs`);
       } catch (error) {
-        showButtonMessage(addAppliedJobBtn, error.message || "Failed to add", 3000, addAppliedJobOriginalText);
+        if (error.status === 409) {
+          rememberAppliedJob(appliedJob);
+          showDuplicateAppliedJobModal();
+          return;
+        }
+        button.disabled = false;
+        showButtonMessage(button, error.message || "Failed to add", 3000, originalText);
       }
+    }
+
+    addAppliedJobBtn.addEventListener("click", () => {
+      addAppliedJob(
+        addAppliedJobBtn,
+        addAppliedJobOriginalText,
+        detectedCompanyName.trim(),
+        detectedJobTitle.trim(),
+        jobDescription.value.trim(),
+        "Generate a letter first"
+      );
     });
 
-    const addTailoredAppliedJobBtn = document.querySelector("#add-tailored-applied-job");
-    const addTailoredAppliedJobOriginalText = addTailoredAppliedJobBtn.textContent;
-    addTailoredAppliedJobBtn.addEventListener("click", async () => {
-      const company = tailoredResumeCompanyName.trim();
-      const jobTitle = tailoredResumeJobTitle.trim();
-      const jobDesc = resumeTailoringJob.value.trim();
-      if (!company || !jobTitle) {
-        showButtonMessage(addTailoredAppliedJobBtn, "Tailor a resume first", 3000, addTailoredAppliedJobOriginalText);
-        return;
-      }
-      try {
-        await requestJson("/api/applied-jobs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ company, jobTitle, jobDescription: jobDesc })
-        });
-        showButtonMessage(addTailoredAppliedJobBtn, "Added!", 2000, addTailoredAppliedJobOriginalText);
-        await recordUserAction(`Added ${jobTitle} at ${company} to applied jobs`);
-      } catch (error) {
-        showButtonMessage(addTailoredAppliedJobBtn, error.message || "Failed to add", 3000, addTailoredAppliedJobOriginalText);
-      }
+    addTailoredAppliedJobBtn.addEventListener("click", () => {
+      addAppliedJob(
+        addTailoredAppliedJobBtn,
+        addTailoredAppliedJobOriginalText,
+        tailoredResumeCompanyName.trim(),
+        tailoredResumeJobTitle.trim(),
+        resumeTailoringJob.value.trim(),
+        "Tailor a resume first"
+      );
     });
 
     function checkSession() {

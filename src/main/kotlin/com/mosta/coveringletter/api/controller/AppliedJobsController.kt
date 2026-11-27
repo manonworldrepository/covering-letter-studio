@@ -3,6 +3,7 @@ package com.mosta.coveringletter.api.controller
 import com.mosta.coveringletter.appliedjobs.AddAppliedJobRequest
 import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import com.mosta.coveringletter.appliedjobs.AppliedJobStore
+import com.mosta.coveringletter.appliedjobs.DuplicateAppliedJobException
 import com.mosta.coveringletter.pdf.AppliedJobsPdfGenerator
 import jakarta.validation.Valid
 import org.springframework.http.HttpHeaders
@@ -27,7 +28,11 @@ class AppliedJobsController(
 ) {
     @PostMapping("/api/applied-jobs", consumes = [MediaType.APPLICATION_JSON_VALUE])
     fun add(@Valid @RequestBody request: AddAppliedJobRequest) =
-        store.add(request.company, request.jobTitle, request.jobDescription)
+        try {
+            store.add(request.company, request.jobTitle, request.jobDescription)
+        } catch (exception: DuplicateAppliedJobException) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, exception.message)
+        }
 
     @GetMapping("/api/applied-jobs")
     fun list(

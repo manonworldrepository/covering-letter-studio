@@ -44,6 +44,20 @@ class AppliedJobsControllerTests {
         assertTrue(job.id.isNotEmpty())
     }
 
+    @Test
+    fun `add returns conflict for an already applied job`() {
+        val request = AddAppliedJobRequest("Acme Corp", "Software Engineer", "Build things")
+        controller.add(request)
+
+        val exception = assertThrows(ResponseStatusException::class.java) {
+            controller.add(request)
+        }
+
+        assertEquals(HttpStatus.CONFLICT, exception.statusCode)
+        assertEquals("You have already applied for this job.", exception.reason)
+        assertEquals(1, controller.list("", "date", "desc", null, null).size)
+    }
+
 
     @Test
     fun `list returns all added jobs`() {

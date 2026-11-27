@@ -3,6 +3,7 @@ package com.mosta.coveringletter.appliedjobs
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -31,6 +32,29 @@ class AppliedJobStoreTests {
         val jobs = store.list()
         assertEquals(1, jobs.size)
         assertEquals(job.id, jobs.single().id)
+    }
+
+    @Test
+    fun `rejects duplicate company title and description`() {
+        val store = store()
+        store.add("Acme Corp", "Software Engineer", "Build great things")
+
+        assertThrows(DuplicateAppliedJobException::class.java) {
+            store.add(" acme corp ", "software engineer", "Build   great\nthings")
+        }
+        assertEquals(1, store.list().size)
+    }
+
+    @Test
+    fun `allows entries when company title or description differs`() {
+        val store = store()
+        store.add("Acme Corp", "Software Engineer", "Build great things")
+
+        store.add("Other Corp", "Software Engineer", "Build great things")
+        store.add("Acme Corp", "Designer", "Build great things")
+        store.add("Acme Corp", "Software Engineer", "Build different things")
+
+        assertEquals(4, store.list().size)
     }
 
     @Test

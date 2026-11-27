@@ -18,9 +18,20 @@ class AppliedJobStore(private val dataDir: String = ".data") {
         cleanupExpired()
     }
 
+    @Synchronized
     fun add(company: String, jobTitle: String, jobDescription: String): AppliedJob {
         require(company.isNotBlank()) { "Company name is required" }
         require(jobTitle.isNotBlank()) { "Job title is required" }
+
+        val normalizedCompany = normalizeForDuplicateCheck(company)
+        val normalizedJobTitle = normalizeForDuplicateCheck(jobTitle)
+        val normalizedJobDescription = normalizeForDuplicateCheck(jobDescription)
+        val alreadyAdded = loadAll().any { job ->
+            normalizeForDuplicateCheck(job.company) == normalizedCompany &&
+                normalizeForDuplicateCheck(job.jobTitle) == normalizedJobTitle &&
+                normalizeForDuplicateCheck(job.jobDescription) == normalizedJobDescription
+        }
+        if (alreadyAdded) throw DuplicateAppliedJobException()
 
         val id = UUID.randomUUID().toString()
         val now = LocalDateTime.now()
@@ -37,6 +48,9 @@ class AppliedJobStore(private val dataDir: String = ".data") {
         file.writeText(serialize(job))
         return job
     }
+
+    private fun normalizeForDuplicateCheck(value: String): String =
+        value.trim().replace(Regex("\\s+"), " ").lowercase()
 
     fun list(
         search: String = "",

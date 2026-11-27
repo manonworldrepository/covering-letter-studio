@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
-import org.springframework.http.ResponseCookie
 import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.AuthenticationException
@@ -45,8 +44,6 @@ class SecurityConfig(
                 auth.pathMatchers(
                     "/login",
                     "/login.html",
-                    "/privacy.html",
-                    "/terms.html",
                     "/error",
                     "/favicon.ico",
                     "/login/oauth2/code/*",
@@ -154,9 +151,10 @@ class JwtAuthenticationWebFilter(
             .flatMap { signal ->
                 val downstream = chain.filter(exchange)
                 if (signal.hasValue()) {
+                    val authentication = signal.get() ?: return@flatMap downstream
                     downstream.contextWrite(
                         ReactiveSecurityContextHolder.withSecurityContext(
-                            Mono.just(SecurityContextImpl(signal.get()))
+                            Mono.just(SecurityContextImpl(authentication))
                         )
                     )
                 } else {
