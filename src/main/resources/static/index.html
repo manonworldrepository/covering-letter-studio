@@ -437,6 +437,7 @@
         <div class="actions">
           <button class="primary" id="download-tailored-resume" type="button">Download PDF</button>
           <button class="secondary" id="copy-tailored-resume" type="button">Copy text</button>
+          <button class="secondary" id="add-tailored-applied-job" type="button">Add to applied jobs</button>
           <button class="secondary" id="tailor-another-resume" type="button">Tailor another role</button>
         </div>
       </section>
@@ -2808,6 +2809,29 @@
         await recordUserAction(`Added ${jobTitle} at ${company} to applied jobs`);
       } catch (error) {
         showButtonMessage(addAppliedJobBtn, error.message || "Failed to add", 3000, addAppliedJobOriginalText);
+      }
+    });
+
+    const addTailoredAppliedJobBtn = document.querySelector("#add-tailored-applied-job");
+    const addTailoredAppliedJobOriginalText = addTailoredAppliedJobBtn.textContent;
+    addTailoredAppliedJobBtn.addEventListener("click", async () => {
+      const company = tailoredResumeCompanyName.trim();
+      const jobTitle = tailoredResumeJobTitle.trim();
+      const jobDesc = resumeTailoringJob.value.trim();
+      if (!company || !jobTitle) {
+        showButtonMessage(addTailoredAppliedJobBtn, "Tailor a resume first", 3000, addTailoredAppliedJobOriginalText);
+        return;
+      }
+      try {
+        await requestJson("/api/applied-jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ company, jobTitle, jobDescription: jobDesc })
+        });
+        showButtonMessage(addTailoredAppliedJobBtn, "Added!", 2000, addTailoredAppliedJobOriginalText);
+        await recordUserAction(`Added ${jobTitle} at ${company} to applied jobs`);
+      } catch (error) {
+        showButtonMessage(addTailoredAppliedJobBtn, error.message || "Failed to add", 3000, addTailoredAppliedJobOriginalText);
       }
     });
 
