@@ -283,7 +283,16 @@ class ControllerActionLoggingAspectTests {
 
 		val entries = logs.latest()
 		assertEquals(1, entries.size)
-		assertEquals("Updated Gemini API settings", entries.single().action)
+		assertEquals("Updated application settings", entries.single().action)
+	}
+
+	@Test
+	fun `logResetSettings records reset message`() {
+		aspect.logResetSettings()
+
+		val entries = logs.latest()
+		assertEquals(1, entries.size)
+		assertEquals("Reset application settings", entries.single().action)
 	}
 
 	// --- PdfController aspects ---

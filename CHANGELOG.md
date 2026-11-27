@@ -4,6 +4,12 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Allowed sign-in emails are now managed in the Settings form and saved together with the Gemini API key and model; removing all addresses reopens first-run email setup at the next sign-in
+
+### Added
+- Added a confirmed application-settings reset that clears the saved Gemini API key and allowed-email list, preserves the selected model and Google OAuth credentials, signs out, and returns to first-run setup
+
 ## [v3.3.17] - 2026-11-27
 
 ### Fixed

@@ -57,6 +57,8 @@ gcloud run deploy coveringletter `
 > `ALLOWED_EMAILS` accepts comma-separated addresses. When setting multiple addresses directly with `gcloud`, escape commas within that value (for example, `ALLOWED_EMAILS=you@example.com\,admin@example.com`). The GitHub Actions workflow handles this escaping for its `ALLOWED_EMAILS` secret.
 >
 > `ALLOWED_EMAILS` may be omitted on a fresh service to use the first-run setup screen. For a durable allowlist on Cloud Run, configure the environment variable or the GitHub Actions secret; setup-screen changes are written to the container-local `.env` file and do not survive instance replacement.
+>
+> The Settings form saves the Gemini API key, model, and allowed-email list together. In-app changes are container-local and do not update the Cloud Run service's environment variables or GitHub Actions secrets. The confirmed **Reset application settings** action clears local Gemini-key and allowed-email settings while preserving the selected model and local Google OAuth credentials; it does not remove Cloud Run environment variables or deployment secrets, which must be changed separately if a reset should persist across instance replacement.
 
 ### Security Note
 
@@ -433,7 +435,7 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 
 #### 6. Configure environment variables on Cloud Run
 
-The workflow updates its managed environment variables automatically on each deployment. If the optional `ALLOWED_EMAILS` secret is set, it updates the Cloud Run allowlist; if it is empty, the current Cloud Run value is preserved. On a fresh service without an allowlist, use the first-run setup screen before signing in.
+The workflow updates its managed environment variables automatically on each deployment. If the optional `ALLOWED_EMAILS` secret is set, it updates the Cloud Run allowlist; if it is empty, the current Cloud Run value is preserved. On a fresh service without an allowlist, use the first-run setup screen before signing in. Settings changes and resets made in the app do not modify these deployment-managed values; configure the service environment or GitHub Actions secrets when changes must persist across deployments.
 
 ### First deployment
 

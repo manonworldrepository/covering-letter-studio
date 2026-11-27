@@ -42,17 +42,43 @@ class AllowedEmailsService(
 		}
 	}
 
-	fun update(requestedEmails: String): Set<String> {
+	fun update(requestedEmails: String, allowEmpty: Boolean = false): Set<String> {
 		synchronized(setupLock) {
-			if (!isConfigured()) {
-				throw ResponseStatusException(HttpStatus.NOT_FOUND)
-			}
+			ensureConfiguredForUpdate()
 
-			return persist(requestedEmails)
+			return persist(requestedEmails, allowEmpty)
 		}
 	}
 
-	private fun persist(requestedEmails: String): Set<String> {
+	fun validateUpdate(requestedEmails: String, allowEmpty: Boolean = false): Set<String> = synchronized(setupLock) {
+		ensureConfiguredForUpdate()
+		normalizeEmails(requestedEmails, allowEmpty)
+	}
+
+	fun reset(preservedModel: String) {
+		synchronized(setupLock) {
+			val currentValues = readEnv()
+			val lines = listOf("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET")
+				.mapNotNull { name -> currentValues[name]?.let { "$name=$it" } }
+				.toMutableList()
+			lines.add("GEMINI_MODEL=$preservedModel")
+			writeEnv(lines)
+			runtimeEmailsOverride = emptySet()
+		}
+	}
+
+	private fun persist(requestedEmails: String, allowEmpty: Boolean = false): Set<String> {
+		val normalizedEmails = normalizeEmails(requestedEmails, allowEmpty)
+		writeEnv(normalizedEmails.joinToString(","))
+		if (configuredEmailsProperty.isNotBlank()) {
+			runtimeEmailsOverride = normalizedEmails
+		}
+		return normalizedEmails
+	}
+
+	private fun normalizeEmails(requestedEmails: String, allowEmpty: Boolean = false): Set<String> {
+		if (allowEmpty && requestedEmails.isBlank()) return emptySet()
+
 		val emails = requestedEmails.split(',').map { it.trim().lowercase() }
 		if (requestedEmails.length > MAX_EMAILS_LENGTH || emails.isEmpty() || emails.size > MAX_EMAIL_COUNT ||
 			emails.any { !EMAIL_PATTERN.matches(it) }
@@ -63,12 +89,13 @@ class AllowedEmailsService(
 			)
 		}
 
-		val normalizedEmails = emails.distinct().toSet()
-		writeEnv(normalizedEmails.joinToString(","))
-		if (configuredEmailsProperty.isNotBlank()) {
-			runtimeEmailsOverride = normalizedEmails
+		return emails.distinct().toSet()
+	}
+
+	private fun ensureConfiguredForUpdate() {
+		if (!isConfigured()) {
+			throw ResponseStatusException(HttpStatus.NOT_FOUND)
 		}
-		return normalizedEmails
 	}
 
 	private fun readEnv(): Map<String, String> {
@@ -87,6 +114,10 @@ class AllowedEmailsService(
 		}
 		val line = "ALLOWED_EMAILS=$value"
 		if (index >= 0) lines[index] = line else lines.add(line)
+		writeEnv(lines)
+	}
+
+	private fun writeEnv(lines: List<String>) {
 		Files.createDirectories(envFile.parent)
 		val temporary = Files.createTempFile(envFile.parent, ".env-", ".tmp")
 		try {

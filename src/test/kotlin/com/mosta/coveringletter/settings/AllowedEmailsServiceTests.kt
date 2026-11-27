@@ -108,6 +108,38 @@ class AllowedEmailsServiceTests {
 	}
 
 	@Test
+	fun `settings can clear the active allowlist`() {
+		val envFile = temporaryDirectory.resolve(".env")
+		val service = service("owner@example.com", envFile)
+
+		val emails = service.update("", allowEmpty = true)
+
+		assertTrue(emails.isEmpty())
+		assertFalse(service.isConfigured())
+		assertTrue(service.allowedEmails().isEmpty())
+		assertEquals("ALLOWED_EMAILS=", Files.readString(envFile).trim())
+	}
+
+	@Test
+	fun `reset removes allowed emails and unrelated values but preserves OAuth credentials and model`() {
+		val envFile = temporaryDirectory.resolve(".env")
+		Files.writeString(
+			envFile,
+			"ALLOWED_EMAILS=owner@example.com\nGOOGLE_CLIENT_ID=client-id\nGOOGLE_CLIENT_SECRET=client-secret\nGEMINI_API_KEY=remove-me\nOTHER=value\n"
+		)
+		val service = service("owner@example.com", envFile)
+
+		service.reset("gemini-3.1-flash-lite")
+
+		assertFalse(service.isConfigured())
+		assertTrue(service.allowedEmails().isEmpty())
+		assertEquals(
+			listOf("GOOGLE_CLIENT_ID=client-id", "GOOGLE_CLIENT_SECRET=client-secret", "GEMINI_MODEL=gemini-3.1-flash-lite"),
+			Files.readAllLines(envFile)
+		)
+	}
+
+	@Test
 	fun `rejects invalid updates without replacing the existing list`() {
 		val envFile = temporaryDirectory.resolve(".env")
 		Files.writeString(envFile, "ALLOWED_EMAILS=owner@example.com\n")

@@ -1,18 +1,25 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.api.controller.LoginSetupController
 import com.mosta.coveringletter.api.controller.SettingsController
+import com.mosta.coveringletter.api.request.AppSettingsRequest
 import com.mosta.coveringletter.resume.ResumeStore
 import com.mosta.coveringletter.resume.ResumeStatus
+import com.mosta.coveringletter.settings.AllowedEmailsService
 import com.mosta.coveringletter.settings.AppSettingsService
 import com.mosta.coveringletter.settings.AppSettingsStatus
 import com.mosta.coveringletter.settings.CurrentGeminiSettings
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.mock.http.server.reactive.MockServerHttpResponse
+import org.springframework.web.server.ResponseStatusException
+import reactor.core.publisher.Mono
+import java.nio.file.Files
 import java.nio.file.Path
 
 class SettingsControllerTests {
@@ -22,13 +29,17 @@ class SettingsControllerTests {
 
 	private lateinit var mockSettings: MockAppSettingsService
 	private lateinit var resumeStore: ResumeStore
+	private lateinit var allowedEmails: AllowedEmailsService
 	private lateinit var controller: SettingsController
 
 	@BeforeEach
 	fun setup() {
 		resumeStore = ResumeStore(DocumentTextExtractor(), temporaryDirectory.resolve("data").toString())
 		mockSettings = MockAppSettingsService()
-		controller = SettingsController(mockSettings, resumeStore)
+		val emailFile = temporaryDirectory.resolve(".env")
+		Files.writeString(emailFile, "ALLOWED_EMAILS=owner@example.com\n")
+		allowedEmails = AllowedEmailsService("owner@example.com").also { it.envFile = emailFile }
+		controller = SettingsController(mockSettings, resumeStore, allowedEmails)
 	}
 
 	@Test
@@ -67,6 +78,79 @@ class SettingsControllerTests {
 		assertTrue(settings.apiKey.isNullOrEmpty())
 	}
 
+	@Test
+	fun `save settings includes allowed emails in the combined save`() {
+		controller.saveSettings(
+			AppSettingsRequest(
+				apiKey = "",
+				model = "gemini-3.1-flash-lite",
+				allowedEmails = " NEW@example.com, owner@example.com,new@example.com "
+			)
+		).block()
+
+		assertEquals(
+			" NEW@example.com, owner@example.com,new@example.com ",
+			mockSettings.savedAllowedEmails
+		)
+		assertEquals(
+			"ALLOWED_EMAILS=new@example.com,owner@example.com",
+			Files.readString(temporaryDirectory.resolve(".env")).trim()
+		)
+	}
+
+	@Test
+	fun `save settings rejects invalid allowed emails before saving Gemini settings`() {
+		val exception = org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException::class.java) {
+			controller.saveSettings(
+				AppSettingsRequest(
+					apiKey = "",
+					model = "gemini-3.1-flash-lite",
+					allowedEmails = "invalid-email"
+				)
+			)
+		}
+
+		assertEquals(400, exception.statusCode.value())
+		assertEquals(null, mockSettings.savedAllowedEmails)
+	}
+
+	@Test
+	fun `saving an empty allowed email list makes the setup page available`() {
+		controller.saveSettings(
+			AppSettingsRequest(apiKey = "", model = "gemini-3.1-flash-lite", allowedEmails = "")
+		).block()
+
+		assertEquals("", mockSettings.savedAllowedEmails)
+		assertFalse(allowedEmails.isConfigured())
+		assertEquals("ALLOWED_EMAILS=", Files.readString(temporaryDirectory.resolve(".env")).trim())
+		assertEquals(
+			"allowed-emails-setup.html",
+			LoginSetupController(allowedEmails).loginPage(MockServerHttpResponse()).filename
+		)
+	}
+
+	@Test
+	fun `reset settings removes local settings and allowed emails while preserving sign in credentials and model`() {
+		Files.writeString(
+			temporaryDirectory.resolve(".env"),
+			"ALLOWED_EMAILS=owner@example.com\nGOOGLE_CLIENT_ID=client-id\nGOOGLE_CLIENT_SECRET=client-secret\nOTHER=value\n"
+		)
+
+		val result = controller.resetSettings()
+
+		assertEquals(mapOf("status" to "reset"), result)
+		assertTrue(mockSettings.resetCalled)
+		assertFalse(allowedEmails.isConfigured())
+		assertEquals(
+			listOf("GOOGLE_CLIENT_ID=client-id", "GOOGLE_CLIENT_SECRET=client-secret", "GEMINI_MODEL=gemini-3.1-flash-lite"),
+			Files.readAllLines(temporaryDirectory.resolve(".env"))
+		)
+		assertEquals(
+			"allowed-emails-setup.html",
+			LoginSetupController(allowedEmails).loginPage(MockServerHttpResponse()).filename
+		)
+	}
+
 	// Mock implementation of AppSettingsService for testing
 	private inner class MockAppSettingsService : AppSettingsService(
 		tools.jackson.databind.ObjectMapper(),
@@ -87,7 +171,19 @@ class SettingsControllerTests {
 		}
 	) {
 		var configuredApiKey: String = ""
+		var savedAllowedEmails: String? = null
+		var resetCalled = false
 
 		override fun apiKey(): String = configuredApiKey
+
+		override fun resetApplicationSettings(): String {
+			resetCalled = true
+			return "gemini-3.1-flash-lite"
+		}
+
+		override fun save(request: AppSettingsRequest): Mono<Unit> {
+			savedAllowedEmails = request.allowedEmails
+			return Mono.just(Unit)
+		}
 	}
 }

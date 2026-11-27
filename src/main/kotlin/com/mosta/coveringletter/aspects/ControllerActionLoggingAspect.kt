@@ -165,7 +165,12 @@ class ControllerActionLoggingAspect(
 	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SettingsController.saveSettings(..))")
 	fun logSaveSettings() {
 		// Reactive method (Mono<AppSettingsStatus>) — use fixed message
-		logs.record("Updated Gemini API settings")
+		logs.record("Updated application settings")
+	}
+
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SettingsController.resetSettings(..))")
+	fun logResetSettings() {
+		logs.record("Reset application settings")
 	}
 
 	// --- PdfController ---

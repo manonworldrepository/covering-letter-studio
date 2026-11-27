@@ -68,6 +68,7 @@
     .modal-backdrop { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: 20px; background: #121a2dcc; }
     .modal { width: min(100%, 560px); max-height: min(90vh, 760px); overflow: auto; }
     .settings-email-section { border-top: 1px solid #e6e8ed; padding-top: 18px; }
+    .settings-reset-section { border-top: 1px solid #e6e8ed; padding-top: 18px; }
     .settings-email-list { display: grid; gap: 8px; }
     .settings-email-row { display: flex; align-items: center; gap: 8px; }
     .settings-email-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #d5dae4; border-radius: 9px; font: inherit; }
@@ -531,28 +532,43 @@
           <button class="secondary" id="settings-key-visibility" type="button" aria-pressed="false">Show</button>
         </div>
         <p class="hint" id="settings-current-key-hint">Edit this value to change the saved API key. Keep it private.</p>
-        <button class="primary" id="settings-update-key" type="button" hidden>Update API key</button>
       </div>
       <div class="field">
         <label for="settings-model">Gemini model</label>
         <p class="hint" id="settings-current-model">Currently selected: loading...</p>
         <select id="settings-model"></select>
       </div>
-      <div class="actions">
-        <button class="secondary" id="settings-load-models" type="button">Load available models</button>
-        <button class="primary" id="settings-save" type="button">Save settings</button>
-      </div>
-      <div class="status" id="settings-status" role="status" aria-live="polite"></div>
       <div class="field settings-email-section">
         <h2>Allowed sign-in emails</h2>
-        <p class="hint">Only accounts in this list can sign in. Changes are saved to the local <code>.env</code> file.</p>
+        <p class="hint">Only accounts in this list can sign in. Changes are saved with the rest of your settings. Removing all emails shows the setup screen at the next sign-in.</p>
         <div id="settings-email-list" class="settings-email-list" aria-label="Allowed sign-in email addresses"></div>
         <div class="settings-email-actions">
           <button class="secondary" id="settings-add-email" type="button" disabled>Add email</button>
-          <button class="primary" id="settings-save-emails" type="button" disabled>Save allowed emails</button>
         </div>
         <div class="status" id="settings-email-status" role="status" aria-live="polite"></div>
       </div>
+      <div class="actions">
+        <button class="secondary" id="settings-load-models" type="button">Load available models</button>
+        <button class="primary" id="settings-save" type="button" disabled>Save settings</button>
+      </div>
+      <div class="status" id="settings-status" role="status" aria-live="polite"></div>
+      <div class="field settings-reset-section">
+        <h2>Reset application settings</h2>
+        <p class="hint">Clear the Gemini API key and allowed email addresses, then return to first-time setup.</p>
+        <button class="danger" id="settings-reset-open" type="button">Reset application settings</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="settings-reset-modal" hidden>
+    <section class="card modal confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-reset-title">
+      <h2 id="settings-reset-title">Reset application settings?</h2>
+      <p>The saved Gemini API key and allowed email list will be removed. The selected Gemini model and Google OAuth credentials will be kept; other local environment entries will be cleared. You will be signed out and returned to the email setup screen. This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="danger" id="settings-reset-confirm" type="button">Reset settings</button>
+        <button class="secondary" id="settings-reset-cancel" type="button">Cancel</button>
+      </div>
+      <div class="status" id="settings-reset-status" role="status" aria-live="polite"></div>
     </section>
   </div>
 
@@ -629,6 +645,8 @@
     const workspace = document.querySelector("#workspace");
     const settingsOpen = document.querySelector("#settings-open");
     const settingsModal = document.querySelector("#settings-modal");
+    const settingsResetModal = document.querySelector("#settings-reset-modal");
+    const settingsResetStatus = document.querySelector("#settings-reset-status");
     const status = document.querySelector("#status");
     const result = document.querySelector("#result");
     const generateButton = document.querySelector("#generate");
@@ -658,7 +676,6 @@
     let activeModel = "";
     let setupApiKeyConfigured = false;
     let setupModelConfigured = false;
-    let savedApiKey = "";
     let detectedJobTitle = "";
     let detectedApplicantName = "";
     let detectedCompanyName = "";
@@ -1669,7 +1686,6 @@
         "download": "Started downloading the cover-letter PDF",
         "start-over": "Started a new application",
         "settings-key-visibility": "Changed API-key visibility",
-        "settings-update-key": "Started updating the Gemini API key",
         "settings-load-models": "Loaded Gemini models in settings",
         "settings-save": "Saved Gemini settings"
       };
@@ -1805,9 +1821,7 @@
     async function loadAllowedEmails() {
       const status = document.querySelector("#settings-email-status");
       const addButton = document.querySelector("#settings-add-email");
-      const saveButton = document.querySelector("#settings-save-emails");
       addButton.disabled = true;
-      saveButton.disabled = true;
       status.classList.remove("error", "success");
       status.textContent = "Loading allowed email addresses...";
       try {
@@ -1815,10 +1829,11 @@
         renderAllowedEmailFields(result.emails);
         status.textContent = "";
         addButton.disabled = false;
-        saveButton.disabled = false;
+        return true;
       } catch (error) {
         status.textContent = error.message || "Could not load allowed email addresses.";
         status.classList.add("error");
+        return false;
       }
     }
 
@@ -1826,45 +1841,25 @@
       addAllowedEmailField().focus();
     });
 
-    document.querySelector("#settings-save-emails").addEventListener("click", async (event) => {
-      const inputs = [...document.querySelectorAll("#settings-email-list input")];
-      const status = document.querySelector("#settings-email-status");
-      const button = event.currentTarget;
-      const emails = inputs.map((input) => input.value.trim());
-      if (emails.length === 0) {
-        status.textContent = "Keep at least one allowed email address.";
-        status.classList.add("error");
-        return;
-      }
-      const invalidInput = inputs.find((input) => !input.checkValidity());
-      if (invalidInput) {
-        invalidInput.reportValidity();
-        status.textContent = "Enter a valid email address in each field.";
-        status.classList.add("error");
-        return;
+    async function saveSettings(key, model, message, button, includeAllowedEmails = false) {
+      const request = { apiKey: key, model };
+      let emails = null;
+      if (includeAllowedEmails) {
+        const inputs = [...document.querySelectorAll("#settings-email-list input")];
+        const emailStatus = document.querySelector("#settings-email-status");
+        emails = inputs.map((input) => input.value.trim());
+        const invalidInput = inputs.find((input) => !input.checkValidity());
+        if (invalidInput) {
+          invalidInput.reportValidity();
+          emailStatus.textContent = "Enter a valid email address in each field.";
+          emailStatus.classList.add("error");
+          return false;
+        }
+        request.allowedEmails = emails.join(",");
+        emailStatus.classList.remove("error", "success");
+        emailStatus.textContent = "";
       }
 
-      button.disabled = true;
-      status.classList.remove("error", "success");
-      status.textContent = "Saving allowed email addresses...";
-      try {
-        const result = await requestJson("/api/settings/allowed-emails", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ emails: emails.join(",") })
-        });
-        renderAllowedEmailFields(result.emails);
-        status.textContent = "Allowed email addresses saved.";
-        status.classList.add("success");
-      } catch (error) {
-        status.textContent = error.message || "Could not save allowed email addresses.";
-        status.classList.add("error");
-      } finally {
-        button.disabled = false;
-      }
-    });
-
-    async function saveSettings(key, model, message, button) {
       button.disabled = true;
       message.classList.remove("error");
       message.textContent = "Saving settings...";
@@ -1872,10 +1867,17 @@
         await requestJson("/api/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey: key, model })
+          body: JSON.stringify(request)
         });
         activeModel = model;
-        message.textContent = "Settings saved.";
+        message.textContent = includeAllowedEmails ? "Settings and allowed email addresses saved." : "Settings saved.";
+        if (includeAllowedEmails) {
+          const normalizedEmails = [...new Set(emails.map((email) => email.toLowerCase()))];
+          renderAllowedEmailFields(normalizedEmails);
+          const emailStatus = document.querySelector("#settings-email-status");
+          emailStatus.textContent = "Saved with settings.";
+          emailStatus.classList.add("success");
+        }
         return true;
       } catch (error) {
         message.textContent = error.message;
@@ -2105,20 +2107,19 @@
 
     settingsOpen.addEventListener("click", async () => {
       settingsModal.hidden = false;
-      loadAllowedEmails();
+      const saveButton = document.querySelector("#settings-save");
+      saveButton.disabled = true;
+      const allowedEmailsLoaded = await loadAllowedEmails();
       const currentKey = document.querySelector("#settings-current-key");
       currentKey.type = "password";
       document.querySelector("#settings-key-visibility").textContent = "Show";
       document.querySelector("#settings-key-visibility").setAttribute("aria-pressed", "false");
-      document.querySelector("#settings-update-key").hidden = true;
-      document.querySelector("#settings-save").disabled = false;
       document.querySelector("#settings-status").textContent = "Loading saved settings...";
       showLoadingOverlay("settings-loading-overlay");
       try {
         const current = await requestJson("/api/settings/current");
         activeModel = current.model;
         currentKey.value = current.apiKey || "";
-        savedApiKey = current.apiKey || "";
         document.querySelector("#settings-current-model").textContent =
           `Currently selected: ${current.model}`;
         if (!current.apiKey) {
@@ -2138,19 +2139,55 @@
         document.querySelector("#settings-status").classList.add("error");
       } finally {
         hideLoadingOverlay();
+        saveButton.disabled = !allowedEmailsLoaded;
       }
       currentKey.focus();
     });
     document.querySelector("#settings-close").addEventListener("click", () => {
       settingsModal.hidden = true;
       document.querySelector("#settings-current-key").value = "";
-      savedApiKey = "";
+    });
+    document.querySelector("#settings-reset-open").addEventListener("click", () => {
+      settingsResetStatus.textContent = "";
+      settingsResetStatus.classList.remove("error", "success");
+      settingsResetModal.hidden = false;
+    });
+    document.querySelector("#settings-reset-cancel").addEventListener("click", () => {
+      settingsResetModal.hidden = true;
+    });
+    settingsResetModal.addEventListener("click", (event) => {
+      if (event.target === settingsResetModal && !document.querySelector("#settings-reset-confirm").disabled) {
+        settingsResetModal.hidden = true;
+      }
+    });
+    document.querySelector("#settings-reset-confirm").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const cancelButton = document.querySelector("#settings-reset-cancel");
+      button.disabled = true;
+      cancelButton.disabled = true;
+      settingsResetStatus.textContent = "Resetting application settings...";
+      settingsResetStatus.classList.remove("error", "success");
+      try {
+        await requestJson("/api/settings", { method: "DELETE" });
+        settingsResetStatus.textContent = "Settings reset. Signing out...";
+        document.querySelector("#logout-overlay").classList.add("active");
+        try {
+          await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+        } catch (error) {
+          console.error("Failed to complete logout after settings reset:", error);
+        }
+        window.location.href = "/login";
+      } catch (error) {
+        settingsResetStatus.textContent = error.message || "Could not reset application settings.";
+        settingsResetStatus.classList.add("error");
+        button.disabled = false;
+        cancelButton.disabled = false;
+      }
     });
     settingsModal.addEventListener("click", (event) => {
       if (event.target === settingsModal) {
         settingsModal.hidden = true;
         document.querySelector("#settings-current-key").value = "";
-        savedApiKey = "";
       }
     });
     document.querySelector("#document-viewer-close").addEventListener("click", () => {
@@ -2214,16 +2251,9 @@
       }
     });
     document.querySelector("#settings-current-key").addEventListener("input", (event) => {
-      const dirty = event.currentTarget.value.trim() !== savedApiKey;
-      document.querySelector("#settings-update-key").hidden = !dirty;
-      document.querySelector("#settings-save").disabled = dirty;
       const message = document.querySelector("#settings-status");
-      if (dirty) {
-        message.classList.remove("error");
-        message.textContent = "Update the API key before saving model settings.";
-      } else {
-        message.textContent = "";
-      }
+      message.classList.remove("error");
+      message.textContent = "";
     });
     document.querySelector("#settings-key-visibility").addEventListener("click", (event) => {
       const input = document.querySelector("#settings-current-key");
@@ -2240,29 +2270,6 @@
         event.currentTarget
       );
     });
-    document.querySelector("#settings-update-key").addEventListener("click", async (event) => {
-      const keyInput = document.querySelector("#settings-current-key");
-      const key = keyInput.value.trim();
-      const model = document.querySelector("#settings-model").value || activeModel;
-      if (!key) {
-        document.querySelector("#settings-status").textContent = "Enter a Gemini API key.";
-        document.querySelector("#settings-status").classList.add("error");
-        return;
-      }
-      if (!model) {
-        document.querySelector("#settings-status").textContent = "Load and select an available model first.";
-        document.querySelector("#settings-status").classList.add("error");
-        return;
-      }
-      if (await saveSettings(key, model, document.querySelector("#settings-status"), event.currentTarget)) {
-        savedApiKey = key;
-        keyInput.value = key;
-        document.querySelector("#settings-update-key").hidden = true;
-        document.querySelector("#settings-save").disabled = false;
-        document.querySelector("#settings-current-model").textContent = `Currently selected: ${model}`;
-        await refreshApp();
-      }
-    });
     document.querySelector("#settings-save").addEventListener("click", async (event) => {
       const model = document.querySelector("#settings-model").value;
       if (!model) {
@@ -2272,16 +2279,16 @@
         return;
       }
       if (await saveSettings(
-        "",
+        document.querySelector("#settings-current-key").value.trim(),
         model,
         document.querySelector("#settings-status"),
-        event.currentTarget
+        event.currentTarget,
+        true
       )) {
         const currentKey = document.querySelector("#settings-current-key");
         document.querySelector("#settings-current-model").textContent = `Currently selected: ${model}`;
         settingsModal.hidden = true;
         currentKey.value = "";
-        savedApiKey = "";
         await refreshApp();
       }
     });

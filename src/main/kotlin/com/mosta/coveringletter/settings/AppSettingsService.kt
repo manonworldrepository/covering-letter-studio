@@ -22,6 +22,8 @@ class AppSettingsService(
 	private val webClient = WebClient.builder()
 		.baseUrl("https://generativelanguage.googleapis.com")
 		.build()
+	internal var envFile = AppSettingsServiceDefaults.envFile
+	@Volatile private var runtimeApiKeyOverride: String? = null
 
 	fun status(resume: ResumeStatus): AppSettingsStatus {
 		val key = apiKey()
@@ -37,10 +39,10 @@ class AppSettingsService(
 		)
 	}
 
-	fun apiKey(): String =
-		configuredValue("GEMINI_API_KEY")
-			?: environment.getProperty("gemini.api-key")?.takeIf(String::isNotBlank)
-			?: ""
+	fun apiKey(): String = runtimeApiKeyOverride
+		?: configuredValue("GEMINI_API_KEY")
+		?: environment.getProperty("gemini.api-key")?.takeIf(String::isNotBlank)
+		?: ""
 
 	fun model(): String =
 		configuredValue("GEMINI_MODEL")
@@ -58,6 +60,7 @@ class AppSettingsService(
 			.map { models ->
 				try {
 					writeEnv(key)
+					runtimeApiKeyOverride = key
 					models
 				} catch (exception: Exception) {
 					throw ResponseStatusException(
@@ -143,6 +146,7 @@ class AppSettingsService(
 				}
 				try {
 					writeEnv(key, model)
+					runtimeApiKeyOverride = key
 					Mono.just(Unit)
 				} catch (exception: Exception) {
 					Mono.error(
@@ -156,9 +160,16 @@ class AppSettingsService(
 			}
 	}
 
+	fun resetApplicationSettings(): String {
+		val selectedModel = model()
+		writeEnv(listOf("GEMINI_MODEL=$selectedModel"))
+		runtimeApiKeyOverride = ""
+		return selectedModel
+	}
+
 	private fun readEnv(): Map<String, String> {
-		if (!Files.exists(AppSettingsServiceDefaults.envFile)) return emptyMap()
-		return Files.readAllLines(AppSettingsServiceDefaults.envFile).mapNotNull { line ->
+		if (!Files.exists(envFile)) return emptyMap()
+		return Files.readAllLines(envFile).mapNotNull { line ->
 			val match = AppSettingsServiceDefaults.ENV_LINE.matchEntire(line.removePrefix("\uFEFF")) ?: return@mapNotNull null
 			val value = match.groupValues[2].trim().removeSurrounding("\"").removeSurrounding("'")
 			match.groupValues[1] to value
@@ -171,26 +182,30 @@ class AppSettingsService(
 			?: environment.getProperty(name)?.takeIf(String::isNotBlank)
 
 	private fun writeEnv(key: String, model: String? = null) {
-		val lines = if (Files.exists(AppSettingsServiceDefaults.envFile)) {
-			Files.readAllLines(AppSettingsServiceDefaults.envFile).toMutableList()
+		val lines = if (Files.exists(envFile)) {
+			Files.readAllLines(envFile).toMutableList()
 		} else mutableListOf()
 		setEnvValue(lines, "GEMINI_API_KEY", key)
 		model?.let { setEnvValue(lines, "GEMINI_MODEL", it) }
-		Files.createDirectories(AppSettingsServiceDefaults.envFile.parent)
-		val temporary = Files.createTempFile(AppSettingsServiceDefaults.envFile.parent, ".env-", ".tmp")
+		writeEnv(lines)
+	}
+
+	private fun writeEnv(lines: List<String>) {
+		Files.createDirectories(envFile.parent)
+		val temporary = Files.createTempFile(envFile.parent, ".env-", ".tmp")
 		try {
 			Files.write(temporary, lines)
 			try {
 				Files.move(
 					temporary,
-					AppSettingsServiceDefaults.envFile,
+					envFile,
 					java.nio.file.StandardCopyOption.REPLACE_EXISTING,
 					java.nio.file.StandardCopyOption.ATOMIC_MOVE
 				)
 			} catch (_: java.nio.file.AtomicMoveNotSupportedException) {
 				Files.move(
 					temporary,
-					AppSettingsServiceDefaults.envFile,
+					envFile,
 					java.nio.file.StandardCopyOption.REPLACE_EXISTING
 				)
 			}
