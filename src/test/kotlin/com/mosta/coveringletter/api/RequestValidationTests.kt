@@ -43,6 +43,16 @@ class RequestValidationTests {
 	}
 
 	@Test
+	fun `rejects blank or oversized tailored resume pdf requests`() {
+		assertTrue(validator.validate(TailoredResumePdfRequest(" ")).isNotEmpty())
+		assertTrue(
+			validator.validate(
+				TailoredResumePdfRequest("x".repeat(TailoredResumePdfRequestLimits.MAX_RESUME_LENGTH + 1))
+			).isNotEmpty()
+		)
+	}
+
+	@Test
 	fun `rejects invalid resume and supporting document selections`() {
 		assertTrue(validator.validate(ResumeSelectionRequest(" ")).isNotEmpty())
 		val tooManyIds = (1..6).map { it.toString().padStart(36, '0') }.toSet()

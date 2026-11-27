@@ -169,4 +169,9 @@ class ControllerActionLoggingAspect(
 	fun logDownloadPdf() {
 		logs.record("Downloaded a cover-letter PDF")
 	}
+
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.ResumePdfController.downloadPdf(..))")
+	fun logDownloadResumePdf() {
+		logs.record("Downloaded a tailored resume PDF")
+	}
 }

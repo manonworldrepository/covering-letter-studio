@@ -435,7 +435,7 @@
         <p class="detected-title" id="tailored-resume-details"></p>
         <textarea id="tailored-resume-text" spellcheck="true"></textarea>
         <div class="actions">
-          <button class="primary" id="download-tailored-resume" type="button">Download text file</button>
+          <button class="primary" id="download-tailored-resume" type="button">Download PDF</button>
           <button class="secondary" id="copy-tailored-resume" type="button">Copy text</button>
           <button class="secondary" id="tailor-another-resume" type="button">Tailor another role</button>
         </div>
@@ -2303,16 +2303,43 @@
       }
     });
 
-    document.querySelector("#download-tailored-resume").addEventListener("click", () => {
+    document.querySelector("#download-tailored-resume").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
       const filePart = (tailoredResumeJobTitle || "resume").toLowerCase()
         .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const blob = new Blob([tailoredResumeText.value], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `tailored-resume-${filePart || "resume"}.txt`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      button.disabled = true;
+      resumeTailoringStatus.classList.remove("error");
+      resumeTailoringStatus.textContent = "Preparing your tailored resume PDF...";
+      try {
+        const response = await fetch("/api/tailor-resume/pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            resume: tailoredResumeText.value,
+            applicantName: tailoredResumeApplicantName,
+            companyName: tailoredResumeCompanyName,
+            jobTitle: tailoredResumeJobTitle
+          })
+        });
+        if (!response.ok) {
+          throw new Error(await responseError(response, "Could not create the resume PDF."));
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `tailored-resume-${filePart || "resume"}.pdf`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        resumeTailoringStatus.textContent = "Resume PDF downloaded.";
+      } catch (error) {
+        resumeTailoringStatus.textContent = error.message || "Could not create the resume PDF.";
+        resumeTailoringStatus.classList.add("error");
+      } finally {
+        button.disabled = false;
+      }
     });
 
     document.querySelector("#copy-tailored-resume").addEventListener("click", async (event) => {

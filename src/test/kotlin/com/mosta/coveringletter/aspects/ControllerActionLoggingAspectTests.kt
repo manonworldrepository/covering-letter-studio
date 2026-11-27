@@ -297,6 +297,15 @@ class ControllerActionLoggingAspectTests {
 		assertEquals("Downloaded a cover-letter PDF", entries.single().action)
 	}
 
+	@Test
+	fun `logDownloadResumePdf records tailored resume PDF download message`() {
+		aspect.logDownloadResumePdf()
+
+		val entries = logs.latest()
+		assertEquals(1, entries.size)
+		assertEquals("Downloaded a tailored resume PDF", entries.single().action)
+	}
+
 	// --- Integration: multiple actions recorded in order ---
 
 	@Test
