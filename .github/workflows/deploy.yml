@@ -9,7 +9,8 @@
 # Setup required (see CLOUD_DEPLOYMENT.md for details):
 # - Enable Cloud Run, Cloud Build, and Artifact Registry APIs
 # - Set up Workload Identity Federation between GitHub and GCP
-# - Add GitHub secrets: GCP_PROJECT_ID, GCP_REGION, GCP_SERVICE, WIF_PROVIDER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, ALLOWED_EMAILS, CLOUD_STORAGE_BUCKET, JWT_PRIVATE_KEY_BASE64, JWT_PUBLIC_KEY_BASE64
+# - Add GitHub secrets: GCP_PROJECT_ID, GCP_REGION, GCP_SERVICE, WIF_PROVIDER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, CLOUD_STORAGE_BUCKET, JWT_PRIVATE_KEY_BASE64, JWT_PUBLIC_KEY_BASE64
+# - Optionally add ALLOWED_EMAILS; otherwise an existing Cloud Run value is preserved or first-run setup can configure it
 
 name: Deploy to Cloud Run
 
@@ -73,25 +74,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ALLOWED_EMAILS: ${{ secrets.ALLOWED_EMAILS }}
         run: |
-          if [[ -z "${ALLOWED_EMAILS//[[:space:]]/}" ]]; then
-            echo "The ALLOWED_EMAILS GitHub secret must be configured before deployment." >&2
-            exit 1
-          fi
-
           LATEST_COMMIT="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)"
           if [[ "$LATEST_COMMIT" != "$GITHUB_SHA" ]]; then
             echo "GitHub ${GITHUB_REF_NAME} advanced to $LATEST_COMMIT before deployment; skipping stale commit $GITHUB_SHA." >&2
             exit 1
           fi
 
-          ALLOWED_EMAILS_ESCAPED="${ALLOWED_EMAILS//,/\\,}"
+          DEPLOY_ENV_VARS="GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},CLOUD_STORAGE_BUCKET=${{ secrets.CLOUD_STORAGE_BUCKET }},JWT_PRIVATE_KEY_BASE64=${{ secrets.JWT_PRIVATE_KEY_BASE64 }},JWT_PUBLIC_KEY_BASE64=${{ secrets.JWT_PUBLIC_KEY_BASE64 }}"
+          if [[ -n "${ALLOWED_EMAILS//[[:space:]]/}" ]]; then
+            ALLOWED_EMAILS_ESCAPED="${ALLOWED_EMAILS//,/\\,}"
+            DEPLOY_ENV_VARS+=",ALLOWED_EMAILS=${ALLOWED_EMAILS_ESCAPED}"
+          else
+            echo "ALLOWED_EMAILS secret is empty; preserving the existing Cloud Run value. On a fresh service, configure allowed accounts through first-run setup."
+          fi
+
           REVISION="$(gcloud run deploy ${{ env.SERVICE }} \
             --image "$IMAGE_URI" \
             --platform managed \
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }} \
             --allow-unauthenticated \
-            --set-env-vars "GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},ALLOWED_EMAILS=${ALLOWED_EMAILS_ESCAPED},CLOUD_STORAGE_BUCKET=${{ secrets.CLOUD_STORAGE_BUCKET }},JWT_PRIVATE_KEY_BASE64=${{ secrets.JWT_PRIVATE_KEY_BASE64 }},JWT_PUBLIC_KEY_BASE64=${{ secrets.JWT_PUBLIC_KEY_BASE64 }}" \
+            --update-env-vars "$DEPLOY_ENV_VARS" \
             --quiet \
             --format='value(status.latestCreatedRevisionName)')"
 

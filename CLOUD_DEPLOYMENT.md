@@ -55,6 +55,8 @@ gcloud run deploy coveringletter `
 > **Important:** `--set-env-vars` replaces the service's complete environment-variable set. Pass all variables in one comma-separated assignment, as above. To change only some variables later, use `--update-env-vars` so existing values are preserved.
 >
 > `ALLOWED_EMAILS` accepts comma-separated addresses. When setting multiple addresses directly with `gcloud`, escape commas within that value (for example, `ALLOWED_EMAILS=you@example.com\,admin@example.com`). The GitHub Actions workflow handles this escaping for its `ALLOWED_EMAILS` secret.
+>
+> `ALLOWED_EMAILS` may be omitted on a fresh service to use the first-run setup screen. For a durable allowlist on Cloud Run, configure the environment variable or the GitHub Actions secret; setup-screen changes are written to the container-local `.env` file and do not survive instance replacement.
 
 ### Security Note
 
@@ -88,7 +90,7 @@ The app requires these environment variables on Cloud Run:
 | `GEMINI_MODEL` | No | Model ID (default: `gemini-3.1-flash-lite`) |
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth2 client ID for Sign-In |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth2 client secret |
-| `ALLOWED_EMAILS` | Yes | Comma-separated Google account email addresses permitted to sign in |
+| `ALLOWED_EMAILS` | No | Comma-separated Google account email addresses permitted to sign in; if unset on a fresh service, the first-run setup screen collects them |
 | `CLOUD_STORAGE_BUCKET` | Yes | Cloud Storage bucket name for data persistence |
 | `JWT_PRIVATE_KEY_BASE64` | Yes | Base64-encoded RSA private key for JWT signing (see below) |
 | `JWT_PUBLIC_KEY_BASE64` | Yes | Base64-encoded RSA public key for JWT verification (see below) |
@@ -424,14 +426,14 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID | `123456789-abc.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret | `GOCSPX-abc123...` |
 | `GEMINI_API_KEY` | Your Google Gemini API key | `AIza...` |
-| `ALLOWED_EMAILS` | Comma-separated Google account email addresses permitted to sign in | `you@example.com,admin@example.com` |
+| `ALLOWED_EMAILS` | Optional comma-separated allowed addresses; when omitted, an existing Cloud Run value is preserved, or first-run setup can configure accounts on a fresh service | `you@example.com,admin@example.com` |
 | `CLOUD_STORAGE_BUCKET` | Cloud Storage bucket name | `my-project-coveringletter-data` |
 | `JWT_PRIVATE_KEY_BASE64` | Base64-encoded RSA private key | (see JWT Key Pair Generation) |
 | `JWT_PUBLIC_KEY_BASE64` | Base64-encoded RSA public key | (see JWT Key Pair Generation) |
 
 #### 6. Configure environment variables on Cloud Run
 
-The workflow sets all environment variables automatically on each deployment. Make sure all GitHub secrets are configured (see Step 5).
+The workflow updates its managed environment variables automatically on each deployment. If the optional `ALLOWED_EMAILS` secret is set, it updates the Cloud Run allowlist; if it is empty, the current Cloud Run value is preserved. On a fresh service without an allowlist, use the first-run setup screen before signing in.
 
 ### First deployment
 

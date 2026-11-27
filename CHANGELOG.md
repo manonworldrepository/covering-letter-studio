@@ -4,6 +4,11 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.17] - 2026-11-27
+
+### Fixed
+- Cloud Run deployment no longer fails when the optional `ALLOWED_EMAILS` GitHub secret is unset; existing allowlist configuration is preserved, and fresh services can use first-run setup
+
 ## [v3.3.16] - 2026-11-27
 
 ### Added
