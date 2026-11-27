@@ -4,6 +4,11 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.11] - 2026-11-27
+
+### Changed
+- Added horizontal dividers between experience entries in tailored resume PDFs
+
 ## [v3.3.10] - 2026-11-27
 
 ### Added

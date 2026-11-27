@@ -1,6 +1,8 @@
 package com.mosta.coveringletter.pdf
 
 import org.apache.pdfbox.Loader
+import org.apache.pdfbox.contentstream.operator.Operator
+import org.apache.pdfbox.pdfparser.PDFStreamParser
 import org.apache.pdfbox.text.PDFTextStripper
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -37,6 +39,32 @@ class ResumePdfGeneratorTests {
 			assertTrue(text.contains("Improved deployment time by 40%"))
 			assertTrue(text.contains("BSc Computer Science"))
 			assertTrue(!text.contains("##"))
+		}
+	}
+
+	@Test
+	fun `draws a horizontal divider between experience entries only`() {
+		val pdf = generator.create(
+			"""
+				Alex Morgan
+
+				EXPERIENCE
+				Senior Engineer at Acme
+				- Improved deployment time by 40%.
+
+				Staff Engineer at Globex
+				- Led customer workshops.
+
+				EDUCATION
+				BSc Computer Science
+			""".trimIndent()
+		)
+
+		Loader.loadPDF(pdf).use { document ->
+			val parser = PDFStreamParser(document.getPage(0))
+			val horizontalRuleCount = parser.parse().filterIsInstance<Operator>().count { it.name == "S" }
+
+			assertEquals(3, horizontalRuleCount)
 		}
 	}
 

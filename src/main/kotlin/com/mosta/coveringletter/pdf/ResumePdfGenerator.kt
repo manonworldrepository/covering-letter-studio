@@ -43,8 +43,24 @@ class ResumePdfGenerator {
 				if (y - height < bottomMargin) startNewPage()
 			}
 
+			fun drawRule() {
+				val content = stream ?: error("PDF page stream is not available.")
+				content.setStrokingColor(RULE_COLOR)
+				content.setLineWidth(0.7f)
+				content.moveTo(margin, y + 2f)
+				content.lineTo(pageSize.width - margin, y + 2f)
+				content.stroke()
+			}
+
 			try {
 				blocks.forEach { block ->
+					if (block.kind == BlockKind.DIVIDER) {
+						ensureSpace(JOB_DIVIDER_HEIGHT)
+						drawRule()
+						y -= JOB_DIVIDER_HEIGHT
+						return@forEach
+					}
+
 					if (block.kind == BlockKind.SPACER) {
 						ensureSpace(5f)
 						y -= 5f
@@ -93,12 +109,7 @@ class ResumePdfGenerator {
 					}
 
 					if (block.kind == BlockKind.SECTION) {
-						val content = stream ?: error("PDF page stream is not available.")
-						content.setStrokingColor(RULE_COLOR)
-						content.setLineWidth(0.7f)
-						content.moveTo(margin, y + 2f)
-						content.lineTo(pageSize.width - margin, y + 2f)
-						content.stroke()
+						drawRule()
 					}
 					y -= block.spacingAfter
 				}
@@ -164,7 +175,41 @@ class ResumePdfGenerator {
 				}
 			}
 		}
-		return blocks
+		return insertExperienceDividers(blocks)
+	}
+
+	private fun insertExperienceDividers(blocks: List<TextBlock>): List<TextBlock> {
+		val nextContentKinds = MutableList<BlockKind?>(blocks.size) { null }
+		var nextContentKind: BlockKind? = null
+		for (index in blocks.indices.reversed()) {
+			nextContentKinds[index] = nextContentKind
+			if (blocks[index].kind != BlockKind.SPACER) nextContentKind = blocks[index].kind
+		}
+
+		var inExperienceSection = false
+		var hasExperienceContent = false
+		return blocks.mapIndexed { index, block ->
+			when (block.kind) {
+				BlockKind.SECTION -> {
+					inExperienceSection = block.text.trim().trimEnd(':').lowercase() in EXPERIENCE_HEADINGS
+					hasExperienceContent = false
+					block
+				}
+				BlockKind.SPACER -> {
+					if (inExperienceSection && hasExperienceContent && nextContentKinds[index] != null &&
+						nextContentKinds[index] != BlockKind.SECTION
+					) {
+						block.copy(kind = BlockKind.DIVIDER)
+					} else {
+						block
+					}
+				}
+				else -> {
+					if (inExperienceSection) hasExperienceContent = true
+					block
+				}
+			}
+		}
 	}
 
 	private fun isSectionHeading(text: String): Boolean {
@@ -265,18 +310,24 @@ class ResumePdfGenerator {
 			BlockKind.BODY -> 3f
 			BlockKind.BULLET -> 2f
 			BlockKind.SPACER -> 0f
+			BlockKind.DIVIDER -> 0f
 		}
 	)
 
-	private enum class BlockKind { NAME, SECTION, BODY, BULLET, SPACER }
+	private enum class BlockKind { NAME, SECTION, BODY, BULLET, SPACER, DIVIDER }
 
 	private companion object {
+		const val JOB_DIVIDER_HEIGHT = 12f
 		val ACCENT_COLOR = Color(31, 78, 91)
 		val BODY_COLOR = Color(38, 45, 54)
 		val RULE_COLOR = Color(196, 213, 216)
 		val FOOTER_COLOR = Color(115, 124, 132)
 		val MARKDOWN_HEADING = Regex("^#{1,6}\\s+(.+)$")
 		val BULLET = Regex("^(?:([0-9]+[.)])\\s+|[•●▪*–-]\\s+)(.+)$")
+		val EXPERIENCE_HEADINGS = setOf(
+			"experience", "work experience", "professional experience", "employment history", "selected experience",
+			"volunteer experience"
+		)
 		val KNOWN_HEADINGS = setOf(
 			"summary", "professional summary", "profile", "career summary", "skills", "technical skills",
 			"key skills", "core competencies", "experience", "work experience", "professional experience",
