@@ -4,7 +4,52 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.9] - 2026-11-27
+
+### Changed
+- Documented the release history for versions `v3.3.1` through `v3.3.8`
+
+## [v3.3.8] - 2026-11-27
+
+### Changed
+- Cover-letter and tailored-resume PDF filenames now include only the applicant's first and last names
+- Tailored-resume downloads use the server-provided filename, matching the cover-letter naming convention
+
+## [v3.3.7] - 2026-11-27
+
+### Added
+- Duplicate applied-job prevention for matching company, job title, and job description, with an explanatory dialog in both generation workflows
+
+## [v3.3.6] - 2026-11-27
+
+### Added
+- “Add to applied jobs” action on the tailored-resume page
+
+## [v3.3.5] - 2026-11-27
+
+### Added
+- Formatted PDF export for edited, tailored resumes
+
+## [v3.3.4] - 2026-11-27
+
+### Changed
+- Separated API controllers, request models, and response models into dedicated packages
+
+## [v3.3.3] - 2026-11-27
+
+### Added
+- Resume-tailoring workflow with a dedicated page that uses the selected resume, supporting documents, and job description
+
+## [v3.3.2] - 2026-11-25
+
 ### Fixed
+- Corrected misleading user-facing logs for Gemini token-refresh failures
+
+## [v3.3.1] - 2026-11-25
+
+### Fixed
+- Hardened Cloud Run JWT key configuration and token refresh handling, including shared-key validation, environment-variable parsing, and refresh-loop fixes
+- Fixed API authentication and session-heartbeat issues encountered during JWT-based sign-in and silent refresh
 - Cloud Run deploy now supplies all environment variables in a single `--set-env-vars` assignment, preventing later flags from replacing earlier settings
 - Cloud Run requires a valid shared JWT key pair and fails startup for missing, invalid, or mismatched keys instead of generating per-instance keys
 
