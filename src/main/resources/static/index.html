@@ -67,6 +67,13 @@
     .detected-title { margin: 0 0 12px; color: #59667e; font-size: 14px; }
     .modal-backdrop { position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; padding: 20px; background: #121a2dcc; }
     .modal { width: min(100%, 560px); max-height: min(90vh, 760px); overflow: auto; }
+    .settings-email-section { border-top: 1px solid #e6e8ed; padding-top: 18px; }
+    .settings-email-list { display: grid; gap: 8px; }
+    .settings-email-row { display: flex; align-items: center; gap: 8px; }
+    .settings-email-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #d5dae4; border-radius: 9px; font: inherit; }
+    .settings-email-row button { width: auto; max-width: none; flex: 0 0 auto; padding: 8px 12px; }
+    .settings-email-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .settings-email-actions button { width: auto; max-width: none; flex: 1 1 180px; }
     .document-viewer-modal { width: min(100%, 920px); height: min(90vh, 850px); max-height: 90vh; display: flex; flex-direction: column; }
     .document-viewer-heading-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
     .document-viewer-heading-info h2 { margin: 0; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -536,6 +543,16 @@
         <button class="primary" id="settings-save" type="button">Save settings</button>
       </div>
       <div class="status" id="settings-status" role="status" aria-live="polite"></div>
+      <div class="field settings-email-section">
+        <h2>Allowed sign-in emails</h2>
+        <p class="hint">Only accounts in this list can sign in. Changes are saved to the local <code>.env</code> file.</p>
+        <div id="settings-email-list" class="settings-email-list" aria-label="Allowed sign-in email addresses"></div>
+        <div class="settings-email-actions">
+          <button class="secondary" id="settings-add-email" type="button" disabled>Add email</button>
+          <button class="primary" id="settings-save-emails" type="button" disabled>Save allowed emails</button>
+        </div>
+        <div class="status" id="settings-email-status" role="status" aria-live="polite"></div>
+      </div>
     </section>
   </div>
 
@@ -1747,6 +1764,106 @@
       document.querySelectorAll(".modal-loading-overlay.active").forEach((el) => el.classList.remove("active"));
     }
 
+    function renderAllowedEmailFields(emails) {
+      const list = document.querySelector("#settings-email-list");
+      list.replaceChildren();
+      emails.forEach((email) => addAllowedEmailField(email));
+    }
+
+    function addAllowedEmailField(value = "") {
+      const list = document.querySelector("#settings-email-list");
+      const row = document.createElement("div");
+      row.className = "settings-email-row";
+      const input = document.createElement("input");
+      input.type = "email";
+      input.autocomplete = "email";
+      input.maxLength = 320;
+      input.required = true;
+      input.value = value;
+      input.setAttribute("aria-label", "Allowed sign-in email address");
+      input.addEventListener("input", () => {
+        const status = document.querySelector("#settings-email-status");
+        status.classList.remove("error", "success");
+        status.textContent = "";
+      });
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "secondary";
+      remove.textContent = "Remove";
+      remove.setAttribute("aria-label", "Remove allowed email");
+      remove.addEventListener("click", () => {
+        row.remove();
+        const status = document.querySelector("#settings-email-status");
+        status.classList.remove("error", "success");
+        status.textContent = "";
+      });
+      row.append(input, remove);
+      list.append(row);
+      return input;
+    }
+
+    async function loadAllowedEmails() {
+      const status = document.querySelector("#settings-email-status");
+      const addButton = document.querySelector("#settings-add-email");
+      const saveButton = document.querySelector("#settings-save-emails");
+      addButton.disabled = true;
+      saveButton.disabled = true;
+      status.classList.remove("error", "success");
+      status.textContent = "Loading allowed email addresses...";
+      try {
+        const result = await requestJson("/api/settings/allowed-emails");
+        renderAllowedEmailFields(result.emails);
+        status.textContent = "";
+        addButton.disabled = false;
+        saveButton.disabled = false;
+      } catch (error) {
+        status.textContent = error.message || "Could not load allowed email addresses.";
+        status.classList.add("error");
+      }
+    }
+
+    document.querySelector("#settings-add-email").addEventListener("click", () => {
+      addAllowedEmailField().focus();
+    });
+
+    document.querySelector("#settings-save-emails").addEventListener("click", async (event) => {
+      const inputs = [...document.querySelectorAll("#settings-email-list input")];
+      const status = document.querySelector("#settings-email-status");
+      const button = event.currentTarget;
+      const emails = inputs.map((input) => input.value.trim());
+      if (emails.length === 0) {
+        status.textContent = "Keep at least one allowed email address.";
+        status.classList.add("error");
+        return;
+      }
+      const invalidInput = inputs.find((input) => !input.checkValidity());
+      if (invalidInput) {
+        invalidInput.reportValidity();
+        status.textContent = "Enter a valid email address in each field.";
+        status.classList.add("error");
+        return;
+      }
+
+      button.disabled = true;
+      status.classList.remove("error", "success");
+      status.textContent = "Saving allowed email addresses...";
+      try {
+        const result = await requestJson("/api/settings/allowed-emails", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emails: emails.join(",") })
+        });
+        renderAllowedEmailFields(result.emails);
+        status.textContent = "Allowed email addresses saved.";
+        status.classList.add("success");
+      } catch (error) {
+        status.textContent = error.message || "Could not save allowed email addresses.";
+        status.classList.add("error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
     async function saveSettings(key, model, message, button) {
       button.disabled = true;
       message.classList.remove("error");
@@ -1988,6 +2105,7 @@
 
     settingsOpen.addEventListener("click", async () => {
       settingsModal.hidden = false;
+      loadAllowedEmails();
       const currentKey = document.querySelector("#settings-current-key");
       currentKey.type = "password";
       document.querySelector("#settings-key-visibility").textContent = "Show";

@@ -1,7 +1,7 @@
 package com.mosta.coveringletter.security
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
-import org.springframework.beans.factory.annotation.Value
+import com.mosta.coveringletter.settings.AllowedEmailsService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
@@ -24,14 +24,9 @@ import org.springframework.security.core.context.ReactiveSecurityContextHolder
 class SecurityConfig(
     private val userActions: UserActionLogBuffer,
     private val jwtService: JwtService,
-    private val jwtAuthenticationConverter: JwtAuthenticationConverter
+    private val jwtAuthenticationConverter: JwtAuthenticationConverter,
+    private val allowedEmails: AllowedEmailsService
 ) {
-
-    @Value("\${coverletter.security.allowed-emails:info@manonworld.de}")
-    private lateinit var allowedEmailsProperty: String
-
-    private val allowedEmails: Set<String>
-        get() = allowedEmailsProperty.split(",").map { it.trim().lowercase() }.toSet()
 
     @Bean
     fun securityWebFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
@@ -41,22 +36,24 @@ class SecurityConfig(
                 exceptions.authenticationEntryPoint(ApiAuthenticationEntryPoint())
             }
             .authorizeExchange { auth ->
+                auth.pathMatchers("/api/settings/allowed-emails").authenticated()
                 auth.pathMatchers(
                     "/login",
-                    "/login.html",
                     "/error",
                     "/favicon.ico",
                     "/login/oauth2/code/*",
                     "/api/auth/refresh",
                     "/api/auth/logout",
                     "/api/auth/login-success",
-                    "/api/session/heartbeat"
+                    "/api/session/heartbeat",
+                    "/api/setup/status",
+                    "/api/setup/allowed-emails"
                 ).permitAll()
                 auth.anyExchange().authenticated()
             }
             .httpBasic { it.disable() }
             .oauth2Login { oauth ->
-                oauth.loginPage("/login.html")
+                oauth.loginPage("/login")
                 oauth.authenticationSuccessHandler(EmailCheckingSuccessHandler())
                 oauth.authenticationFailureHandler(LoginFailureHandler())
             }
@@ -87,7 +84,7 @@ class SecurityConfig(
                 )
             } else {
                 exchange.response.statusCode = HttpStatus.FOUND
-                exchange.response.headers.setLocation(java.net.URI.create("/login.html"))
+                exchange.response.headers.setLocation(java.net.URI.create("/login"))
                 exchange.response.setComplete()
             }
         }
@@ -95,8 +92,8 @@ class SecurityConfig(
 
     inner class EmailCheckingSuccessHandler : ServerAuthenticationSuccessHandler {
         override fun onAuthenticationSuccess(exchange: WebFilterExchange, authentication: Authentication): Mono<Void> {
-            val name = authentication.name.lowercase()
-            return if (allowedEmails.contains(name)) {
+            val name = authentication.name.trim().lowercase()
+            return if (allowedEmails.allows(name)) {
                 val wasRefresh = exchange.exchange.request.queryParams["refresh"]?.firstOrNull() == "true"
                 if (wasRefresh) {
                     userActions.record("Session refreshed via Google Sign-In")
@@ -116,7 +113,7 @@ class SecurityConfig(
                 exchange.exchange.response.setComplete()
             } else {
                 exchange.exchange.response.statusCode = HttpStatus.FOUND
-                exchange.exchange.response.headers.setLocation(java.net.URI.create("/login.html?error=access_denied"))
+                exchange.exchange.response.headers.setLocation(java.net.URI.create("/login?error=access_denied"))
                 exchange.exchange.response.setComplete()
             }
         }
@@ -125,7 +122,7 @@ class SecurityConfig(
     class LoginFailureHandler : ServerAuthenticationFailureHandler {
         override fun onAuthenticationFailure(exchange: WebFilterExchange, exception: AuthenticationException): Mono<Void> {
             exchange.exchange.response.statusCode = HttpStatus.FOUND
-            exchange.exchange.response.headers.setLocation(java.net.URI.create("/login.html?error=authentication_failed"))
+            exchange.exchange.response.headers.setLocation(java.net.URI.create("/login?error=authentication_failed"))
             return exchange.exchange.response.setComplete()
         }
     }

@@ -24,7 +24,8 @@ if /I not "%RUN_MODE%"=="native" echo Java 25 is available.
 if not exist ".env" (
     >".env" echo GEMINI_API_KEY=
     >>".env" echo GEMINI_MODEL=gemini-3.1-flash-lite
-    echo Created .env. You can enter the Gemini API key in the first-run setup page.
+    >>".env" echo ALLOWED_EMAILS=your.email@gmail.com
+    echo Created .env. Set ALLOWED_EMAILS to your Google account and enter the Gemini API key in the first-run setup page.
 )
 
 echo Cleaning previous build outputs...

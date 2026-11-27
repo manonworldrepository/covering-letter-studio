@@ -27,7 +27,7 @@ class LoginFailureHandlerTests {
 		handler.onAuthenticationFailure(exchange, exception).block()
 
 		assertEquals(HttpStatus.FOUND, exchange.exchange.response.statusCode)
-		assertEquals("/login.html", exchange.exchange.response.headers.location?.path)
+		assertEquals("/login", exchange.exchange.response.headers.location?.path)
 		assertEquals(true, exchange.exchange.response.headers.location?.query?.contains("error=authentication_failed") == true)
 	}
 

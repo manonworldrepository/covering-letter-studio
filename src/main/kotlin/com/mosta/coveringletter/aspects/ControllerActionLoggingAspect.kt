@@ -151,6 +151,11 @@ class ControllerActionLoggingAspect(
 
 	// --- SettingsController ---
 
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.AllowedEmailsController.updateAllowedEmails(..))")
+	fun logUpdateAllowedEmails() {
+		logs.record("Updated allowed sign-in email addresses")
+	}
+
 	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SettingsController.saveApiKey(..))")
 	fun logSaveApiKey() {
 		// Reactive method (Mono<AppSettingsStatus>) — use fixed message

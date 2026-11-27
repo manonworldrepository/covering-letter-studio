@@ -28,7 +28,7 @@ spring:
               - profile
               - openid
             authorization-grant-type: authorization_code
-            redirect-uri: "https://coveringletter-ga7tig2oka-uc.a.run.app/login/oauth2/code/google"
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           google:
             issuer-uri: https://accounts.google.com
@@ -54,7 +54,8 @@ coverletter:
   storage:
     directory: ${COVERLETTER_STORAGE_DIR:.data}
   security:
-    allowed-emails: ${ALLOWED_EMAILS:info@manonworld.de}
+    # Configure the Google account(s) allowed to sign in in the root .env file.
+    allowed-emails: ${ALLOWED_EMAILS:}
   cloud-storage:
     enabled: ${CLOUD_STORAGE_ENABLED:false}
     bucket: ${CLOUD_STORAGE_BUCKET:}

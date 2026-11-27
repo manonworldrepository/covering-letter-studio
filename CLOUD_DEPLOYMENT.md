@@ -46,13 +46,15 @@ gcloud run deploy coveringletter `
   --platform managed `
   --region us-central1 `
   --allow-unauthenticated `
-  --set-env-vars "GEMINI_API_KEY=your-api-key-here,GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=your-client-id,GOOGLE_CLIENT_SECRET=your-client-secret,CLOUD_STORAGE_BUCKET=PROJECT_ID-coveringletter-data,JWT_PRIVATE_KEY_BASE64=base64-encoded-private-key,JWT_PUBLIC_KEY_BASE64=base64-encoded-public-key" `
+  --set-env-vars "GEMINI_API_KEY=your-api-key-here,GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=your-client-id,GOOGLE_CLIENT_SECRET=your-client-secret,ALLOWED_EMAILS=your.email@gmail.com,CLOUD_STORAGE_BUCKET=PROJECT_ID-coveringletter-data,JWT_PRIVATE_KEY_BASE64=base64-encoded-private-key,JWT_PUBLIC_KEY_BASE64=base64-encoded-public-key" `
   --memory 512Mi `
   --cpu 1 `
   --max-instances 2
 ```
 
 > **Important:** `--set-env-vars` replaces the service's complete environment-variable set. Pass all variables in one comma-separated assignment, as above. To change only some variables later, use `--update-env-vars` so existing values are preserved.
+>
+> `ALLOWED_EMAILS` accepts comma-separated addresses. When setting multiple addresses directly with `gcloud`, escape commas within that value (for example, `ALLOWED_EMAILS=you@example.com\,admin@example.com`). The GitHub Actions workflow handles this escaping for its `ALLOWED_EMAILS` secret.
 
 ### Security Note
 
@@ -86,6 +88,7 @@ The app requires these environment variables on Cloud Run:
 | `GEMINI_MODEL` | No | Model ID (default: `gemini-3.1-flash-lite`) |
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth2 client ID for Sign-In |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth2 client secret |
+| `ALLOWED_EMAILS` | Yes | Comma-separated Google account email addresses permitted to sign in |
 | `CLOUD_STORAGE_BUCKET` | Yes | Cloud Storage bucket name for data persistence |
 | `JWT_PRIVATE_KEY_BASE64` | Yes | Base64-encoded RSA private key for JWT signing (see below) |
 | `JWT_PUBLIC_KEY_BASE64` | Yes | Base64-encoded RSA public key for JWT verification (see below) |
@@ -421,6 +424,7 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID | `123456789-abc.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret | `GOCSPX-abc123...` |
 | `GEMINI_API_KEY` | Your Google Gemini API key | `AIza...` |
+| `ALLOWED_EMAILS` | Comma-separated Google account email addresses permitted to sign in | `you@example.com,admin@example.com` |
 | `CLOUD_STORAGE_BUCKET` | Cloud Storage bucket name | `my-project-coveringletter-data` |
 | `JWT_PRIVATE_KEY_BASE64` | Base64-encoded RSA private key | (see JWT Key Pair Generation) |
 | `JWT_PUBLIC_KEY_BASE64` | Base64-encoded RSA public key | (see JWT Key Pair Generation) |

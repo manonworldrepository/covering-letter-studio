@@ -143,6 +143,7 @@ class UserController(
 
     @PostMapping("/api/auth/logout")
     fun logout(exchange: ServerWebExchange): Mono<Void> {
+        userActions.clear()
         val response = exchange.response
         val clearAccess = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, "")
             .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()

@@ -4,6 +4,15 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.16] - 2026-11-27
+
+### Added
+- Added a one-time pre-login screen to configure allowed Google accounts and authenticated Settings controls to review, add, and remove allowed email addresses
+
+### Changed
+- Google Sign-In access now uses `ALLOWED_EMAILS` from the root `.env` file locally or the environment on Cloud Run, and the OAuth callback follows the current app host
+- Activity logs are cleared automatically when the user signs out
+
 ## [v3.3.15] - 2026-11-27
 
 ### Fixed

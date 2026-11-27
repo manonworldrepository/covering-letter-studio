@@ -26,8 +26,8 @@ if [[ "$RUN_MODE" != "native" ]]; then
 fi
 
 if [[ ! -f .env ]]; then
-  printf 'GEMINI_API_KEY=\nGEMINI_MODEL=gemini-3.1-flash-lite\n' > .env
-  echo "Created .env. You can enter the Gemini API key in the first-run setup page."
+  printf 'GEMINI_API_KEY=\nGEMINI_MODEL=gemini-3.1-flash-lite\nALLOWED_EMAILS=your.email@gmail.com\n' > .env
+  echo "Created .env. Set ALLOWED_EMAILS to your Google account and enter the Gemini API key in the first-run setup page."
 fi
 
 chmod +x ./gradlew

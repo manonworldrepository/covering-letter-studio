@@ -1,6 +1,7 @@
 package com.mosta.coveringletter.security
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
+import com.mosta.coveringletter.settings.AllowedEmailsService
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -8,15 +9,20 @@ class SecurityConfigTests {
 
 	@Test
 	fun `allowed emails are trimmed and lowercased`() {
-		val allowedEmails = "  UPPER@EXAMPLE.COM  , lower@example.com ".split(",").map { it.trim().lowercase() }.toSet()
-		assertTrue("upper@example.com" in allowedEmails)
-		assertTrue("lower@example.com" in allowedEmails)
+		val allowedEmails = AllowedEmailsService("  UPPER@EXAMPLE.COM  , lower@example.com ")
+		assertTrue(allowedEmails.allows("upper@example.com"))
+		assertTrue(allowedEmails.allows("LOWER@example.com"))
 	}
 
 	@Test
 	fun `EmailCheckingSuccessHandler is correctly instantiated`() {
 		val jwtService = JwtService(900, 604800, "", "").also { it.init() }
-		val config = SecurityConfig(UserActionLogBuffer(), jwtService, JwtAuthenticationConverter(jwtService))
+		val config = SecurityConfig(
+			UserActionLogBuffer(),
+			jwtService,
+			JwtAuthenticationConverter(jwtService),
+			AllowedEmailsService("person@example.com")
+		)
 		val handler = config.EmailCheckingSuccessHandler()
 		assertTrue(handler is SecurityConfig.EmailCheckingSuccessHandler)
 	}

@@ -50,7 +50,7 @@ class ApiAuthenticationEntryPointTests {
 		entryPoint.commence(exchange, exception).block()
 
 		assertEquals(HttpStatus.FOUND, exchange.response.statusCode)
-		assertEquals("/login.html", exchange.response.headers.location?.path)
+		assertEquals("/login", exchange.response.headers.location?.path)
 	}
 
 	@Test
@@ -61,7 +61,7 @@ class ApiAuthenticationEntryPointTests {
 		entryPoint.commence(exchange, exception).block()
 
 		assertEquals(HttpStatus.FOUND, exchange.response.statusCode)
-		assertEquals("/login.html", exchange.response.headers.location?.path)
+		assertEquals("/login", exchange.response.headers.location?.path)
 	}
 
 	@Test
@@ -72,7 +72,7 @@ class ApiAuthenticationEntryPointTests {
 		entryPoint.commence(exchange, exception).block()
 
 		assertEquals(HttpStatus.FOUND, exchange.response.statusCode)
-		assertEquals("/login.html", exchange.response.headers.location?.path)
+		assertEquals("/login", exchange.response.headers.location?.path)
 	}
 
 	@Test

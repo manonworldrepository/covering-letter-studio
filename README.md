@@ -13,6 +13,14 @@ Cover Letter Studio is a single-user, localhost-only application that uses Googl
 - Internet access to download Gradle dependencies and contact the Gemini API.
 - A Gemini API key. Google AI Studio may offer free-tier usage in supported regions, subject to model availability and quotas; unlimited free usage is not guaranteed.
 
+## Google Sign-In configuration
+
+On first launch, if no allowed emails are configured, a one-time setup screen appears before Google Sign-In. Enter one Google account email address per field; the addresses are normalized and saved as `ALLOWED_EMAILS` in the root `.env` file, and the setup screen will not appear again. If `ALLOWED_EMAILS` is already set in the environment or `.env`, setup is skipped. Sign-in is restricted to this list; the app does not automatically allow every Gmail account. Signed-in users can review, add, or remove allowed addresses in **Settings**; changes are saved to the local `.env` file. Only registered users can access this management feature.
+
+For Cloud Run, configure `ALLOWED_EMAILS` as a service environment variable. The container's local `.env` file is not persistent across restarts, so update the Cloud Run environment configuration when you need changes to survive a restart or new revision.
+
+Create a Google OAuth client for your own app and provide its `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the root `.env` file or as environment variables. For local development, add `http://localhost:8080/login/oauth2/code/google` as an authorized redirect URI for that client. The callback URI is generated from the current host, so the same setup works with a Cloud Run URL when that URL is registered with the OAuth client.
+
 ## Start the application
 
 Run commands from the project root. On first launch, the setup wizard asks for a Gemini API key and a model available to that key, then guides you through adding and selecting a required resume, optionally adding and selecting supporting documents, and choosing whether to generate a complete cover letter or a short motivation note. Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`), the app's default model, is recommended and preselected when available. After reviewing a draft, choose **Start a new application** to clear it and enter another job description while keeping your saved documents and selections. Saving the settings creates or updates the root `.env` file. You can also create `.env` before starting:
@@ -20,6 +28,9 @@ Run commands from the project root. On first launch, the setup wizard asks for a
 ```dotenv
 GEMINI_API_KEY=your-api-key
 GEMINI_MODEL=gemini-3.1-flash-lite
+GOOGLE_CLIENT_ID=your-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-oauth-client-secret
+ALLOWED_EMAILS=your.email@gmail.com
 ```
 
 Keep `.env` private; it is excluded from Git. When both values exist, the app opens directly to the workspace. Change them later from **Settings** in the application.

@@ -4,6 +4,7 @@ import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.controller.UserController
 import com.mosta.coveringletter.security.JwtService
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.http.HttpStatus
@@ -121,6 +122,20 @@ class UserControllerTests {
 			listOf("Token refresh attempted", "Token refresh failed: refresh token expired"),
 			userActions.latest().map { it.action }
 		)
+	}
+
+	@Test
+	fun `logout clears all activity logs`() {
+		userActions.clear()
+		userActions.record("Generated a cover letter")
+		userActions.record("Downloaded a PDF")
+		val controller = UserController(jwtService, userActions)
+		val exchange = MockServerWebExchange.from(MockServerHttpRequest.post("/api/auth/logout").build())
+
+		controller.logout(exchange).block()
+
+		assertEquals(HttpStatus.OK, exchange.response.statusCode)
+		assertTrue(userActions.latest().isEmpty())
 	}
 
 	private fun createRefreshExchange(refreshToken: String): MockServerWebExchange {
