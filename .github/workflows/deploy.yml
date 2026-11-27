@@ -78,25 +78,39 @@ jobs:
             exit 1
           fi
 
-          gcloud run deploy ${{ env.SERVICE }} \
+          REVISION="$(gcloud run deploy ${{ env.SERVICE }} \
             --image "$IMAGE_URI" \
             --platform managed \
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }} \
             --allow-unauthenticated \
             --set-env-vars "GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},CLOUD_STORAGE_BUCKET=${{ secrets.CLOUD_STORAGE_BUCKET }},JWT_PRIVATE_KEY_BASE64=${{ secrets.JWT_PRIVATE_KEY_BASE64 }},JWT_PUBLIC_KEY_BASE64=${{ secrets.JWT_PUBLIC_KEY_BASE64 }}" \
-            --quiet
+            --quiet \
+            --format='value(status.latestCreatedRevisionName)')"
 
-          REVISION="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --format='value(status.latestReadyRevisionName)')"
           if [[ -z "$REVISION" ]]; then
-            echo "Cloud Run did not report a ready revision after deployment." >&2
+            echo "Cloud Run did not return the revision created by this deployment." >&2
             exit 1
           fi
+          echo "Checking Cloud Run revision $REVISION."
+
           REVISION_IMAGE="$(gcloud run revisions describe "$REVISION" --region "${REGION}" --project "${PROJECT_ID}" --format='value(spec.containers[0].image)')"
-          if [[ "$REVISION_IMAGE" != "$IMAGE_URI" ]]; then
-            echo "Deployed revision $REVISION uses $REVISION_IMAGE, expected $IMAGE_URI." >&2
+          EXPECTED_REPOSITORY="${IMAGE_URI%@*}"
+          REVISION_REPOSITORY="${REVISION_IMAGE%@*}"
+          REVISION_DIGEST="${REVISION_IMAGE##*@}"
+          if [[ "$REVISION_REPOSITORY" != "$EXPECTED_REPOSITORY" ]]; then
+            echo "Deployed revision $REVISION uses repository $REVISION_REPOSITORY, expected $EXPECTED_REPOSITORY." >&2
             exit 1
           fi
+
+          if [[ "$REVISION_DIGEST" != "${IMAGE_URI##*@}" ]]; then
+            PLATFORM_DIGESTS="$(docker buildx imagetools inspect --raw "$IMAGE_URI" | jq -r '.manifests[]? | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest')"
+            if ! grep -Fxq "$REVISION_DIGEST" <<< "$PLATFORM_DIGESTS"; then
+              echo "Deployed revision $REVISION uses digest $REVISION_DIGEST, which is not the pushed image digest ${IMAGE_URI##*@} or its Linux/AMD64 manifest." >&2
+              exit 1
+            fi
+          fi
+
           TRAFFIC_PERCENT="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --format=json | jq -r --arg revision "$REVISION" '[.status.traffic[]? | select(.revisionName == $revision) | (.percent // 0)] | add // 0')"
           if [[ "$TRAFFIC_PERCENT" != "100" ]]; then
             echo "Revision $REVISION receives ${TRAFFIC_PERCENT}% of traffic; expected 100%." >&2

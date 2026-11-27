@@ -4,6 +4,11 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.13] - 2026-11-27
+
+### Fixed
+- Cloud Run deployment verification now checks the revision created by that deployment and accepts its platform-specific digest only when it belongs to the exact pushed image
+
 ## [v3.3.12] - 2026-11-27
 
 ### Changed
