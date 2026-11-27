@@ -1,4 +1,4 @@
-package com.mosta.coveringletter.generation
+package com.mosta.coveringletter.coverletter
 
 import reactor.core.publisher.Mono
 

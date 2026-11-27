@@ -2,10 +2,11 @@ package com.mosta.coveringletter.api
 
 import com.mosta.coveringletter.api.request.GenerateLetterRequest
 import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
-import com.mosta.coveringletter.generation.CoverLetterGenerationService
-import com.mosta.coveringletter.generation.CoverLetterGenerator
-import com.mosta.coveringletter.generation.GeneratedCoverLetter
-import com.mosta.coveringletter.generation.GenerationFormat
+import com.mosta.coveringletter.coverletter.CoverLetterGenerationService
+import com.mosta.coveringletter.coverletter.CoverLetterGenerator
+import com.mosta.coveringletter.coverletter.GeneratedCoverLetter
+import com.mosta.coveringletter.coverletter.GenerationFormat
+import com.mosta.coveringletter.generation.GenerationInputService
 import com.mosta.coveringletter.resume.ResumeStore
 import com.mosta.coveringletter.supportingdocument.SupportingDocumentStore
 import com.mosta.coveringletter.documents.DocumentTextExtractor
@@ -35,8 +36,7 @@ class GenerationControllerTests {
 		val loggingAspect = GeminiServiceLoggingAspect(com.mosta.coveringletter.activity.UserActionLogBuffer())
 		mockGenerator = MockCoverLetterGenerator()
 		generationService = CoverLetterGenerationService(
-			resumeStore,
-			supportingDocumentStore,
+			GenerationInputService(resumeStore, supportingDocumentStore),
 			mockGenerator,
 			loggingAspect
 		)
@@ -68,6 +68,7 @@ class GenerationControllerTests {
 
 	private inner class MockCoverLetterGenerator : CoverLetterGenerator {
 		var lastJobDescription: String = ""
+		var lastFormat: GenerationFormat = GenerationFormat.COVER_LETTER
 
 		override fun generate(
 			jobDescription: String,
@@ -76,6 +77,7 @@ class GenerationControllerTests {
 			format: GenerationFormat
 		): Mono<GeneratedCoverLetter> {
 			lastJobDescription = jobDescription
+			lastFormat = format
 			return Mono.just(
 				GeneratedCoverLetter(
 					"Dear Hiring Manager, I am interested.",

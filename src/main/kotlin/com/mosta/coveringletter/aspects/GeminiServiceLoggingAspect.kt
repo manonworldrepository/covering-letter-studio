@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component
 private val logger = LoggerFactory.getLogger(GeminiServiceLoggingAspect::class.java)
 
 /**
- * Centralized logging for Gemini cover letter service operations.
- * Called from [com.mosta.coveringletter.generation.GeminiCoverLetterService] instead of inline logging.
+ * Centralized logging for Gemini generation operations.
+ * Called from generation services instead of inline logging.
  */
 @Component
 class GeminiServiceLoggingAspect(
@@ -63,5 +63,9 @@ class GeminiServiceLoggingAspect(
 
 	fun logCoverLetterGenerated(format: String) {
 		userActions.record(format)
+	}
+
+	fun logResumeTailored() {
+		userActions.record("Tailored a resume")
 	}
 }

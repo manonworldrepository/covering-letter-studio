@@ -206,6 +206,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           Cover Letter
         </button>
+        <button id="nav-resume-tailoring" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
+          Tailor Resume
+        </button>
         <button id="nav-applied-jobs" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
           Applied Jobs
@@ -408,6 +412,36 @@
       </section>
     </section>
 
+    <section id="resume-tailoring-page" hidden>
+      <div class="intro">
+        <h1>Tailor your resume for each role.</h1>
+        <p>Use the job description to bring your most relevant experience and measurable impact forward.</p>
+      </div>
+      <form class="card" id="resume-tailoring-form">
+        <h2 class="section-heading-strip">Job description</h2>
+        <p class="hint">This uses the currently selected resume and supporting documents from the Cover Letter page. Generated content stays grounded in those files; review it for accuracy before applying.</p>
+        <div class="field">
+          <label for="resume-tailoring-job">Job description <span class="required">*</span></label>
+          <textarea id="resume-tailoring-job" name="jobDescription" required maxlength="20000" placeholder="Paste the job description here..."></textarea>
+        </div>
+        <div class="actions">
+          <button class="primary" id="tailor-resume-generate" type="submit" disabled>Tailor resume</button>
+          <span class="status" id="resume-tailoring-status" role="status" aria-live="polite"></span>
+        </div>
+        <div class="privacy">Only the selected resume, selected supporting documents, and this job description are sent to Google Gemini to draft a tailored resume.</div>
+      </form>
+      <section class="card" id="tailored-resume-result" style="margin-top:20px" hidden>
+        <label for="tailored-resume-text">Your tailored resume (review and edit before copying or downloading)</label>
+        <p class="detected-title" id="tailored-resume-details"></p>
+        <textarea id="tailored-resume-text" spellcheck="true"></textarea>
+        <div class="actions">
+          <button class="primary" id="download-tailored-resume" type="button">Download text file</button>
+          <button class="secondary" id="copy-tailored-resume" type="button">Copy text</button>
+          <button class="secondary" id="tailor-another-resume" type="button">Tailor another role</button>
+        </div>
+      </section>
+    </section>
+
     <section id="applied-jobs-page" hidden>
       <div class="intro">
         <h1>Applied Jobs</h1>
@@ -588,6 +622,9 @@
     let generationStartedAt = 0;
     const letter = document.querySelector("#letter");
     const generationFormat = document.querySelector("#generation-format");
+    const resumeTailoringJob = document.querySelector("#resume-tailoring-job");
+    const tailorResumeButton = document.querySelector("#tailor-resume-generate");
+    const tailoredResumeText = document.querySelector("#tailored-resume-text");
     const recommendedModel = "gemini-3.1-flash-lite";
     let activeModel = "";
     let setupApiKeyConfigured = false;
@@ -596,6 +633,9 @@
     let detectedJobTitle = "";
     let detectedApplicantName = "";
     let detectedCompanyName = "";
+    let tailoredResumeJobTitle = "";
+    let tailoredResumeApplicantName = "";
+    let tailoredResumeCompanyName = "";
     let lastLogSignature = "";
     const documentViewerModal = document.querySelector("#document-viewer-modal");
     const documentViewerTitle = document.querySelector("#document-viewer-title");
@@ -1299,6 +1339,11 @@
       generateTooltip.classList.toggle("is-disabled", disabled);
       generateTooltip.dataset.tooltip = reason;
       generateTooltip.title = reason;
+      updateResumeTailorButtonState();
+    }
+
+    function updateResumeTailorButtonState() {
+      tailorResumeButton.disabled = generationInProgress || !resumeAvailable || !resumeTailoringJob.value.trim();
     }
 
     function setBusyOverlay(inProgress, title = "") {
@@ -1334,7 +1379,7 @@
       }
     }
 
-    function setGenerationInProgress(inProgress) {
+    function setGenerationInProgress(inProgress, format = generationFormat.value) {
       generationInProgress = inProgress;
       if (generationProgressTimer !== null) {
         clearInterval(generationProgressTimer);
@@ -1344,9 +1389,11 @@
       if (inProgress) {
         generationProgressLabel.textContent = "Estimated progress";
         generationStartedAt = Date.now();
-        generationOverlayTitle.textContent = generationFormat.value === "motivation-message"
-          ? "Generating your motivation message..."
-          : "Generating your covering letter...";
+        generationOverlayTitle.textContent = format === "resume"
+          ? "Tailoring your resume..."
+          : format === "motivation-message"
+            ? "Generating your motivation message..."
+            : "Generating your covering letter...";
         updateGenerationProgress(0);
         generationProgressTimer = setInterval(() => {
           const elapsedSeconds = (Date.now() - generationStartedAt) / 1000;
@@ -2216,6 +2263,82 @@
       }
     });
 
+    const resumeTailoringForm = document.querySelector("#resume-tailoring-form");
+    const resumeTailoringStatus = document.querySelector("#resume-tailoring-status");
+    const tailoredResumeResult = document.querySelector("#tailored-resume-result");
+    resumeTailoringJob.addEventListener("input", updateResumeTailorButtonState);
+    resumeTailoringForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setGenerationInProgress(true, "resume");
+      resumeTailoringStatus.classList.remove("error");
+      resumeTailoringStatus.textContent = "Reading documents and tailoring your resume...";
+      tailoredResumeResult.hidden = true;
+      try {
+        const body = await requestJson("/api/tailor-resume", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jobDescription: resumeTailoringJob.value })
+        });
+        tailoredResumeText.value = body.resume;
+        tailoredResumeJobTitle = body.jobTitle;
+        tailoredResumeApplicantName = body.applicantName;
+        tailoredResumeCompanyName = body.companyName || "";
+        document.querySelector("#tailored-resume-details").textContent =
+          `Resume name: ${tailoredResumeApplicantName}${tailoredResumeCompanyName ? ` · Company: ${tailoredResumeCompanyName}` : ""} · Tailored for: ${tailoredResumeJobTitle}`;
+        tailoredResumeResult.hidden = false;
+        resumeTailoringStatus.textContent = "Resume ready. Review and edit it before downloading.";
+        if (generationProgressTimer !== null) {
+          clearInterval(generationProgressTimer);
+          generationProgressTimer = null;
+        }
+        updateGenerationProgress(100);
+        generationOverlayTitle.textContent = "Your tailored resume is ready.";
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        tailoredResumeResult.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        resumeTailoringStatus.textContent = error.message || "Could not tailor the resume. Please try again.";
+        resumeTailoringStatus.classList.add("error");
+      } finally {
+        setGenerationInProgress(false);
+      }
+    });
+
+    document.querySelector("#download-tailored-resume").addEventListener("click", () => {
+      const filePart = (tailoredResumeJobTitle || "resume").toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const blob = new Blob([tailoredResumeText.value], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `tailored-resume-${filePart || "resume"}.txt`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    document.querySelector("#copy-tailored-resume").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const originalText = button.textContent;
+      try {
+        await navigator.clipboard.writeText(tailoredResumeText.value);
+        await recordUserAction("Copied tailored resume to clipboard");
+        showButtonMessage(button, "Copied!", 2000, originalText);
+      } catch {
+        showButtonMessage(button, "Clipboard denied", 3000, originalText);
+        await recordUserAction("Tailored resume clipboard copy failed.");
+      }
+    });
+
+    document.querySelector("#tailor-another-resume").addEventListener("click", () => {
+      resumeTailoringJob.value = "";
+      tailoredResumeText.value = "";
+      tailoredResumeResult.hidden = true;
+      resumeTailoringStatus.textContent = "";
+      resumeTailoringStatus.classList.remove("error");
+      updateResumeTailorButtonState();
+      resumeTailoringForm.scrollIntoView({ behavior: "smooth", block: "start" });
+      resumeTailoringJob.focus();
+    });
+
     document.querySelector("#start-over").addEventListener("click", () => {
       jobDescription.value = "";
       updateGenerateButtonState();
@@ -2289,7 +2412,9 @@
     });
 
     const appliedJobsPage = document.querySelector("#applied-jobs-page");
+    const resumeTailoringPage = document.querySelector("#resume-tailoring-page");
     const navCoverLetter = document.querySelector("#nav-cover-letter");
+    const navResumeTailoring = document.querySelector("#nav-resume-tailoring");
     const navAppliedJobs = document.querySelector("#nav-applied-jobs");
     const appliedJobsTableWrap = document.querySelector("#applied-jobs-table-wrap");
     const appliedJobsEmpty = document.querySelector("#applied-jobs-empty");
@@ -2336,21 +2461,24 @@
     appliedJobsDateRangeTo.addEventListener("change", () => loadAppliedJobs());
 
     function showPage(page) {
+      workspace.hidden = page !== "cover-letter";
+      resumeTailoringPage.hidden = page !== "resume-tailoring";
+      appliedJobsPage.hidden = page !== "applied-jobs";
+      navCoverLetter.classList.toggle("active", page === "cover-letter");
+      navResumeTailoring.classList.toggle("active", page === "resume-tailoring");
+      navAppliedJobs.classList.toggle("active", page === "applied-jobs");
       if (page === "cover-letter") {
-        workspace.hidden = false;
-        appliedJobsPage.hidden = true;
-        navCoverLetter.classList.add("active");
-        navAppliedJobs.classList.remove("active");
+        return;
+      }
+      if (page === "resume-tailoring") {
+        return;
       } else if (page === "applied-jobs") {
-        workspace.hidden = true;
-        appliedJobsPage.hidden = false;
-        navCoverLetter.classList.remove("active");
-        navAppliedJobs.classList.add("active");
         loadAppliedJobs();
       }
     }
 
     navCoverLetter.addEventListener("click", () => showPage("cover-letter"));
+    navResumeTailoring.addEventListener("click", () => showPage("resume-tailoring"));
     navAppliedJobs.addEventListener("click", () => showPage("applied-jobs"));
 
     appliedJobsSearch.addEventListener("keydown", (e) => {

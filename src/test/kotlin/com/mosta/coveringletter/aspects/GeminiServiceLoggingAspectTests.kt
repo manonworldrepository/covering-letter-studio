@@ -91,6 +91,15 @@ class GeminiServiceLoggingAspectTests {
 	}
 
 	@Test
+	fun `logResumeTailored records tailored resume action`() {
+		aspect.logResumeTailored()
+
+		val entries = userActions.latest()
+		assertEquals(1, entries.size)
+		assertEquals("Tailored a resume", entries.single().action)
+	}
+
+	@Test
 	fun `multiple Gemini actions are recorded in order`() {
 		aspect.logModelContacted("gemini-3.1-flash-lite")
 		aspect.logModelReplied("gemini-3.1-flash-lite")

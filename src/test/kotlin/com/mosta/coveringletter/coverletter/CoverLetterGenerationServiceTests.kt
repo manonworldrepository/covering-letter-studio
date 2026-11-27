@@ -1,6 +1,8 @@
-package com.mosta.coveringletter.generation
+package com.mosta.coveringletter.coverletter
 
 import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
+import com.mosta.coveringletter.generation.GenerationInputService
+import com.mosta.coveringletter.generation.GenerationLimits
 import com.mosta.coveringletter.resume.ResumeStore
 import com.mosta.coveringletter.supportingdocument.SupportingDocumentStore
 import com.mosta.coveringletter.documents.DocumentTextExtractor
@@ -24,6 +26,7 @@ class CoverLetterGenerationServiceTests {
 	private lateinit var resumeStore: ResumeStore
 	private lateinit var supportingDocumentStore: SupportingDocumentStore
 	private lateinit var mockGenerator: MockCoverLetterGenerator
+	private lateinit var inputService: GenerationInputService
 	private lateinit var service: CoverLetterGenerationService
 
 	@BeforeEach
@@ -32,9 +35,9 @@ class CoverLetterGenerationServiceTests {
 		supportingDocumentStore = SupportingDocumentStore(DocumentTextExtractor(), temporaryDirectory.resolve("supporting-data").toString())
 		mockGenerator = MockCoverLetterGenerator()
 		val loggingAspect = GeminiServiceLoggingAspect(com.mosta.coveringletter.activity.UserActionLogBuffer())
+		inputService = GenerationInputService(resumeStore, supportingDocumentStore)
 		service = CoverLetterGenerationService(
-			resumeStore,
-			supportingDocumentStore,
+			inputService,
 			mockGenerator,
 			loggingAspect
 		)
@@ -52,7 +55,7 @@ class CoverLetterGenerationServiceTests {
 
 	@Test
 	fun `rejects job description exceeding maximum length`() {
-		val longDescription = "x".repeat(CoverLetterGenerationLimits.MAX_JOB_DESCRIPTION_LENGTH + 1)
+		val longDescription = "x".repeat(GenerationLimits.MAX_JOB_DESCRIPTION_LENGTH + 1)
 
 		val error = org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException::class.java) {
 			service.generate(longDescription, "cover-letter").block()

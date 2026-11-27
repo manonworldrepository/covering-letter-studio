@@ -1,8 +1,8 @@
 package com.mosta.coveringletter.api
 
 import com.mosta.coveringletter.api.request.GenerateLetterRequest
-import com.mosta.coveringletter.generation.CoverLetterGenerationService
-import com.mosta.coveringletter.generation.GeneratedCoverLetter
+import com.mosta.coveringletter.coverletter.CoverLetterGenerationService
+import com.mosta.coveringletter.coverletter.GeneratedCoverLetter
 import jakarta.validation.Valid
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.ModelAttribute

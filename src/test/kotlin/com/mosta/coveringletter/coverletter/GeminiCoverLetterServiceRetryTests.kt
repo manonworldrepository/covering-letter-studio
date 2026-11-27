@@ -1,5 +1,7 @@
-package com.mosta.coveringletter.generation
+package com.mosta.coveringletter.coverletter
 
+import com.mosta.coveringletter.generation.GeminiGenerationClientSupport
+import com.mosta.coveringletter.generation.GeminiModelFallback
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -12,7 +14,7 @@ class GeminiCoverLetterServiceRetryTests {
 
 	@Test
 	fun `max retries constant is set to 2`() {
-		assertEquals(2, GeminiCoverLetterServiceSupport.MAX_RETRIES)
+		assertEquals(2, GeminiGenerationClientSupport.MAX_RETRIES)
 	}
 
 	@Test
