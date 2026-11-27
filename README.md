@@ -1,5 +1,9 @@
 # Cover Letter Studio
 
+[![Cloud Run deployment](https://github.com/manonworldrepository/covering-letter-studio/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/manonworldrepository/covering-letter-studio/actions/workflows/deploy.yml?query=branch%3Amaster)
+
+A green badge means the latest `master` commit was deployed to Cloud Run and the serving revision was verified against its image digest.
+
 Cover Letter Studio is a single-user, localhost-only application that uses Google Gemini to draft a tailored cover letter from a job description, a saved resume, and optional supporting documents. Review and edit the draft, then download it as a PDF.
 
 ## Requirements

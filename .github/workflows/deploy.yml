@@ -24,6 +24,10 @@ env:
   SERVICE: ${{ secrets.GCP_SERVICE }}
   REPO_NAME: coveringletter-repo
 
+concurrency:
+  group: cloud-run-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write
@@ -51,18 +55,56 @@ jobs:
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: Build and push Docker image
+        id: build
         run: |
-          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/coveringletter:${{ github.sha }}"
+          IMAGE_TAG="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/coveringletter:${GITHUB_SHA}"
           docker build -t "$IMAGE_TAG" .
           docker push "$IMAGE_TAG"
+          IMAGE_DIGEST="$(gcloud artifacts docker images describe "$IMAGE_TAG" --format='value(image_summary.digest)')"
+          if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "Artifact Registry returned an invalid image digest: $IMAGE_DIGEST" >&2
+            exit 1
+          fi
+          echo "image_uri=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/coveringletter@${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Cloud Run
+        env:
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          LATEST_COMMIT="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)"
+          if [[ "$LATEST_COMMIT" != "$GITHUB_SHA" ]]; then
+            echo "GitHub ${GITHUB_REF_NAME} advanced to $LATEST_COMMIT before deployment; skipping stale commit $GITHUB_SHA." >&2
+            exit 1
+          fi
+
           gcloud run deploy ${{ env.SERVICE }} \
-            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/coveringletter:${{ github.sha }} \
+            --image "$IMAGE_URI" \
             --platform managed \
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }} \
             --allow-unauthenticated \
             --set-env-vars "GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},CLOUD_STORAGE_BUCKET=${{ secrets.CLOUD_STORAGE_BUCKET }},JWT_PRIVATE_KEY_BASE64=${{ secrets.JWT_PRIVATE_KEY_BASE64 }},JWT_PUBLIC_KEY_BASE64=${{ secrets.JWT_PUBLIC_KEY_BASE64 }}" \
             --quiet
+
+          REVISION="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --format='value(status.latestReadyRevisionName)')"
+          if [[ -z "$REVISION" ]]; then
+            echo "Cloud Run did not report a ready revision after deployment." >&2
+            exit 1
+          fi
+          REVISION_IMAGE="$(gcloud run revisions describe "$REVISION" --region "${REGION}" --project "${PROJECT_ID}" --format='value(spec.containers[0].image)')"
+          if [[ "$REVISION_IMAGE" != "$IMAGE_URI" ]]; then
+            echo "Deployed revision $REVISION uses $REVISION_IMAGE, expected $IMAGE_URI." >&2
+            exit 1
+          fi
+          TRAFFIC_PERCENT="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --format=json | jq -r --arg revision "$REVISION" '[.status.traffic[]? | select(.revisionName == $revision) | (.percent // 0)] | add // 0')"
+          if [[ "$TRAFFIC_PERCENT" != "100" ]]; then
+            echo "Revision $REVISION receives ${TRAFFIC_PERCENT}% of traffic; expected 100%." >&2
+            exit 1
+          fi
+          LATEST_COMMIT="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_REF_NAME}" --jq .sha)"
+          if [[ "$LATEST_COMMIT" != "$GITHUB_SHA" ]]; then
+            echo "GitHub ${GITHUB_REF_NAME} advanced to $LATEST_COMMIT during deployment; this run deployed $GITHUB_SHA. The newer push run must deploy the current commit." >&2
+            exit 1
+          fi
+          echo "Verified $REVISION is serving $IMAGE_URI with 100% of traffic for latest commit $LATEST_COMMIT."

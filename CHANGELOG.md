@@ -4,6 +4,11 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.12] - 2026-11-27
+
+### Changed
+- Cloud Run deployment now deploys the exact pushed image digest and verifies the latest commit's serving revision and traffic; added a deployment-status badge to the README
+
 ## [v3.3.11] - 2026-11-27
 
 ### Changed
