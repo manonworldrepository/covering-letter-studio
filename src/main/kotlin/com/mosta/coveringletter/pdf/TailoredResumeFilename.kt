@@ -1,19 +1,17 @@
 package com.mosta.coveringletter.pdf
 
 import java.text.Normalizer
-import java.time.LocalDate
 
 object TailoredResumeFilename {
 	fun create(
 		applicantName: String,
 		companyName: String,
-		jobTitle: String,
-		date: LocalDate = LocalDate.now()
+		jobTitle: String
 	): String {
-		val parts = listOf(personFilenamePart(applicantName), filenamePart(companyName), filenamePart(jobTitle))
+		val parts = listOf(personFilenamePart(applicantName), filenamePart(companyName), jobTitleFilenamePart(jobTitle))
 			.filter(String::isNotBlank)
-			.ifEmpty { listOf("Tailored", "Resume") }
-		return "${parts.joinToString("_")}_${date}.pdf"
+			.ifEmpty { listOf("Tailored") }
+		return "${parts.joinToString("_")}_Resume.pdf"
 	}
 
 	private fun personFilenamePart(value: String): String {
@@ -29,4 +27,11 @@ object TailoredResumeFilename {
 			.joinToString("_") { token ->
 				token.lowercase().replaceFirstChar(Char::uppercaseChar)
 			}
+
+	private fun jobTitleFilenamePart(value: String): String {
+		val normalized = filenamePart(value)
+		return if (value.length > MAX_JOB_TITLE_LENGTH) normalized.split("_").take(2).joinToString("_") else normalized
+	}
+
+	private const val MAX_JOB_TITLE_LENGTH = 25
 }

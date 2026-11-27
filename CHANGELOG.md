@@ -4,6 +4,11 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.14] - 2026-11-27
+
+### Changed
+- PDF filenames now use a document-type suffix instead of the date and shorten job titles longer than 25 characters to their first two words
+
 ## [v3.3.13] - 2026-11-27
 
 ### Fixed

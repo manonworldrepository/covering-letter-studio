@@ -1,23 +1,21 @@
 package com.mosta.coveringletter.pdf
 
 import java.text.Normalizer
-import java.time.LocalDate
 
 object CoverLetterFilename {
 	fun create(
 		personName: String,
 		companyName: String,
-		jobTitle: String,
-		date: LocalDate = LocalDate.now()
+		jobTitle: String
 	): String {
 		val person = personFilenamePart(personName)
 		val company = filenamePart(companyName)
-		val job = filenamePart(jobTitle)
+		val job = jobTitleFilenamePart(jobTitle)
 		if (person.isBlank() || job.isBlank()) {
 			throw IllegalArgumentException("Person name and job title are required to create a filename.")
 		}
 		val parts = listOf(person, company, job).filter(String::isNotBlank)
-		return "${parts.joinToString("_")}_${date}.pdf"
+		return "${parts.joinToString("_")}_Cover_Letter.pdf"
 	}
 
 	private fun personFilenamePart(value: String): String {
@@ -33,4 +31,11 @@ object CoverLetterFilename {
 			.joinToString("_") { token ->
 				token.lowercase().replaceFirstChar(Char::uppercaseChar)
 			}
+
+	private fun jobTitleFilenamePart(value: String): String {
+		val normalized = filenamePart(value)
+		return if (value.length > MAX_JOB_TITLE_LENGTH) normalized.split("_").take(2).joinToString("_") else normalized
+	}
+
+	private const val MAX_JOB_TITLE_LENGTH = 25
 }

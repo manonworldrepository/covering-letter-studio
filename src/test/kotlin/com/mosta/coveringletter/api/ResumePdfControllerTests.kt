@@ -30,7 +30,7 @@ class ResumePdfControllerTests {
 		assertEquals("attachment", disposition.type)
 		assertTrue(
 			disposition.filename?.matches(
-				Regex("""Alex_Morgan_Acme_Corp_Forward_Deployed_Engineer_\d{4}-\d{2}-\d{2}\.pdf""")
+				Regex("""Alex_Morgan_Acme_Corp_Forward_Deployed_Engineer_Resume\.pdf""")
 			) == true
 		)
 	}
