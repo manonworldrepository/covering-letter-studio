@@ -4,6 +4,11 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
+## [v3.3.10] - 2026-11-27
+
+### Added
+- Clear-all button for the user activity panel, backed by a dedicated API operation
+
 ## [v3.3.9] - 2026-11-27
 
 ### Changed

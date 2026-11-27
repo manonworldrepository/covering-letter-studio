@@ -67,4 +67,15 @@ class LogsControllerTests {
 		assertEquals("First action", actions[0].action)
 		assertEquals("Third action", actions[2].action)
 	}
+
+	@Test
+	fun `clearUserActions removes all recorded actions`() {
+		logs.record("Generated a cover letter")
+		logs.record("Downloaded a PDF")
+
+		val actions = controller.clearUserActions()
+
+		assertTrue(actions.isEmpty())
+		assertTrue(logs.latest().isEmpty())
+	}
 }

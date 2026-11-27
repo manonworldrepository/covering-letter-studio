@@ -22,4 +22,6 @@ class UserActionLogBuffer {
 	}
 
 	fun latest(): List<UserActionLogEntry> = entries.toList()
+
+	fun clear() = entries.clear()
 }

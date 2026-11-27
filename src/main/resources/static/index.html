@@ -573,6 +573,7 @@
     <div class="log-heading">
       <span>User activity</span>
       <span id="log-state">Live</span>
+      <button id="log-clear" type="button" aria-controls="log-entries" disabled>Clear</button>
       <button id="log-toggle" type="button" aria-expanded="true" aria-controls="log-entries">Minimize</button>
     </div>
     <div id="log-entries" role="log" aria-live="off"><p class="log-entry">Waiting for user actions...</p></div>
@@ -1525,15 +1526,19 @@
 
     let logsPollingPaused = false;
     let logsRequestInProgress = false;
+    let logsRevision = 0;
     async function refreshLogs() {
       if (logsPollingPaused || logsRequestInProgress) return;
       logsRequestInProgress = true;
+      const revision = logsRevision;
       try {
         const entries = await requestJson("/api/logs");
+        if (revision !== logsRevision) return;
         document.querySelector("#log-state").textContent = "Live";
         const signature = JSON.stringify(entries);
         if (signature === lastLogSignature) return;
         lastLogSignature = signature;
+        document.querySelector("#log-clear").disabled = entries.length === 0;
         const container = document.querySelector("#log-entries");
         container.replaceChildren();
         entries.forEach((entry) => {
@@ -1550,6 +1555,7 @@
         }
         container.scrollTop = container.scrollHeight;
       } catch (error) {
+        if (revision !== logsRevision) return;
         document.querySelector("#log-state").textContent = "Unavailable";
         if (error.status === 401) {
           logsPollingPaused = true;
@@ -1562,6 +1568,33 @@
         logsRequestInProgress = false;
       }
     }
+
+    async function clearLogs() {
+      const button = document.querySelector("#log-clear");
+      button.disabled = true;
+      logsPollingPaused = true;
+      logsRevision++;
+      try {
+        await requestJson("/api/logs", { method: "DELETE" });
+        lastLogSignature = JSON.stringify([]);
+        const container = document.querySelector("#log-entries");
+        container.replaceChildren();
+        const line = document.createElement("p");
+        line.className = "log-entry";
+        line.textContent = "No user actions yet.";
+        container.append(line);
+        document.querySelector("#log-state").textContent = "Live";
+      } catch (error) {
+        button.disabled = false;
+        document.querySelector("#log-state").textContent = "Unavailable";
+        if (error.status === 401 && await attemptRefresh()) {
+          window.setTimeout(clearLogs, 0);
+        }
+      } finally {
+        logsPollingPaused = false;
+      }
+    }
+    document.querySelector("#log-clear").addEventListener("click", clearLogs);
 
     async function recordUserAction(action) {
       try {
@@ -1650,7 +1683,7 @@
     document.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const button = event.target.closest("button");
-      if (!button || button.id === "copy") return;
+      if (!button || button.id === "copy" || button.id === "log-clear") return;
       const action = describeButtonAction(button);
       if (action) recordUserAction(action);
     });

@@ -1,9 +1,11 @@
 package com.mosta.coveringletter.api.controller
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
+import com.mosta.coveringletter.activity.UserActionLogEntry
 import com.mosta.coveringletter.api.request.UserActionRequest
 import jakarta.validation.Valid
 import org.springframework.http.MediaType
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -15,6 +17,12 @@ class LogsController(
 ) {
 	@GetMapping("/api/logs")
 	fun getUserActions() = logs.latest()
+
+	@DeleteMapping("/api/logs")
+	fun clearUserActions(): List<UserActionLogEntry> {
+		logs.clear()
+		return logs.latest()
+	}
 
 	@PostMapping("/api/logs", consumes = [MediaType.APPLICATION_JSON_VALUE])
 	fun recordUserAction(@Valid @RequestBody request: UserActionRequest) = logs.record(request.action)
