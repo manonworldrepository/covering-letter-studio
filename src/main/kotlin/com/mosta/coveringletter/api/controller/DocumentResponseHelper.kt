@@ -1,4 +1,4 @@
-package com.mosta.coveringletter.api
+package com.mosta.coveringletter.api.controller
 
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType

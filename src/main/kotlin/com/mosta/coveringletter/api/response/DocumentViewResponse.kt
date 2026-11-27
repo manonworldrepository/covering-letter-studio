@@ -1,4 +1,4 @@
-package com.mosta.coveringletter.api
+package com.mosta.coveringletter.api.response
 
 data class DocumentViewResponse(
 	val id: String,

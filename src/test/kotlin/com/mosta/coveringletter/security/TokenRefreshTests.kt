@@ -1,7 +1,7 @@
 package com.mosta.coveringletter.security
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
-import com.mosta.coveringletter.api.UserController
+import com.mosta.coveringletter.api.controller.UserController
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach

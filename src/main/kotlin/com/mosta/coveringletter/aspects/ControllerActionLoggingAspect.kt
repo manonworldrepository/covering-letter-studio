@@ -1,7 +1,7 @@
 package com.mosta.coveringletter.aspects
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
-import com.mosta.coveringletter.api.DocumentViewResponse
+import com.mosta.coveringletter.api.response.DocumentViewResponse
 import com.mosta.coveringletter.appliedjobs.AppliedJob
 import com.mosta.coveringletter.appliedjobs.AppliedJobStore
 import com.mosta.coveringletter.resume.ResumeOption
@@ -21,7 +21,7 @@ class ControllerActionLoggingAspect(
 	// --- AppliedJobsController ---
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.AppliedJobsController.add(..))",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.AppliedJobsController.add(..))",
 		returning = "result"
 	)
 	fun logAddAppliedJob(result: Any?) {
@@ -29,13 +29,13 @@ class ControllerActionLoggingAspect(
 		logs.record("Added applied job: ${job.jobTitle} at ${job.company}")
 	}
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.AppliedJobsController.delete(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.AppliedJobsController.delete(..))")
 	fun logDeleteAppliedJob() {
 		logs.record("Removed applied job entry")
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.AppliedJobsController.updateStatus(..)) && args(id, statusParam)",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.AppliedJobsController.updateStatus(..)) && args(id, statusParam)",
 		returning = "result"
 	)
 	fun logUpdateStatus(id: String, statusParam: String, result: Any?) {
@@ -45,7 +45,7 @@ class ControllerActionLoggingAspect(
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.AppliedJobsController.deleteAll(..))",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.AppliedJobsController.deleteAll(..))",
 		returning = "result"
 	)
 	fun logDeleteAllAppliedJobs(result: Any?) {
@@ -58,7 +58,7 @@ class ControllerActionLoggingAspect(
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.AppliedJobsController.downloadSingleJobPdf(..)) && args(id, ..)",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.AppliedJobsController.downloadSingleJobPdf(..)) && args(id, ..)",
 		returning = "result"
 	)
 	fun logDownloadSingleJobPdf(id: String, result: Any?) {
@@ -66,14 +66,14 @@ class ControllerActionLoggingAspect(
 		logs.record("Downloaded applied job PDF: ${job.jobTitle} at ${job.company}")
 	}
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.AppliedJobsController.downloadJobListPdf(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.AppliedJobsController.downloadJobListPdf(..))")
 	fun logDownloadJobListPdf() {
 		logs.record("Downloaded applied jobs list PDF")
 	}
 
 	// --- ResumeController ---
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.ResumeController.saveResume(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.ResumeController.saveResume(..))")
 	fun logSaveResume() {
 		// Reactive method (Mono<ResumeStatus>) — record after resolution
 		val status = resumeStore.status()
@@ -82,7 +82,7 @@ class ControllerActionLoggingAspect(
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.ResumeController.selectResume(..))",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.ResumeController.selectResume(..))",
 		returning = "result"
 	)
 	fun logSelectResume(result: Any?) {
@@ -90,13 +90,13 @@ class ControllerActionLoggingAspect(
 		status.filename?.let { logs.record("Selected resume: $it") }
 	}
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.ResumeController.clearResumes(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.ResumeController.clearResumes(..))")
 	fun logClearResumes() {
 		logs.record("Cleared resumes")
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.ResumeController.viewResume(..))",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.ResumeController.viewResume(..))",
 		returning = "result"
 	)
 	fun logViewResume(result: Any?) {
@@ -105,7 +105,7 @@ class ControllerActionLoggingAspect(
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.ResumeController.deleteResume(..))",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.ResumeController.deleteResume(..))",
 		returning = "result"
 	)
 	fun logDeleteResume(result: Any?) {
@@ -115,23 +115,23 @@ class ControllerActionLoggingAspect(
 
 	// --- SupportingDocumentsController ---
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.SupportingDocumentsController.saveSupportingDocuments(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SupportingDocumentsController.saveSupportingDocuments(..))")
 	fun logSaveSupportingDocuments() {
 		logs.record("Saved supporting document(s)")
 	}
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.SupportingDocumentsController.selectSupportingDocuments(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SupportingDocumentsController.selectSupportingDocuments(..))")
 	fun logSelectSupportingDocuments() {
 		logs.record("Updated supporting document selections")
 	}
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.SupportingDocumentsController.clearSupportingDocuments(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SupportingDocumentsController.clearSupportingDocuments(..))")
 	fun logClearSupportingDocuments() {
 		logs.record("Cleared supporting documents")
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.SupportingDocumentsController.viewSupportingDocument(..))",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.SupportingDocumentsController.viewSupportingDocument(..))",
 		returning = "result"
 	)
 	fun logViewSupportingDocument(result: Any?) {
@@ -140,7 +140,7 @@ class ControllerActionLoggingAspect(
 	}
 
 	@AfterReturning(
-		pointcut = "execution(* com.mosta.coveringletter.api.SupportingDocumentsController.deleteSupportingDocument(..))",
+		pointcut = "execution(* com.mosta.coveringletter.api.controller.SupportingDocumentsController.deleteSupportingDocument(..))",
 		returning = "result"
 	)
 	fun logDeleteSupportingDocument(result: Any?) {
@@ -151,13 +151,13 @@ class ControllerActionLoggingAspect(
 
 	// --- SettingsController ---
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.SettingsController.saveApiKey(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SettingsController.saveApiKey(..))")
 	fun logSaveApiKey() {
 		// Reactive method (Mono<AppSettingsStatus>) — use fixed message
 		logs.record("Saved Gemini API key during setup")
 	}
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.SettingsController.saveSettings(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.SettingsController.saveSettings(..))")
 	fun logSaveSettings() {
 		// Reactive method (Mono<AppSettingsStatus>) — use fixed message
 		logs.record("Updated Gemini API settings")
@@ -165,7 +165,7 @@ class ControllerActionLoggingAspect(
 
 	// --- PdfController ---
 
-	@AfterReturning("execution(* com.mosta.coveringletter.api.PdfController.downloadPdf(..))")
+	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.PdfController.downloadPdf(..))")
 	fun logDownloadPdf() {
 		logs.record("Downloaded a cover-letter PDF")
 	}

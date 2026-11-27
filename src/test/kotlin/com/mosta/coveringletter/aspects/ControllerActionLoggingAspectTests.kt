@@ -1,7 +1,7 @@
 package com.mosta.coveringletter.aspects
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
-import com.mosta.coveringletter.api.DocumentViewResponse
+import com.mosta.coveringletter.api.response.DocumentViewResponse
 import com.mosta.coveringletter.appliedjobs.AppliedJob
 import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import com.mosta.coveringletter.appliedjobs.AppliedJobStore

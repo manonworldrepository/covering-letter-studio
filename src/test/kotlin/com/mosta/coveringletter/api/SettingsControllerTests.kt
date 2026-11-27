@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.api.controller.SettingsController
 import com.mosta.coveringletter.resume.ResumeStore
 import com.mosta.coveringletter.resume.ResumeStatus
 import com.mosta.coveringletter.settings.AppSettingsService

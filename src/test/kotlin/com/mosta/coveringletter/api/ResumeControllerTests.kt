@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.api.controller.ResumeController
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import com.mosta.coveringletter.pdf.CoverLetterPdfGenerator
 import com.mosta.coveringletter.resume.ResumeStore

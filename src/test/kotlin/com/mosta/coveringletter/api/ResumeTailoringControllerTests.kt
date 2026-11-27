@@ -1,6 +1,7 @@
 package com.mosta.coveringletter.api
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
+import com.mosta.coveringletter.api.controller.ResumeTailoringController
 import com.mosta.coveringletter.api.request.TailorResumeRequest
 import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
 import com.mosta.coveringletter.documents.DocumentTextExtractor

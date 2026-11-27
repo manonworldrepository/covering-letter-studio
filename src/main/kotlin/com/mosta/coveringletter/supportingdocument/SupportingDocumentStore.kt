@@ -1,6 +1,6 @@
 package com.mosta.coveringletter.supportingdocument
 
-import com.mosta.coveringletter.api.DocumentViewResponse
+import com.mosta.coveringletter.api.response.DocumentViewResponse
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.buffer.DataBufferLimitException

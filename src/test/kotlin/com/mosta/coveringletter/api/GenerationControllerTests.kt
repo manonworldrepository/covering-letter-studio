@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.api.controller.GenerationController
 import com.mosta.coveringletter.api.request.GenerateLetterRequest
 import com.mosta.coveringletter.aspects.GeminiServiceLoggingAspect
 import com.mosta.coveringletter.coverletter.CoverLetterGenerationService

@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.api.controller.AppliedJobsController
 import com.mosta.coveringletter.appliedjobs.AddAppliedJobRequest
 import com.mosta.coveringletter.appliedjobs.AppliedJobStatus
 import com.mosta.coveringletter.appliedjobs.AppliedJobStore

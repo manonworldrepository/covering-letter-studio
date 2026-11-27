@@ -1,5 +1,6 @@
 package com.mosta.coveringletter.api
 
+import com.mosta.coveringletter.api.controller.PdfController
 import com.mosta.coveringletter.api.request.CoverLetterRequest
 import com.mosta.coveringletter.pdf.CoverLetterPdfGenerator
 import org.junit.jupiter.api.Assertions.assertEquals

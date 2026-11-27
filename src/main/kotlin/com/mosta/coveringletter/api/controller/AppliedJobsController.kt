@@ -1,4 +1,4 @@
-package com.mosta.coveringletter.api
+package com.mosta.coveringletter.api.controller
 
 import com.mosta.coveringletter.appliedjobs.AddAppliedJobRequest
 import com.mosta.coveringletter.appliedjobs.AppliedJobStatus

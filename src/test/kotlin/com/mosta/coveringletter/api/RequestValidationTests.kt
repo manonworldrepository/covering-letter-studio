@@ -34,7 +34,7 @@ class RequestValidationTests {
 		assertTrue(
 			validator.validate(
 				CoverLetterRequest(
-					letter = "x".repeat(PdfControllerLimits.MAX_LETTER_LENGTH + 1),
+					letter = "x".repeat(CoverLetterRequestLimits.MAX_LETTER_LENGTH + 1),
 					personName = "Alex Morgan",
 					jobTitle = "Designer"
 				)

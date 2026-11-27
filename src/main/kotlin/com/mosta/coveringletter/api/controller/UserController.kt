@@ -1,6 +1,7 @@
-package com.mosta.coveringletter.api
+package com.mosta.coveringletter.api.controller
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
+import com.mosta.coveringletter.api.response.UserInfoResponse
 import com.mosta.coveringletter.security.JwtAuthenticationConverter
 import com.mosta.coveringletter.security.JwtService
 import org.springframework.http.HttpStatus
