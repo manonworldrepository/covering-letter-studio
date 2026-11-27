@@ -16,6 +16,10 @@ class CoverLetterFilenameTests {
 			"Jose_Nunez_Qa_Engineer_2025-03-08.pdf",
 			CoverLetterFilename.create("José Núñez", "", "QA Engineer", LocalDate.of(2025, 3, 8))
 		)
+		assertEquals(
+			"Alex_Morgan_Acme_Corp_Senior_Engineer_2025-03-08.pdf",
+			CoverLetterFilename.create("Alex Benjamin Morgan", "Acme Corp", "Senior Engineer", LocalDate.of(2025, 3, 8))
+		)
 	}
 
 	@Test

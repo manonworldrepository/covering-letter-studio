@@ -10,7 +10,7 @@ object CoverLetterFilename {
 		jobTitle: String,
 		date: LocalDate = LocalDate.now()
 	): String {
-		val person = filenamePart(personName)
+		val person = personFilenamePart(personName)
 		val company = filenamePart(companyName)
 		val job = filenamePart(jobTitle)
 		if (person.isBlank() || job.isBlank()) {
@@ -18,6 +18,11 @@ object CoverLetterFilename {
 		}
 		val parts = listOf(person, company, job).filter(String::isNotBlank)
 		return "${parts.joinToString("_")}_${date}.pdf"
+	}
+
+	private fun personFilenamePart(value: String): String {
+		val parts = filenamePart(value).split("_").filter(String::isNotBlank)
+		return if (parts.size > 2) "${parts.first()}_${parts.last()}" else parts.joinToString("_")
 	}
 
 	private fun filenamePart(value: String): String =

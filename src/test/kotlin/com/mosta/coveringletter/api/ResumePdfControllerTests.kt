@@ -17,7 +17,7 @@ class ResumePdfControllerTests {
 		val pdf = controller.downloadPdf(
 			TailoredResumePdfRequest(
 				resume = "Alex Morgan\n\nEXPERIENCE\nBuilt customer workflows.",
-				applicantName = "Alex Morgan",
+				applicantName = "Alex Benjamin Morgan",
 				companyName = "Acme Corp",
 				jobTitle = "Forward Deployed Engineer"
 			),
@@ -26,9 +26,12 @@ class ResumePdfControllerTests {
 
 		assertTrue(pdf.isNotEmpty())
 		assertEquals("application/pdf", response.headers.contentType.toString())
-		val disposition = response.headers.getContentDisposition().toString()
-		assertTrue(disposition.contains("attachment"))
-		assertTrue(disposition.contains("Alex"))
-		assertTrue(disposition.contains("Acme"))
+		val disposition = response.headers.getContentDisposition()
+		assertEquals("attachment", disposition.type)
+		assertTrue(
+			disposition.filename?.matches(
+				Regex("""Alex_Morgan_Acme_Corp_Forward_Deployed_Engineer_\d{4}-\d{2}-\d{2}\.pdf""")
+			) == true
+		)
 	}
 }
