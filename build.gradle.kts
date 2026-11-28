@@ -1,3 +1,5 @@
+import org.gradle.process.CommandLineArgumentProvider
+
 plugins {
     kotlin("jvm") version "2.3.21"
     kotlin("plugin.spring") version "2.3.21"
@@ -57,16 +59,20 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+val migrationArchiveArgument = providers.gradleProperty("archive")
+val migrationOwnerEmailArgument = providers.gradleProperty("ownerEmail")
+
 tasks.register<JavaExec>("migrateLegacyData") {
     group = "application"
     description = "Duplicate the shared legacy data archive into one account workspace."
+    notCompatibleWithConfigurationCache("This one-off operation takes archive paths and account targets from command-line properties.")
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("com.mosta.coveringletter.persistence.LegacyDataAccountMigrationCli")
-    doFirst {
-        val archive = providers.gradleProperty("archive").orNull
+    argumentProviders.add(CommandLineArgumentProvider {
+        val archive = migrationArchiveArgument.orNull
             ?: throw GradleException("Set -Parchive to the downloaded data-backup.zip path.")
-        val ownerEmail = providers.gradleProperty("ownerEmail").orNull
+        val ownerEmail = migrationOwnerEmailArgument.orNull
             ?: throw GradleException("Set -PownerEmail to the account that receives the data copy.")
-        args(archive, ownerEmail)
-    }
+        listOf(archive, ownerEmail)
+    })
 }

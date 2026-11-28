@@ -207,7 +207,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not download the current data archive.' 
 gcloud storage cp $archive "gs://$bucket/data-backup-before-account-migration-$generation.zip" --if-generation-match=0
 if ($LASTEXITCODE -ne 0) { throw 'Could not create the generation-named Cloud Storage backup.' }
 
-.\gradlew.bat migrateLegacyData "-Parchive=$archive" '-PownerEmail=info@manonworld.de'
+.\gradlew.bat migrateLegacyData "-Parchive=$archive" '-PownerEmail=info@manonworld.de' --no-configuration-cache
 if ($LASTEXITCODE -ne 0) { throw 'The account archive migration failed.' }
 gcloud storage cp $archive "gs://$bucket/data-backup.zip" "--if-generation-match=$generation"
 if ($LASTEXITCODE -ne 0) { throw 'The archive changed since download; keep the local backup and repeat from the newest generation.' }
