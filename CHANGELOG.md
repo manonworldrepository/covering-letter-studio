@@ -8,6 +8,7 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 - Added per-account storage for resumes, supporting documents, applied jobs, Gemini settings, and activity logs while keeping legacy data visible to all accounts
 - Added an administrator-only, read-only view of all account resumes and supporting documents, plus an applications grid that identifies each application's owner
 - Added an offline legacy-data archive migration task and Cloud Storage generation checks to prevent stale instance snapshots overwriting newer account data
+- Configured the Spring Boot application entry point explicitly so the migration CLI does not make container builds ambiguous
 
 ### Changed
 - Allowed accounts and administrator assignment are now managed together in Settings; the first address defaults to administrator and account-list changes require an administrator

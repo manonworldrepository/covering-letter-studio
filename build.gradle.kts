@@ -9,6 +9,10 @@ plugins {
 group = "com.mosta"
 version = "0.0.1-SNAPSHOT"
 
+springBoot {
+    mainClass.set("com.mosta.coveringletter.CoveringletterApplicationKt")
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
