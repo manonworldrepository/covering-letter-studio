@@ -147,8 +147,8 @@
     .nav-menu button svg { width: 18px; height: 18px; flex-shrink: 0; }
     .applied-jobs-search-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 16px; }
     .applied-jobs-search-row .field { flex: 1; margin-bottom: 0; }
-    .applied-jobs-loading { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 120px; color: #59667e; font-size: 14px; }
-    .applied-jobs-loading-spinner { width: 22px; height: 22px; border: 3px solid #e6eaf2; border-top-color: #3158d5; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .applied-jobs-loading { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(18, 26, 45, .38); backdrop-filter: blur(2px); color: #fff; font-size: 14px; }
+    .applied-jobs-loading-spinner { width: 22px; height: 22px; border: 3px solid rgba(255, 255, 255, .55); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
     .applied-jobs-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
     .applied-jobs-page-size { display: flex; align-items: center; gap: 8px; }
     .applied-jobs-page-size label { margin: 0; white-space: nowrap; }
@@ -2692,6 +2692,7 @@
     let appliedJobsSortAsc = false;
     let appliedJobsCurrentPage = 1;
     let appliedJobsPageSize = Number(appliedJobsPageSizeSelect.value);
+    let appliedJobsPageCount = 0;
     let appliedJobsLoadSequence = 0;
     const confirmClearAllModal = document.querySelector("#confirm-clear-all-modal");
     const confirmClearAllYes = document.querySelector("#confirm-clear-all-yes");
@@ -2769,7 +2770,7 @@
     });
     appliedJobsNextPage.addEventListener("click", () => {
       appliedJobsCurrentPage += 1;
-      loadAppliedJobs();
+      loadAppliedJobs({ scrollToPagination: true });
     });
 
     function loadAppliedJobsFromFirstPage() {
@@ -2792,13 +2793,12 @@
       return params;
     }
 
-    async function loadAppliedJobs() {
+    async function loadAppliedJobs({ scrollToPagination = false } = {}) {
       const loadSequence = ++appliedJobsLoadSequence;
       appliedJobsLoading.hidden = false;
-      appliedJobsEmpty.hidden = true;
-      appliedJobsPagination.hidden = true;
       appliedJobsTableWrap.setAttribute("aria-busy", "true");
-      appliedJobsTableWrap.replaceChildren();
+      appliedJobsPreviousPage.disabled = true;
+      appliedJobsNextPage.disabled = true;
       const search = appliedJobsSearch.value.trim();
       const sortBy = appliedJobsSort.value;
       const sortOrder = appliedJobsSortAsc ? "asc" : "desc";
@@ -2819,12 +2819,15 @@
         if (loadSequence !== appliedJobsLoadSequence) return;
         appliedJobsTableWrap.replaceChildren();
         if (jobs.length === 0) {
+          appliedJobsPageCount = 0;
+          appliedJobsPagination.hidden = true;
           appliedJobsEmpty.hidden = false;
           return;
         }
         appliedJobsEmpty.hidden = true;
         const page = AppliedJobsPagination.getPage(jobs, appliedJobsCurrentPage, appliedJobsPageSize);
         appliedJobsCurrentPage = page.page;
+        appliedJobsPageCount = page.pageCount;
         appliedJobsPagination.hidden = false;
         appliedJobsPreviousPage.disabled = page.page === 1;
         appliedJobsNextPage.disabled = page.page === page.pageCount;
@@ -2997,11 +3000,19 @@
       } catch (error) {
         if (loadSequence !== appliedJobsLoadSequence) return;
         console.error("Failed to load applied jobs:", error);
+        appliedJobsPageCount = 0;
+        appliedJobsPagination.hidden = true;
+        appliedJobsEmpty.hidden = true;
         appliedJobsTableWrap.textContent = "Could not load applied jobs. Please try again.";
       } finally {
         if (loadSequence === appliedJobsLoadSequence) {
           appliedJobsLoading.hidden = true;
           appliedJobsTableWrap.setAttribute("aria-busy", "false");
+          appliedJobsPreviousPage.disabled = appliedJobsCurrentPage <= 1 || appliedJobsPageCount === 0;
+          appliedJobsNextPage.disabled = appliedJobsCurrentPage >= appliedJobsPageCount || appliedJobsPageCount === 0;
+          if (scrollToPagination) {
+            appliedJobsNextPage.scrollIntoView({ behavior: "smooth", block: "end" });
+          }
         }
       }
     }
