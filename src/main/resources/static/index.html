@@ -60,6 +60,7 @@
     #result { margin-top: 20px; }
     #result[hidden], [hidden] { display: none !important; }
     #letter { min-height: 300px; margin: 6px 0 16px; font-family: Georgia, serif; font-size: 16px; line-height: 1.7; }
+    #tailored-resume-text { margin-bottom: 23px; }
     .privacy { margin-top: 18px; padding: 13px 15px; background: #f6f8fc; border-radius: 9px; color: #59667e; font-size: 12px; line-height: 1.55; }
     .step { margin: 22px 0; padding: 18px; border: 1px solid #e6e8ed; border-radius: 12px; }
     .step-number { color: #3158d5; font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
@@ -146,6 +147,16 @@
     .nav-menu button svg { width: 18px; height: 18px; flex-shrink: 0; }
     .applied-jobs-search-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 16px; }
     .applied-jobs-search-row .field { flex: 1; margin-bottom: 0; }
+    .applied-jobs-loading { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 120px; color: #59667e; font-size: 14px; }
+    .applied-jobs-loading-spinner { width: 22px; height: 22px; border: 3px solid #e6eaf2; border-top-color: #3158d5; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .applied-jobs-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+    .applied-jobs-page-size { display: flex; align-items: center; gap: 8px; }
+    .applied-jobs-page-size label { margin: 0; white-space: nowrap; }
+    .applied-jobs-page-size select { width: auto; min-width: 76px; padding: 8px 10px; }
+    .applied-jobs-page-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .applied-jobs-page-controls button { width: auto; max-width: none; flex: 0 0 auto; padding: 8px 12px; }
+    .applied-jobs-page-info { color: #59667e; font-size: 13px; white-space: nowrap; }
+    @media (max-width: 580px) { .applied-jobs-pagination { align-items: stretch; flex-direction: column; } .applied-jobs-page-controls { justify-content: space-between; } }
     .applied-jobs-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 12px; }
     .applied-jobs-table th { text-align: left; font-size: 13px; font-weight: 600; color: #1a56db; padding: 10px 12px; border-bottom: 2px solid #3158d5; background-color: #e8efff; }
     .applied-jobs-table th:first-child { border-top-left-radius: 8px; }
@@ -512,7 +523,27 @@
             <button class="secondary" id="applied-jobs-sort-order" type="button">Newest first</button>
           </div>
         </div>
-        <div id="applied-jobs-table-wrap"></div>
+        <div id="applied-jobs-loading" class="applied-jobs-loading" role="status" aria-live="polite" hidden>
+          <span class="applied-jobs-loading-spinner" aria-hidden="true"></span>
+          <span>Loading applied jobs...</span>
+        </div>
+        <div id="applied-jobs-table-wrap" aria-busy="false"></div>
+        <div class="applied-jobs-pagination" id="applied-jobs-pagination" hidden>
+          <div class="applied-jobs-page-size">
+            <label for="applied-jobs-page-size">Rows per page</label>
+            <select id="applied-jobs-page-size">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div class="applied-jobs-page-controls">
+            <button class="secondary" id="applied-jobs-previous-page" type="button">Previous</button>
+            <span class="applied-jobs-page-info" id="applied-jobs-page-info" aria-live="polite"></span>
+            <button class="secondary" id="applied-jobs-next-page" type="button">Next</button>
+          </div>
+        </div>
         <p class="hint" id="applied-jobs-empty" hidden>No applied jobs yet. Generate a cover letter and click "Add to applied jobs" to start tracking.</p>
       </section>
     </section>
@@ -649,6 +680,7 @@
       </div>
     </section>
   </div>
+  <script src="/applied-jobs-pagination.js"></script>
   <script>
     const setup = document.querySelector("#setup");
     const workspace = document.querySelector("#workspace");
@@ -2640,6 +2672,12 @@
     const navResumeTailoring = document.querySelector("#nav-resume-tailoring");
     const navAppliedJobs = document.querySelector("#nav-applied-jobs");
     const appliedJobsTableWrap = document.querySelector("#applied-jobs-table-wrap");
+    const appliedJobsLoading = document.querySelector("#applied-jobs-loading");
+    const appliedJobsPagination = document.querySelector("#applied-jobs-pagination");
+    const appliedJobsPageSizeSelect = document.querySelector("#applied-jobs-page-size");
+    const appliedJobsPreviousPage = document.querySelector("#applied-jobs-previous-page");
+    const appliedJobsNextPage = document.querySelector("#applied-jobs-next-page");
+    const appliedJobsPageInfo = document.querySelector("#applied-jobs-page-info");
     const appliedJobsEmpty = document.querySelector("#applied-jobs-empty");
     const appliedJobsSearch = document.querySelector("#applied-jobs-search");
     const appliedJobsSearchBtn = document.querySelector("#applied-jobs-search-btn");
@@ -2652,6 +2690,9 @@
     const appliedJobsSort = document.querySelector("#applied-jobs-sort");
     const appliedJobsSortOrder = document.querySelector("#applied-jobs-sort-order");
     let appliedJobsSortAsc = false;
+    let appliedJobsCurrentPage = 1;
+    let appliedJobsPageSize = Number(appliedJobsPageSizeSelect.value);
+    let appliedJobsLoadSequence = 0;
     const confirmClearAllModal = document.querySelector("#confirm-clear-all-modal");
     const confirmClearAllYes = document.querySelector("#confirm-clear-all-yes");
     const confirmClearAllNo = document.querySelector("#confirm-clear-all-no");
@@ -2677,11 +2718,11 @@
       const mode = appliedJobsDateMode.value;
       appliedJobsDateSingle.hidden = mode !== "single";
       appliedJobsDateRange.hidden = mode !== "range";
-      loadAppliedJobs();
+      loadAppliedJobsFromFirstPage();
     });
-    appliedJobsDateFrom.addEventListener("change", () => loadAppliedJobs());
-    appliedJobsDateRangeFrom.addEventListener("change", () => loadAppliedJobs());
-    appliedJobsDateRangeTo.addEventListener("change", () => loadAppliedJobs());
+    appliedJobsDateFrom.addEventListener("change", () => loadAppliedJobsFromFirstPage());
+    appliedJobsDateRangeFrom.addEventListener("change", () => loadAppliedJobsFromFirstPage());
+    appliedJobsDateRangeTo.addEventListener("change", () => loadAppliedJobsFromFirstPage());
 
     function showPage(page) {
       workspace.hidden = page !== "cover-letter";
@@ -2707,15 +2748,34 @@
     navAppliedJobs.addEventListener("click", () => showPage("applied-jobs"));
 
     appliedJobsSearch.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") loadAppliedJobs();
+      if (e.key === "Enter") loadAppliedJobsFromFirstPage();
     });
-    appliedJobsSearchBtn.addEventListener("click", () => loadAppliedJobs());
-    appliedJobsSort.addEventListener("change", () => loadAppliedJobs());
+    appliedJobsSearchBtn.addEventListener("click", () => loadAppliedJobsFromFirstPage());
+    appliedJobsSort.addEventListener("change", () => loadAppliedJobsFromFirstPage());
     appliedJobsSortOrder.addEventListener("click", () => {
       appliedJobsSortAsc = !appliedJobsSortAsc;
       appliedJobsSortOrder.textContent = appliedJobsSortAsc ? "Oldest first" : "Newest first";
+      loadAppliedJobsFromFirstPage();
+    });
+    appliedJobsPageSizeSelect.addEventListener("change", () => {
+      appliedJobsPageSize = Number(appliedJobsPageSizeSelect.value);
+      loadAppliedJobsFromFirstPage();
+    });
+    appliedJobsPreviousPage.addEventListener("click", () => {
+      if (appliedJobsCurrentPage > 1) {
+        appliedJobsCurrentPage -= 1;
+        loadAppliedJobs();
+      }
+    });
+    appliedJobsNextPage.addEventListener("click", () => {
+      appliedJobsCurrentPage += 1;
       loadAppliedJobs();
     });
+
+    function loadAppliedJobsFromFirstPage() {
+      appliedJobsCurrentPage = 1;
+      return loadAppliedJobs();
+    }
 
     function buildAppliedJobsQueryParams() {
       const search = appliedJobsSearch.value.trim();
@@ -2733,6 +2793,12 @@
     }
 
     async function loadAppliedJobs() {
+      const loadSequence = ++appliedJobsLoadSequence;
+      appliedJobsLoading.hidden = false;
+      appliedJobsEmpty.hidden = true;
+      appliedJobsPagination.hidden = true;
+      appliedJobsTableWrap.setAttribute("aria-busy", "true");
+      appliedJobsTableWrap.replaceChildren();
       const search = appliedJobsSearch.value.trim();
       const sortBy = appliedJobsSort.value;
       const sortOrder = appliedJobsSortAsc ? "asc" : "desc";
@@ -2750,12 +2816,19 @@
       params.set("sortOrder", sortOrder);
       try {
         const jobs = await requestJson(`/api/applied-jobs?${params.toString()}`);
+        if (loadSequence !== appliedJobsLoadSequence) return;
         appliedJobsTableWrap.replaceChildren();
         if (jobs.length === 0) {
           appliedJobsEmpty.hidden = false;
           return;
         }
         appliedJobsEmpty.hidden = true;
+        const page = AppliedJobsPagination.getPage(jobs, appliedJobsCurrentPage, appliedJobsPageSize);
+        appliedJobsCurrentPage = page.page;
+        appliedJobsPagination.hidden = false;
+        appliedJobsPreviousPage.disabled = page.page === 1;
+        appliedJobsNextPage.disabled = page.page === page.pageCount;
+        appliedJobsPageInfo.textContent = `Showing ${page.firstItem}-${page.lastItem} of ${page.totalItems} jobs (page ${page.page} of ${page.pageCount})`;
         const table = document.createElement("table");
         table.className = "applied-jobs-table";
         const thead = document.createElement("thead");
@@ -2800,7 +2873,7 @@
         thead.appendChild(headerRow);
         table.appendChild(thead);
         const tbody = document.createElement("tbody");
-        jobs.forEach((job) => {
+        page.items.forEach((job) => {
           const tr = document.createElement("tr");
           const date = new Date(job.appliedDate);
           const dateStr = date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -2922,7 +2995,14 @@
         table.appendChild(tfoot);
         appliedJobsTableWrap.appendChild(table);
       } catch (error) {
+        if (loadSequence !== appliedJobsLoadSequence) return;
         console.error("Failed to load applied jobs:", error);
+        appliedJobsTableWrap.textContent = "Could not load applied jobs. Please try again.";
+      } finally {
+        if (loadSequence === appliedJobsLoadSequence) {
+          appliedJobsLoading.hidden = true;
+          appliedJobsTableWrap.setAttribute("aria-busy", "false");
+        }
       }
     }
 
