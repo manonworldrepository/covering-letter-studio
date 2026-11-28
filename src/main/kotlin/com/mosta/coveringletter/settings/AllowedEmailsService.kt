@@ -70,9 +70,7 @@ class AllowedEmailsService(
 	private fun persist(requestedEmails: String, allowEmpty: Boolean = false): Set<String> {
 		val normalizedEmails = normalizeEmails(requestedEmails, allowEmpty)
 		writeEnv(normalizedEmails.joinToString(","))
-		if (configuredEmailsProperty.isNotBlank()) {
-			runtimeEmailsOverride = normalizedEmails
-		}
+		runtimeEmailsOverride = normalizedEmails.takeIf { configuredEmailsProperty.isNotBlank() }
 		return normalizedEmails
 	}
 

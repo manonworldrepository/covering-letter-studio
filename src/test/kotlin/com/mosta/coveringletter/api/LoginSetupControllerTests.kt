@@ -81,6 +81,20 @@ class LoginSetupControllerTests {
 		assertTrue(Files.readString(temporaryDirectory.resolve(".env")).contains("ALLOWED_EMAILS=new-owner@gmail.com"))
 	}
 
+	@Test
+	fun `setup can be completed after application settings are reset`() {
+		val envFile = temporaryDirectory.resolve(".env")
+		Files.writeString(envFile, "ALLOWED_EMAILS=old-owner@gmail.com\n")
+		val allowedEmails = AllowedEmailsService("").also { it.envFile = envFile }
+		allowedEmails.reset("gemini-3.1-flash-lite")
+		val controller = LoginSetupController(allowedEmails)
+
+		controller.saveAllowedEmails(AllowedEmailsSetupRequest("new-owner@gmail.com"))
+
+		assertEquals("login.html", controller.loginPage(MockServerHttpResponse()).filename)
+		assertTrue(allowedEmails.allows("new-owner@gmail.com"))
+	}
+
 	private fun controller(): LoginSetupController {
 		val allowedEmails = AllowedEmailsService("").also { it.envFile = temporaryDirectory.resolve(".env") }
 		return LoginSetupController(allowedEmails)
