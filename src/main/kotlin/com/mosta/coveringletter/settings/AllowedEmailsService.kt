@@ -7,20 +7,37 @@ import org.springframework.web.server.ResponseStatusException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 
 @Service
 class AllowedEmailsService(
-	@Value("\${coverletter.security.allowed-emails:}") private val configuredEmailsProperty: String
+	@Value("\${coverletter.security.allowed-emails:}") private val configuredEmailsProperty: String,
+	@Value("\${coverletter.security.admin-email:}") private val configuredAdminEmailProperty: String = ""
 ) {
 	internal var envFile: Path = Paths.get(".env").toAbsolutePath().normalize()
+	private val defaultEnvFile = Paths.get(".env").toAbsolutePath().normalize()
 	private val setupLock = Any()
-	@Volatile private var runtimeEmailsOverride: Set<String>? = null
 
-	fun allowedEmails(): Set<String> {
-		runtimeEmailsOverride?.let { return it }
-		val configured = parseEmails(configuredEmailsProperty)
-			.ifEmpty { parseEmails(readEnv()["ALLOWED_EMAILS"].orEmpty()) }
-		return configured
+	fun allowedEmails(): Set<String> = config().emails
+
+	fun adminEmail(): String? = config().adminEmail
+
+	fun isAdmin(email: String): Boolean = email.trim().lowercase() == adminEmail()
+
+	fun requireAdmin(email: String) {
+		if (!isAdmin(email)) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator access is required.")
+	}
+
+	private fun config(): AllowedAccountConfig {
+		val stored = readAccessConfig()
+		if (stored != null) return stored
+		val env = readEnv()
+		val emails = parseEmails(configuredEmailsProperty)
+			.ifEmpty { parseEmails(env["ALLOWED_EMAILS"].orEmpty()) }
+		val admin = env["ADMIN_EMAIL"]
+			?: configuredAdminEmailProperty.takeIf(String::isNotBlank)
+			?: System.getenv("ADMIN_EMAIL")
+		return AllowedAccountConfig(emails, normalizeAdmin(admin, emails))
 	}
 
 	private fun parseEmails(value: String): Set<String> = value.split(',')
@@ -32,27 +49,33 @@ class AllowedEmailsService(
 
 	fun allows(email: String): Boolean = email.trim().lowercase() in allowedEmails()
 
-	fun save(requestedEmails: String) {
+	fun save(requestedEmails: String, requestedAdminEmail: String? = null) {
 		synchronized(setupLock) {
 			if (isConfigured()) {
 				throw ResponseStatusException(HttpStatus.NOT_FOUND)
 			}
 
-			persist(requestedEmails)
+			persist(requestedEmails, requestedAdminEmail)
 		}
 	}
 
-	fun update(requestedEmails: String, allowEmpty: Boolean = false): Set<String> {
+	fun update(
+		requestedEmails: String,
+		requestedAdminEmail: String? = null
+	): Set<String> {
 		synchronized(setupLock) {
 			ensureConfiguredForUpdate()
 
-			return persist(requestedEmails, allowEmpty)
+			return persist(requestedEmails, requestedAdminEmail).emails
 		}
 	}
 
-	fun validateUpdate(requestedEmails: String, allowEmpty: Boolean = false): Set<String> = synchronized(setupLock) {
+	fun validateUpdate(
+		requestedEmails: String,
+		requestedAdminEmail: String? = null
+	): Set<String> = synchronized(setupLock) {
 		ensureConfiguredForUpdate()
-		normalizeEmails(requestedEmails, allowEmpty)
+		normalizeConfig(requestedEmails, requestedAdminEmail).emails
 	}
 
 	fun reset(preservedModel: String) {
@@ -63,20 +86,25 @@ class AllowedEmailsService(
 				.toMutableList()
 			lines.add("GEMINI_MODEL=$preservedModel")
 			writeEnv(lines)
-			runtimeEmailsOverride = emptySet()
+			val emptyConfig = AllowedAccountConfig(emptySet(), null)
+			writeAccessConfig(emptyConfig)
 		}
 	}
 
-	private fun persist(requestedEmails: String, allowEmpty: Boolean = false): Set<String> {
-		val normalizedEmails = normalizeEmails(requestedEmails, allowEmpty)
-		writeEnv(normalizedEmails.joinToString(","))
-		runtimeEmailsOverride = normalizedEmails.takeIf { configuredEmailsProperty.isNotBlank() }
-		return normalizedEmails
+	private fun persist(
+		requestedEmails: String,
+		requestedAdminEmail: String?
+	): AllowedAccountConfig {
+		val config = normalizeConfig(requestedEmails, requestedAdminEmail)
+		writeEnv(config.emails.joinToString(","), config.adminEmail)
+		writeAccessConfig(config)
+		return config
 	}
 
-	private fun normalizeEmails(requestedEmails: String, allowEmpty: Boolean = false): Set<String> {
-		if (allowEmpty && requestedEmails.isBlank()) return emptySet()
-
+	private fun normalizeConfig(
+		requestedEmails: String,
+		requestedAdminEmail: String?
+	): AllowedAccountConfig {
 		val emails = requestedEmails.split(',').map { it.trim().lowercase() }
 		if (requestedEmails.length > MAX_EMAILS_LENGTH || emails.isEmpty() || emails.size > MAX_EMAIL_COUNT ||
 			emails.any { !EMAIL_PATTERN.matches(it) }
@@ -87,7 +115,17 @@ class AllowedEmailsService(
 			)
 		}
 
-		return emails.distinct().toSet()
+		val distinctEmails = emails.distinct().toSet()
+		val admin = normalizeAdmin(requestedAdminEmail, distinctEmails)
+		if (admin == null || admin !in distinctEmails) {
+			throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Select one allowed email address as the admin.")
+		}
+		return AllowedAccountConfig(distinctEmails, admin)
+	}
+
+	private fun normalizeAdmin(requestedAdminEmail: String?, emails: Set<String>): String? {
+		val requested = requestedAdminEmail?.trim()?.lowercase()?.takeIf(String::isNotBlank)
+		return requested ?: emails.firstOrNull()
 	}
 
 	private fun ensureConfiguredForUpdate() {
@@ -105,14 +143,57 @@ class AllowedEmailsService(
 		}.toMap()
 	}
 
-	private fun writeEnv(value: String) {
+	private fun accessConfigFile(): Path = if (envFile == defaultEnvFile) {
+		Paths.get(".data", ".account-access").toAbsolutePath().normalize()
+	} else {
+		(envFile.parent ?: Paths.get(".data")).resolve(".account-access")
+	}
+
+	private fun readAccessConfig(): AllowedAccountConfig? {
+		val file = accessConfigFile()
+		if (!Files.isRegularFile(file)) return null
+		val values = Files.readAllLines(file).mapNotNull { line ->
+			val match = ENV_LINE.matchEntire(line) ?: return@mapNotNull null
+			match.groupValues[1] to match.groupValues[2].trim()
+		}.toMap()
+		val emails = parseEmails(values["ALLOWED_EMAILS"].orEmpty())
+		val admin = values["ADMIN_EMAIL"]?.trim()?.lowercase()?.takeIf { it in emails }
+		return AllowedAccountConfig(emails, admin ?: emails.firstOrNull())
+	}
+
+	private fun writeEnv(value: String, adminEmail: String?) {
 		val lines = if (Files.exists(envFile)) Files.readAllLines(envFile).toMutableList() else mutableListOf()
-		val index = lines.indexOfFirst {
-			ENV_LINE.matchEntire(it.removePrefix("\uFEFF"))?.groupValues?.get(1) == "ALLOWED_EMAILS"
-		}
-		val line = "ALLOWED_EMAILS=$value"
-		if (index >= 0) lines[index] = line else lines.add(line)
+		setEnvValue(lines, "ALLOWED_EMAILS", value)
+		if (adminEmail == null) removeEnvValue(lines, "ADMIN_EMAIL") else setEnvValue(lines, "ADMIN_EMAIL", adminEmail)
 		writeEnv(lines)
+	}
+
+	private fun writeAccessConfig(config: AllowedAccountConfig) {
+		val file = accessConfigFile()
+		Files.createDirectories(file.parent)
+		val lines = listOf("ALLOWED_EMAILS=${config.emails.joinToString(",")}") +
+			listOfNotNull(config.adminEmail?.let { "ADMIN_EMAIL=$it" })
+		val temporary = Files.createTempFile(file.parent, ".account-access-", ".tmp")
+		try {
+			Files.write(temporary, lines)
+			try {
+				Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+			} catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+				Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING)
+			}
+		} finally {
+			Files.deleteIfExists(temporary)
+		}
+	}
+
+	private fun setEnvValue(lines: MutableList<String>, name: String, value: String) {
+		val index = lines.indexOfFirst { ENV_LINE.matchEntire(it.removePrefix("\uFEFF"))?.groupValues?.get(1) == name }
+		val line = "$name=$value"
+		if (index >= 0) lines[index] = line else lines.add(line)
+	}
+
+	private fun removeEnvValue(lines: MutableList<String>, name: String) {
+		lines.removeAll { ENV_LINE.matchEntire(it.removePrefix("\uFEFF"))?.groupValues?.get(1) == name }
 	}
 
 	private fun writeEnv(lines: List<String>) {
@@ -145,3 +226,5 @@ class AllowedEmailsService(
 		)
 	}
 }
+
+private data class AllowedAccountConfig(val emails: Set<String>, val adminEmail: String?)

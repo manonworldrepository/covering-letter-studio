@@ -17,11 +17,12 @@ class SecurityConfigTests {
 	@Test
 	fun `EmailCheckingSuccessHandler is correctly instantiated`() {
 		val jwtService = JwtService(900, 604800, "", "").also { it.init() }
+		val allowedEmails = AllowedEmailsService("person@example.com")
 		val config = SecurityConfig(
 			UserActionLogBuffer(),
 			jwtService,
-			JwtAuthenticationConverter(jwtService),
-			AllowedEmailsService("person@example.com")
+			JwtAuthenticationConverter(jwtService, allowedEmails),
+			allowedEmails
 		)
 		val handler = config.EmailCheckingSuccessHandler()
 		assertTrue(handler is SecurityConfig.EmailCheckingSuccessHandler)

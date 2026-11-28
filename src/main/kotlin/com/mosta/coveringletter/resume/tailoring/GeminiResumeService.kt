@@ -12,6 +12,20 @@ class GeminiResumeService(
 		jobDescription: String,
 		resume: String,
 		supportingDocuments: String
+	): Mono<GeneratedResume> = generateInternal(jobDescription, resume, supportingDocuments, null)
+
+	override fun generateForAccount(
+		jobDescription: String,
+		resume: String,
+		supportingDocuments: String,
+		accountEmail: String
+	): Mono<GeneratedResume> = generateInternal(jobDescription, resume, supportingDocuments, accountEmail)
+
+	private fun generateInternal(
+		jobDescription: String,
+		resume: String,
+		supportingDocuments: String,
+		accountEmail: String?
 	): Mono<GeneratedResume> {
 		val prompt = """
 			Identify the primary job title from the job description and create a complete, tailored
@@ -48,7 +62,7 @@ class GeminiResumeService(
 			</Supporting documents>
 		""".trimIndent()
 
-		return geminiGenerationClient.generate(prompt)
+		return geminiGenerationClient.generate(prompt, accountEmail)
 			.map { GeneratedResume(it.content, it.jobTitle, it.applicantName, it.companyName) }
 	}
 }

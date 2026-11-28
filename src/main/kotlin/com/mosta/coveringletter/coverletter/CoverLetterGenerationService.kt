@@ -13,7 +13,11 @@ class CoverLetterGenerationService(
 	private val generator: CoverLetterGenerator,
 	private val loggingAspect: GeminiServiceLoggingAspect
 ) {
-	fun generate(jobDescription: String, requestedFormat: String?): Mono<GeneratedCoverLetter> {
+	fun generate(
+		jobDescription: String,
+		requestedFormat: String?,
+		accountEmail: String? = null
+	): Mono<GeneratedCoverLetter> {
 		val format = when (requestedFormat?.trim()?.lowercase()) {
 			null, "", "cover-letter" -> GenerationFormat.COVER_LETTER
 			"motivation-message" -> GenerationFormat.MOTIVATION_MESSAGE
@@ -21,20 +25,36 @@ class CoverLetterGenerationService(
 				ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a valid generation format.")
 			)
 		}
-		return generate(jobDescription, format)
+		return generate(jobDescription, format, accountEmail)
 	}
 
-	private fun generate(jobDescription: String, format: GenerationFormat): Mono<GeneratedCoverLetter> {
-		return inputService.load(jobDescription)
+	private fun generate(
+		jobDescription: String,
+		format: GenerationFormat,
+		accountEmail: String?
+	): Mono<GeneratedCoverLetter> {
+		return inputService.load(jobDescription, accountEmail)
 			.flatMap { input ->
-				generator.generate(jobDescription.trim(), input.resume, input.supportingDocuments, format)
+				val generation = if (accountEmail == null) {
+					generator.generate(jobDescription.trim(), input.resume, input.supportingDocuments, format)
+				} else {
+					generator.generateForAccount(
+						jobDescription.trim(),
+						input.resume,
+						input.supportingDocuments,
+						format,
+						accountEmail
+					)
+				}
+				generation
 					.doOnSuccess {
 						loggingAspect.logCoverLetterGenerated(
 							if (format == GenerationFormat.MOTIVATION_MESSAGE) {
 								"Generated a motivation message"
 							} else {
 								"Generated a cover letter"
-							}
+							},
+							accountEmail
 						)
 					}
 			}

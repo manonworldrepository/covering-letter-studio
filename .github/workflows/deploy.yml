@@ -9,7 +9,7 @@
 # Setup required (see CLOUD_DEPLOYMENT.md for details):
 # - Enable Cloud Run, Cloud Build, and Artifact Registry APIs
 # - Set up Workload Identity Federation between GitHub and GCP
-# - Add GitHub secrets: GCP_PROJECT_ID, GCP_REGION, GCP_SERVICE, WIF_PROVIDER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GEMINI_API_KEY, CLOUD_STORAGE_BUCKET, JWT_PRIVATE_KEY_BASE64, JWT_PUBLIC_KEY_BASE64
+# - Add GitHub secrets: GCP_PROJECT_ID, GCP_REGION, GCP_SERVICE, WIF_PROVIDER, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CLOUD_STORAGE_BUCKET, JWT_PRIVATE_KEY_BASE64, JWT_PUBLIC_KEY_BASE64
 # - Optionally add ALLOWED_EMAILS; otherwise an existing Cloud Run value is preserved or first-run setup can configure it
 
 name: Deploy to Cloud Run
@@ -80,7 +80,7 @@ jobs:
             exit 1
           fi
 
-          DEPLOY_ENV_VARS="GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},CLOUD_STORAGE_BUCKET=${{ secrets.CLOUD_STORAGE_BUCKET }},JWT_PRIVATE_KEY_BASE64=${{ secrets.JWT_PRIVATE_KEY_BASE64 }},JWT_PUBLIC_KEY_BASE64=${{ secrets.JWT_PUBLIC_KEY_BASE64 }}"
+          DEPLOY_ENV_VARS="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }},GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }},CLOUD_STORAGE_BUCKET=${{ secrets.CLOUD_STORAGE_BUCKET }},JWT_PRIVATE_KEY_BASE64=${{ secrets.JWT_PRIVATE_KEY_BASE64 }},JWT_PUBLIC_KEY_BASE64=${{ secrets.JWT_PUBLIC_KEY_BASE64 }}"
           if [[ -n "${ALLOWED_EMAILS//[[:space:]]/}" ]]; then
             ALLOWED_EMAILS_ESCAPED="${ALLOWED_EMAILS//,/\\,}"
             DEPLOY_ENV_VARS+=",ALLOWED_EMAILS=${ALLOWED_EMAILS_ESCAPED}"
@@ -94,6 +94,7 @@ jobs:
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }} \
             --allow-unauthenticated \
+            --max-instances 1 \
             --update-env-vars "$DEPLOY_ENV_VARS" \
             --quiet \
             --format='value(status.latestCreatedRevisionName)')"

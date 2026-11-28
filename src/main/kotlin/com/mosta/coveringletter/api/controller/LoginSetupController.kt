@@ -36,7 +36,7 @@ class LoginSetupController(
 	@PostMapping("/api/setup/allowed-emails", consumes = [MediaType.APPLICATION_JSON_VALUE])
 	fun saveAllowedEmails(@Valid @RequestBody request: AllowedEmailsSetupRequest): SetupStatusResponse {
 		requireSetupAvailable()
-		allowedEmails.save(request.emails)
+		allowedEmails.save(request.emails, request.adminEmail)
 		return SetupStatusResponse(configured = true)
 	}
 

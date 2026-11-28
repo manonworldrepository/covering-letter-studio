@@ -10,15 +10,17 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import java.security.Principal
 
 @RestController
 class AllowedEmailsController(
 	private val allowedEmails: AllowedEmailsService
 ) {
 	@GetMapping("/api/settings/allowed-emails", produces = [MediaType.APPLICATION_JSON_VALUE])
-	fun getAllowedEmails(response: ServerHttpResponse): AllowedEmailsResponse {
+	fun getAllowedEmails(response: ServerHttpResponse, principal: Principal): AllowedEmailsResponse {
+		allowedEmails.requireAdmin(principal.name)
 		response.headers.cacheControl = "no-store"
-		return AllowedEmailsResponse(allowedEmails.allowedEmails().sorted())
+		return AllowedEmailsResponse(allowedEmails.allowedEmails().sorted(), allowedEmails.adminEmail())
 	}
 
 	@PutMapping(
@@ -28,9 +30,13 @@ class AllowedEmailsController(
 	)
 	fun updateAllowedEmails(
 		@Valid @RequestBody request: AllowedEmailsSetupRequest,
-		response: ServerHttpResponse
+		response: ServerHttpResponse,
+		principal: Principal
 	): AllowedEmailsResponse {
+		if (!allowedEmails.isConfigured()) throw org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND)
+		allowedEmails.requireAdmin(principal.name)
 		response.headers.cacheControl = "no-store"
-		return AllowedEmailsResponse(allowedEmails.update(request.emails).sorted())
+		val emails = allowedEmails.update(request.emails, request.adminEmail)
+		return AllowedEmailsResponse(emails.sorted(), allowedEmails.adminEmail())
 	}
 }

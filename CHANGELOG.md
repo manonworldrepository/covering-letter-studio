@@ -4,11 +4,16 @@ All notable changes to the Cover Letter Studio app are documented in this file.
 
 ## [Unreleased]
 
-### Changed
-- Allowed sign-in emails are now managed in the Settings form and saved together with the Gemini API key and model; removing all addresses reopens first-run email setup at the next sign-in
-
 ### Added
-- Added a confirmed application-settings reset that clears the saved Gemini API key and allowed-email list, preserves the selected model and Google OAuth credentials, signs out, and returns to first-run setup
+- Added per-account storage for resumes, supporting documents, applied jobs, Gemini settings, and activity logs while keeping legacy data visible to all accounts
+- Added an administrator-only, read-only view of all account resumes and supporting documents, plus an applications grid that identifies each application's owner
+- Added an offline legacy-data archive migration task and Cloud Storage generation checks to prevent stale instance snapshots overwriting newer account data
+
+### Changed
+- Allowed accounts and administrator assignment are now managed together in Settings; the first address defaults to administrator and account-list changes require an administrator
+- The configured allowlist is checked on access and refresh tokens so removed users cannot continue using existing sessions
+- Gemini API keys and models are stored per account; any user can delete a shared legacy record globally, while private records remain owner-only
+- Added a confirmed administrator-only settings reset that clears the personal Gemini API key and global allowed-account list, preserves the selected model and Google OAuth credentials, signs out, and returns to first-run setup
 
 ## [v3.3.17] - 2026-11-27
 

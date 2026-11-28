@@ -25,9 +25,9 @@ class GeminiGenerationClient(
 		.baseUrl("https://generativelanguage.googleapis.com")
 		.build()
 
-	fun generate(prompt: String): Mono<GeminiGeneratedContent> {
-		val apiKey = settings.apiKey()
-		val preferredModel = settings.model()
+	fun generate(prompt: String, accountEmail: String? = null): Mono<GeminiGeneratedContent> {
+		val apiKey = settings.apiKey(accountEmail)
+		val preferredModel = settings.model(accountEmail)
 		if (apiKey.isBlank()) {
 			return Mono.error(
 				ResponseStatusException(
@@ -45,35 +45,36 @@ class GeminiGenerationClient(
 			.put("text", prompt)
 		request.putObject("generationConfig").put("responseMimeType", "application/json")
 
-		return resolveCandidateModels(apiKey, preferredModel)
-			.flatMap { candidates -> generateWithFallback(candidates, apiKey, request) }
+		return resolveCandidateModels(apiKey, preferredModel, accountEmail)
+			.flatMap { candidates -> generateWithFallback(candidates, apiKey, request, accountEmail) }
 	}
 
-	private fun resolveCandidateModels(apiKey: String, preferredModel: String): Mono<List<String>> =
-		settings.availableModels(apiKey)
+	private fun resolveCandidateModels(apiKey: String, preferredModel: String, accountEmail: String?): Mono<List<String>> =
+		settings.availableModels(apiKey, accountEmail)
 			.map { models -> GeminiModelFallback.candidates(preferredModel, models.map { it.id }) }
 			.onErrorReturn(GeminiModelFallback.candidates(preferredModel, emptyList()))
 
 	private fun generateWithFallback(
 		candidates: List<String>,
 		apiKey: String,
-		request: JsonNode
+		request: JsonNode,
+		accountEmail: String?
 	): Mono<GeminiGeneratedContent> {
 		val lastError = AtomicReference<Throwable>()
 		return Flux.fromIterable(candidates.withIndex())
 			.concatMap { (index, model) ->
-				callModel(model, apiKey, request)
+				callModel(model, apiKey, request, accountEmail)
 					.doOnNext {
 						if (index > 0) {
-							loggingAspect.logModelSwitched(model)
+							loggingAspect.logModelSwitched(model, accountEmail)
 						}
 					}
 					.onErrorResume { error ->
 						lastError.set(error)
 						val hasMore = index < candidates.lastIndex
 						if (hasMore && GeminiModelFallback.isRetryable(error)) {
-							loggingAspect.logModelFailed(model)
-							loggingAspect.logModelFallback(model, index + 1, candidates.size)
+							loggingAspect.logModelFailed(model, accountEmail)
+							loggingAspect.logModelFallback(model, index + 1, candidates.size, accountEmail)
 							Mono.empty()
 						} else {
 							Mono.error(mapGenerationError(error))
@@ -88,7 +89,7 @@ class GeminiGenerationClient(
 			)
 	}
 
-	private fun callModel(model: String, apiKey: String, request: JsonNode): Mono<GeminiGeneratedContent> =
+	private fun callModel(model: String, apiKey: String, request: JsonNode, accountEmail: String?): Mono<GeminiGeneratedContent> =
 		webClient.post()
 			.uri { builder ->
 				builder.path("/v1beta/models/{model}:generateContent")
@@ -98,8 +99,8 @@ class GeminiGenerationClient(
 			.bodyValue(request)
 			.retrieve()
 			.bodyToMono(JsonNode::class.java)
-			.doOnSubscribe { loggingAspect.logModelContacted(model) }
-			.doOnNext { loggingAspect.logModelReplied(model) }
+			.doOnSubscribe { loggingAspect.logModelContacted(model, accountEmail) }
+			.doOnNext { loggingAspect.logModelReplied(model, accountEmail) }
 			.map(::readGeneratedContent)
 			.retryWhen(
 				Retry.backoff(GeminiGenerationClientSupport.MAX_RETRIES.toLong(), Duration.ofSeconds(1))
@@ -107,7 +108,7 @@ class GeminiGenerationClient(
 					.doBeforeRetry { signal ->
 						val attempt = signal.totalRetries().toInt()
 						val reason = extractFailureReason(signal.failure())
-						loggingAspect.logRetry(model, attempt, GeminiGenerationClientSupport.MAX_RETRIES, reason)
+						loggingAspect.logRetry(model, attempt, GeminiGenerationClientSupport.MAX_RETRIES, reason, accountEmail)
 					}
 			)
 

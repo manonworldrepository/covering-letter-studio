@@ -2,6 +2,7 @@ package com.mosta.coveringletter.supportingdocument
 
 import com.mosta.coveringletter.documents.DocumentTextExtractor
 import com.mosta.coveringletter.pdf.CoverLetterPdfGenerator
+import com.mosta.coveringletter.persistence.AccountDataDirectories
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
+import java.nio.file.Files
 import java.nio.file.Path
 
 class SupportingDocumentStoreTests {
@@ -123,6 +125,60 @@ class SupportingDocumentStoreTests {
 			store.getDocumentBytes("00000000-0000-0000-0000-000000000000")
 		}
 		assertEquals(HttpStatus.NOT_FOUND, rawException.statusCode)
+	}
+
+	@Test
+	fun `each account sees shared documents and only its own private supporting documents`() {
+		val store = store()
+		val shared = store.saveBytes("legacy.pdf", pdfGenerator.create("Shared legacy document."))
+		val alice = store.saveBytes("alice.pdf", pdfGenerator.create("Alice private document."), "alice@example.com")
+
+		assertEquals(setOf(shared.id, alice.id), store.list("alice@example.com").map { it.id }.toSet())
+		assertEquals(setOf(shared.id), store.list("bob@example.com").map { it.id }.toSet())
+		assertTrue(store.list("bob@example.com").single().shared)
+	}
+
+	@Test
+	fun `any account can delete shared documents but cannot delete another account's private documents`() {
+		val store = store()
+		val shared = store.saveBytes("legacy.pdf", pdfGenerator.create("Shared legacy document."))
+		val alice = store.saveBytes("alice.pdf", pdfGenerator.create("Alice private document."), "alice@example.com")
+
+		assertEquals(shared.id, store.delete(shared.id, "alice@example.com").block()?.id)
+		assertEquals(alice.id, store.list("alice@example.com").single { it.id == alice.id }.id)
+		assertTrue(store.clear("alice@example.com").block()!!.any { it.id == alice.id })
+		assertTrue(store.list("bob@example.com").isEmpty())
+	}
+
+	@Test
+	fun `clearing documents from one account deletes shared legacy documents for all accounts`() {
+		val store = store()
+		val firstShared = store.saveBytes("first-shared.pdf", pdfGenerator.create("First shared document."))
+		store.saveBytes("second-shared.pdf", pdfGenerator.create("Second shared document."))
+		store.saveBytes("private.pdf", pdfGenerator.create("Private document."), "alice@example.com")
+		store.select(setOf(firstShared.id), "alice@example.com")
+
+		val removed = store.clear("alice@example.com").block()!!
+
+		assertEquals(3, removed.size)
+		assertTrue(store.list("alice@example.com").isEmpty())
+		assertTrue(store.list("bob@example.com").isEmpty())
+	}
+
+	@Test
+	fun `deleting shared legacy document removes migration copies`() {
+		val store = store()
+		val shared = store.saveBytes("legacy.pdf", pdfGenerator.create("Shared legacy document."))
+		val accountDirectory = AccountDataDirectories(temporaryDirectory.resolve("data")).forEmail("info@example.com")
+		val sharedFile = temporaryDirectory.resolve("data/supporting-documents/${shared.id}__legacy.pdf")
+		val copiedFile = accountDirectory.resolve("supporting-documents/${shared.id}__legacy.pdf")
+		Files.createDirectories(copiedFile.parent)
+		Files.copy(sharedFile, copiedFile)
+
+		store.delete(shared.id, "alice@example.com").block()
+
+		assertTrue(store.list("bob@example.com").isEmpty())
+		assertFalse(Files.exists(copiedFile))
 	}
 
 	private fun store() = SupportingDocumentStore(

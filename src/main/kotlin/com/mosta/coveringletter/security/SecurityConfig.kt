@@ -96,9 +96,9 @@ class SecurityConfig(
             return if (allowedEmails.allows(name)) {
                 val wasRefresh = exchange.exchange.request.queryParams["refresh"]?.firstOrNull() == "true"
                 if (wasRefresh) {
-                    userActions.record("Session refreshed via Google Sign-In")
+                    userActions.record("Session refreshed via Google Sign-In", name)
                 } else {
-                    userActions.record("Signed in with Google: $name")
+                    userActions.record("Signed in with Google: $name", name)
                 }
                 // Generate JWT tokens and pass them via URL params for client-side cookie setting
                 val accessToken = jwtService.generateAccessToken(name)

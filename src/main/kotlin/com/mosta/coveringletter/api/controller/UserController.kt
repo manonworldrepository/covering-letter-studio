@@ -4,6 +4,7 @@ import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.response.UserInfoResponse
 import com.mosta.coveringletter.security.JwtAuthenticationConverter
 import com.mosta.coveringletter.security.JwtService
+import com.mosta.coveringletter.settings.AllowedEmailsService
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseCookie
@@ -14,11 +15,13 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import java.security.Principal
 
 @RestController
 class UserController(
     private val jwtService: JwtService,
-    private val userActions: UserActionLogBuffer
+    private val userActions: UserActionLogBuffer,
+    private val allowedEmails: AllowedEmailsService
 ) {
     @GetMapping("/api/user/me")
     fun getCurrentUser(securityContext: Mono<SecurityContext>): Mono<UserInfoResponse> =
@@ -31,7 +34,7 @@ class UserController(
             } else {
                 email
             }
-            Mono.just(UserInfoResponse(email = email, name = name))
+            Mono.just(UserInfoResponse(email = email, name = name, isAdmin = allowedEmails.isAdmin(email)))
         }
 
     @GetMapping("/api/session/heartbeat")
@@ -49,6 +52,7 @@ class UserController(
             ?: return unauthorizedHeartbeat(exchange)
 
         return jwtService.validateAccessToken(token)
+            .filter(allowedEmails::allows)
             .flatMap { _ ->
                 okHeartbeat(exchange)
             }
@@ -80,6 +84,7 @@ class UserController(
     @GetMapping("/api/auth/login-success")
     fun loginSuccess(exchange: ServerWebExchange): Mono<Void> {
         val email = exchange.request.queryParams["email"]?.firstOrNull() ?: return unauthorizedResponse(exchange)
+        if (!allowedEmails.allows(email)) return unauthorizedResponse(exchange)
         val wasRefresh = exchange.request.queryParams["refresh"]?.firstOrNull() == "true"
 
         val accessToken = jwtService.generateAccessToken(email)
@@ -108,16 +113,16 @@ class UserController(
             ?: exchange.request.cookies[JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE]?.firstOrNull()?.value
             ?: return unauthorizedResponse(exchange)
 
-        userActions.record("Token refresh attempted")
-
         return jwtService.validateRefreshToken(refreshToken)
+            .filter(allowedEmails::allows)
             .map { email -> email to jwtService.generateRefreshToken(email) }
             .flatMap { (email, newRefreshToken) ->
+                userActions.record("Token refresh attempted", email)
                 val newAccessToken = jwtService.generateAccessToken(email)
                 val response = exchange.response
                 response.statusCode = HttpStatus.OK
                 response.headers.contentType = MediaType.APPLICATION_JSON
-                userActions.record("Token refreshed successfully")
+                userActions.record("Token refreshed successfully", email)
                 // Return tokens in response body for client-side storage - properly escape for JSON
                 val escapedAccessToken = newAccessToken.replace("\\", "\\\\").replace("\"", "\\\"")
                 val escapedRefreshToken = newRefreshToken.replace("\\", "\\\\").replace("\"", "\\\"")
@@ -143,7 +148,6 @@ class UserController(
 
     @PostMapping("/api/auth/logout")
     fun logout(exchange: ServerWebExchange): Mono<Void> {
-        userActions.clear()
         val response = exchange.response
         val clearAccess = ResponseCookie.from(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, "")
             .httpOnly(true).secure(true).sameSite("None").path("/").maxAge(0).build()
@@ -157,13 +161,17 @@ class UserController(
         response.cookies.put("SESSION", listOf(clearSession))
         response.statusCode = HttpStatus.OK
         response.headers.contentType = MediaType.APPLICATION_JSON
-        return response.writeWith(
-            Mono.just(
-                response.bufferFactory().wrap(
-                    """{"status":"logged_out"}""".toByteArray()
+        return exchange.getPrincipal<Principal>()
+            .doOnNext { userActions.clear(it.name) }
+            .then(
+                response.writeWith(
+                    Mono.just(
+                        response.bufferFactory().wrap(
+                            """{"status":"logged_out"}""".toByteArray()
+                        )
+                    )
                 )
             )
-        )
     }
 
     private fun unauthorizedResponse(exchange: ServerWebExchange): Mono<Void> {

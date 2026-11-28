@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpResponse
 
 class ResumePdfControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 	private val controller = ResumePdfController(ResumePdfGenerator())
 
 	@Test
@@ -34,4 +35,7 @@ class ResumePdfControllerTests {
 			) == true
 		)
 	}
+
+	private fun ResumePdfController.downloadPdf(request: TailoredResumePdfRequest, response: MockServerHttpResponse) =
+		downloadPdf(request, response, principal)
 }

@@ -15,6 +15,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class AllowedEmailsControllerTests {
+	private val listAdmin = java.security.Principal { "z@example.com" }
+	private val ownerAdmin = java.security.Principal { "old@example.com" }
 	@TempDir
 	lateinit var temporaryDirectory: Path
 
@@ -25,7 +27,7 @@ class AllowedEmailsControllerTests {
 		val controller = AllowedEmailsController(allowedEmails(envFile))
 		val response = MockServerHttpResponse()
 
-		val result = controller.getAllowedEmails(response)
+		val result = controller.getAllowedEmails(response, listAdmin)
 
 		assertEquals(listOf("a@example.com", "z@example.com"), result.emails)
 		assertTrue(response.headers.cacheControl?.contains("no-store", ignoreCase = true) == true)
@@ -40,12 +42,13 @@ class AllowedEmailsControllerTests {
 
 		val result = controller.updateAllowedEmails(
 			AllowedEmailsSetupRequest("New@example.com,admin@example.com"),
-			response
+			response,
+			ownerAdmin
 		)
 
 		assertEquals(listOf("admin@example.com", "new@example.com"), result.emails)
 		assertEquals(
-			listOf("GEMINI_API_KEY=keep-this", "ALLOWED_EMAILS=new@example.com,admin@example.com"),
+			listOf("GEMINI_API_KEY=keep-this", "ALLOWED_EMAILS=new@example.com,admin@example.com", "ADMIN_EMAIL=new@example.com"),
 			Files.readAllLines(envFile)
 		)
 		assertTrue(response.headers.cacheControl?.contains("no-store", ignoreCase = true) == true)
@@ -56,10 +59,24 @@ class AllowedEmailsControllerTests {
 		val controller = AllowedEmailsController(allowedEmails(temporaryDirectory.resolve(".env")))
 
 		val exception = assertThrows(ResponseStatusException::class.java) {
-			controller.updateAllowedEmails(AllowedEmailsSetupRequest("owner@example.com"), MockServerHttpResponse())
+			controller.updateAllowedEmails(AllowedEmailsSetupRequest("owner@example.com"), MockServerHttpResponse(), ownerAdmin)
 		}
 
 		assertEquals(HttpStatus.NOT_FOUND.value(), exception.statusCode.value())
+	}
+
+	@Test
+	fun `only the configured administrator can read or update allowed emails`() {
+		val envFile = temporaryDirectory.resolve(".env")
+		Files.writeString(envFile, "ALLOWED_EMAILS=admin@example.com,user@example.com\n")
+		val controller = AllowedEmailsController(allowedEmails(envFile))
+		val user = java.security.Principal { "user@example.com" }
+
+		val exception = assertThrows(ResponseStatusException::class.java) {
+			controller.getAllowedEmails(MockServerHttpResponse(), user)
+		}
+
+		assertEquals(HttpStatus.FORBIDDEN, exception.statusCode)
 	}
 
 	private fun allowedEmails(envFile: Path) = AllowedEmailsService("").also { it.envFile = envFile }

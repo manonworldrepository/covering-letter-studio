@@ -11,10 +11,14 @@ class ResumeTailoringService(
 	private val generator: ResumeGenerator,
 	private val loggingAspect: GeminiServiceLoggingAspect
 ) {
-	fun tailor(jobDescription: String): Mono<GeneratedResume> =
-		inputService.load(jobDescription)
+	fun tailor(jobDescription: String, accountEmail: String? = null): Mono<GeneratedResume> =
+		inputService.load(jobDescription, accountEmail)
 			.flatMap { input ->
-				generator.generate(jobDescription.trim(), input.resume, input.supportingDocuments)
-					.doOnSuccess { loggingAspect.logResumeTailored() }
+				val generation = if (accountEmail == null) {
+					generator.generate(jobDescription.trim(), input.resume, input.supportingDocuments)
+				} else {
+					generator.generateForAccount(jobDescription.trim(), input.resume, input.supportingDocuments, accountEmail)
+				}
+				generation.doOnSuccess { loggingAspect.logResumeTailored(accountEmail) }
 			}
 }

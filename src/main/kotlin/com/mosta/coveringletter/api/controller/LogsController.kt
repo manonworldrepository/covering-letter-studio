@@ -10,20 +10,21 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import java.security.Principal
 
 @RestController
 class LogsController(
 	private val logs: UserActionLogBuffer
 ) {
 	@GetMapping("/api/logs")
-	fun getUserActions() = logs.latest()
+	fun getUserActions(principal: Principal) = logs.latest(principal.name)
 
 	@DeleteMapping("/api/logs")
-	fun clearUserActions(): List<UserActionLogEntry> {
-		logs.clear()
-		return logs.latest()
+	fun clearUserActions(principal: Principal): List<UserActionLogEntry> {
+		logs.clear(principal.name)
+		return logs.latest(principal.name)
 	}
 
 	@PostMapping("/api/logs", consumes = [MediaType.APPLICATION_JSON_VALUE])
-	fun recordUserAction(@Valid @RequestBody request: UserActionRequest) = logs.record(request.action)
+	fun recordUserAction(@Valid @RequestBody request: UserActionRequest, principal: Principal) = logs.record(request.action, principal.name)
 }

@@ -23,6 +23,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class SettingsControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 
 	@TempDir
 	lateinit var temporaryDirectory: Path
@@ -93,8 +94,8 @@ class SettingsControllerTests {
 			mockSettings.savedAllowedEmails
 		)
 		assertEquals(
-			"ALLOWED_EMAILS=new@example.com,owner@example.com",
-			Files.readString(temporaryDirectory.resolve(".env")).trim()
+			listOf("ALLOWED_EMAILS=new@example.com,owner@example.com", "ADMIN_EMAIL=new@example.com"),
+			Files.readAllLines(temporaryDirectory.resolve(".env"))
 		)
 	}
 
@@ -115,18 +116,36 @@ class SettingsControllerTests {
 	}
 
 	@Test
-	fun `saving an empty allowed email list makes the setup page available`() {
-		controller.saveSettings(
-			AppSettingsRequest(apiKey = "", model = "gemini-3.1-flash-lite", allowedEmails = "")
-		).block()
+	fun `only the administrator can change the allowed account list`() {
+		val user = java.security.Principal { "user@example.com" }
+		val exception = org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException::class.java) {
+			controller.saveSettings(
+				AppSettingsRequest(
+					apiKey = "",
+					model = "gemini-3.1-flash-lite",
+					allowedEmails = "owner@example.com,user@example.com",
+					adminEmail = "owner@example.com"
+				),
+				user
+			)
+		}
 
-		assertEquals("", mockSettings.savedAllowedEmails)
-		assertFalse(allowedEmails.isConfigured())
-		assertEquals("ALLOWED_EMAILS=", Files.readString(temporaryDirectory.resolve(".env")).trim())
-		assertEquals(
-			"allowed-emails-setup.html",
-			LoginSetupController(allowedEmails).loginPage(MockServerHttpResponse()).filename
-		)
+		assertEquals(403, exception.statusCode.value())
+		assertEquals(null, mockSettings.savedAllowedEmails)
+	}
+
+	@Test
+	fun `saving an empty allowed email list is rejected because an admin is required`() {
+		val exception = org.junit.jupiter.api.Assertions.assertThrows(ResponseStatusException::class.java) {
+			controller.saveSettings(
+				AppSettingsRequest(apiKey = "", model = "gemini-3.1-flash-lite", allowedEmails = ""),
+				principal
+			)
+		}
+
+		assertEquals(400, exception.statusCode.value())
+		assertEquals(null, mockSettings.savedAllowedEmails)
+		assertTrue(allowedEmails.isConfigured())
 	}
 
 	@Test
@@ -174,16 +193,24 @@ class SettingsControllerTests {
 		var savedAllowedEmails: String? = null
 		var resetCalled = false
 
-		override fun apiKey(): String = configuredApiKey
+		override fun apiKey(accountEmail: String?): String = configuredApiKey
 
-		override fun resetApplicationSettings(): String {
+		override fun resetApplicationSettings(accountEmail: String?): String {
 			resetCalled = true
 			return "gemini-3.1-flash-lite"
 		}
 
-		override fun save(request: AppSettingsRequest): Mono<Unit> {
+		override fun save(request: AppSettingsRequest, accountEmail: String?): Mono<Unit> {
 			savedAllowedEmails = request.allowedEmails
 			return Mono.just(Unit)
 		}
 	}
+
+	private fun SettingsController.getSettings() = getSettings(principal)
+
+	private fun SettingsController.getCurrentSettings(response: MockServerHttpResponse) = getCurrentSettings(response, principal)
+
+	private fun SettingsController.saveSettings(request: AppSettingsRequest) = saveSettings(request, principal)
+
+	private fun SettingsController.resetSettings() = resetSettings(principal)
 }

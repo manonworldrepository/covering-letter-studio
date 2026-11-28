@@ -35,7 +35,11 @@ class AllowedEmailsServiceTests {
 		assertTrue(service.allows("person@gmail.com"))
 		assertTrue(service.allows("ADMIN@example.com"))
 		assertEquals(
-			listOf("GEMINI_API_KEY=keep-this", "ALLOWED_EMAILS=person@gmail.com,admin@example.com"),
+			listOf(
+				"GEMINI_API_KEY=keep-this",
+				"ALLOWED_EMAILS=person@gmail.com,admin@example.com",
+				"ADMIN_EMAIL=person@gmail.com"
+			),
 			Files.readAllLines(envFile)
 		)
 	}
@@ -90,7 +94,11 @@ class AllowedEmailsServiceTests {
 		assertTrue(service.allows("admin@example.com"))
 		assertFalse(service.allows("old@example.com"))
 		assertEquals(
-			listOf("GEMINI_API_KEY=keep-this", "ALLOWED_EMAILS=owner@example.com,admin@example.com"),
+			listOf(
+				"GEMINI_API_KEY=keep-this",
+				"ALLOWED_EMAILS=owner@example.com,admin@example.com",
+				"ADMIN_EMAIL=owner@example.com"
+			),
 			Files.readAllLines(envFile)
 		)
 	}
@@ -104,20 +112,25 @@ class AllowedEmailsServiceTests {
 
 		assertTrue(service.allows("new-owner@example.com"))
 		assertFalse(service.allows("owner@example.com"))
-		assertEquals("ALLOWED_EMAILS=new-owner@example.com", Files.readString(envFile).trim())
+		assertEquals(
+			listOf("ALLOWED_EMAILS=new-owner@example.com", "ADMIN_EMAIL=new-owner@example.com"),
+			Files.readAllLines(envFile)
+		)
 	}
 
 	@Test
-	fun `settings can clear the active allowlist`() {
+	fun `settings cannot clear the active allowlist without selecting an admin`() {
 		val envFile = temporaryDirectory.resolve(".env")
-		val service = service("owner@example.com", envFile)
+		Files.writeString(envFile, "ALLOWED_EMAILS=owner@example.com\n")
+		val service = service("", envFile)
 
-		val emails = service.update("", allowEmpty = true)
+		val exception = assertThrows(ResponseStatusException::class.java) {
+			service.update("")
+		}
 
-		assertTrue(emails.isEmpty())
-		assertFalse(service.isConfigured())
-		assertTrue(service.allowedEmails().isEmpty())
-		assertEquals("ALLOWED_EMAILS=", Files.readString(envFile).trim())
+		assertEquals(HttpStatus.BAD_REQUEST, exception.statusCode)
+		assertTrue(service.isConfigured())
+		assertTrue(service.allows("owner@example.com"))
 	}
 
 	@Test

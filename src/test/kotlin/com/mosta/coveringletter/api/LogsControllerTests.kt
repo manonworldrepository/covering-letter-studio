@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class LogsControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 
 	private lateinit var logs: UserActionLogBuffer
 	private lateinit var controller: LogsController
@@ -28,8 +29,8 @@ class LogsControllerTests {
 
 	@Test
 	fun `getUserActions returns recorded actions`() {
-		logs.record("Generated a cover letter")
-		logs.record("Uploaded resume")
+		logs.record("Generated a cover letter", principal.name)
+		logs.record("Uploaded resume", principal.name)
 
 		val actions = controller.getUserActions()
 
@@ -42,7 +43,7 @@ class LogsControllerTests {
 	fun `recordUserAction logs a new action`() {
 		controller.recordUserAction(UserActionRequest("Tested the application"))
 
-		val actions = logs.latest()
+		val actions = logs.latest(principal.name)
 		assertEquals(1, actions.size)
 		assertEquals("Tested the application", actions.single().action)
 	}
@@ -51,15 +52,15 @@ class LogsControllerTests {
 	fun `recordUserAction records action with exact text`() {
 		controller.recordUserAction(UserActionRequest("Exact action text"))
 
-		val actions = logs.latest()
+		val actions = logs.latest(principal.name)
 		assertEquals("Exact action text", actions.single().action)
 	}
 
 	@Test
 	fun `getUserActions returns actions in chronological order`() {
-		logs.record("First action")
-		logs.record("Second action")
-		logs.record("Third action")
+		logs.record("First action", principal.name)
+		logs.record("Second action", principal.name)
+		logs.record("Third action", principal.name)
 
 		val actions = controller.getUserActions()
 
@@ -70,12 +71,18 @@ class LogsControllerTests {
 
 	@Test
 	fun `clearUserActions removes all recorded actions`() {
-		logs.record("Generated a cover letter")
-		logs.record("Downloaded a PDF")
+		logs.record("Generated a cover letter", principal.name)
+		logs.record("Downloaded a PDF", principal.name)
 
 		val actions = controller.clearUserActions()
 
 		assertTrue(actions.isEmpty())
-		assertTrue(logs.latest().isEmpty())
+		assertTrue(logs.latest(principal.name).isEmpty())
 	}
+
+	private fun LogsController.getUserActions() = getUserActions(principal)
+
+	private fun LogsController.recordUserAction(request: UserActionRequest) = recordUserAction(request, principal)
+
+	private fun LogsController.clearUserActions() = clearUserActions(principal)
 }

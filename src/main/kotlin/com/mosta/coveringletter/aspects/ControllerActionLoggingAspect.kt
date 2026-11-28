@@ -39,7 +39,7 @@ class ControllerActionLoggingAspect(
 		returning = "result"
 	)
 	fun logUpdateStatus(id: String, statusParam: String, result: Any?) {
-		val updated = appliedJobStore.list().find { it.id == id } ?: return
+		val updated = appliedJobStore.list(accountEmail = logs.currentAccountEmail()).find { it.id == id } ?: return
 		val label = statusParam.lowercase().replaceFirstChar { it.uppercase() }
 		logs.record("Updated job status to $label: ${updated.jobTitle} at ${updated.company}")
 	}
@@ -62,7 +62,7 @@ class ControllerActionLoggingAspect(
 		returning = "result"
 	)
 	fun logDownloadSingleJobPdf(id: String, result: Any?) {
-		val job = appliedJobStore.list().find { it.id == id } ?: return
+		val job = appliedJobStore.list(accountEmail = logs.currentAccountEmail()).find { it.id == id } ?: return
 		logs.record("Downloaded applied job PDF: ${job.jobTitle} at ${job.company}")
 	}
 
@@ -76,7 +76,7 @@ class ControllerActionLoggingAspect(
 	@AfterReturning("execution(* com.mosta.coveringletter.api.controller.ResumeController.saveResume(..))")
 	fun logSaveResume() {
 		// Reactive method (Mono<ResumeStatus>) — record after resolution
-		val status = resumeStore.status()
+		val status = resumeStore.status(logs.currentAccountEmail())
 		status.filename?.let { logs.record("Saved resume: $it") }
 			?: logs.record("Saved resume")
 	}

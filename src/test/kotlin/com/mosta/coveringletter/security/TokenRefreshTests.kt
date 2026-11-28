@@ -2,26 +2,34 @@ package com.mosta.coveringletter.security
 
 import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.controller.UserController
+import com.mosta.coveringletter.settings.AllowedEmailsService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.springframework.http.HttpCookie
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import java.nio.file.Path
 
 class TokenRefreshTests {
 
     private lateinit var jwtService: JwtService
     private lateinit var controller: UserController
     private lateinit var userActions: UserActionLogBuffer
+    private lateinit var allowedEmails: AllowedEmailsService
+    @TempDir
+    lateinit var temporaryDirectory: Path
 
     @BeforeEach
     fun setup() {
         jwtService = JwtService(900, 604800, "", "").also { it.init() }
         userActions = UserActionLogBuffer()
-        controller = UserController(jwtService, userActions)
+        allowedEmails = AllowedEmailsService("").also { it.envFile = temporaryDirectory.resolve(".env") }
+        allowedEmails.save("test@example.com")
+        controller = UserController(jwtService, userActions, allowedEmails)
     }
 
     @Test
@@ -78,6 +86,20 @@ class TokenRefreshTests {
     }
 
     @Test
+    fun `refreshTokens rejects a valid token after the account is removed from the allowlist`() {
+        val refreshToken = jwtService.generateRefreshToken("test@example.com")
+        allowedEmails.update("admin@example.com", "admin@example.com")
+        val request = MockServerHttpRequest.post("/api/auth/refresh")
+            .cookie(HttpCookie(JwtAuthenticationConverter.REFRESH_TOKEN_COOKIE, refreshToken))
+            .build()
+        val exchange = MockServerWebExchange.from(request)
+
+        controller.refreshTokens(exchange).block()
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.response.statusCode)
+    }
+
+    @Test
     fun `logout clears both cookies`() {
         val exchange = MockServerWebExchange.from(
             MockServerHttpRequest.post("/api/auth/logout").build()
@@ -102,7 +124,7 @@ class TokenRefreshTests {
 
         controller.refreshTokens(exchange).block()
 
-        val logs = userActions.latest()
+        val logs = userActions.latest("test@example.com")
         assertTrue(logs.any { it.action.contains("Token refresh attempted") })
         assertTrue(logs.any { it.action.contains("Token refreshed successfully") })
     }
@@ -117,7 +139,6 @@ class TokenRefreshTests {
         controller.refreshTokens(exchange).block()
 
         val logs = userActions.latest()
-        assertTrue(logs.any { it.action.contains("Token refresh attempted") })
         assertTrue(logs.any { it.action.contains("Token refresh failed") })
     }
 }

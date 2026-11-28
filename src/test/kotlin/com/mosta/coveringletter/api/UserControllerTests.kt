@@ -3,6 +3,7 @@ package com.mosta.coveringletter.api
 import com.mosta.coveringletter.activity.UserActionLogBuffer
 import com.mosta.coveringletter.api.controller.UserController
 import com.mosta.coveringletter.security.JwtService
+import com.mosta.coveringletter.settings.AllowedEmailsService
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -21,10 +22,11 @@ class UserControllerTests {
 
 	private val jwtService = JwtService(900, 604800, "", "").also { it.init() }
 	private val userActions = UserActionLogBuffer()
+	private val allowedEmails = AllowedEmailsService("test@example.com,simple@example.com")
 
 	@Test
 	fun `getCurrentUser returns email and name from OAuth2 user`() {
-		val controller = UserController(jwtService, userActions)
+		val controller = UserController(jwtService, userActions, allowedEmails)
 		val oAuth2User = createMockOAuth2User(
 			email = "test@example.com",
 			name = "Test User",
@@ -41,7 +43,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser falls back to given_name when name is null`() {
-		val controller = UserController(jwtService, userActions)
+		val controller = UserController(jwtService, userActions, allowedEmails)
 		val oAuth2User = createMockOAuth2User(
 			email = "test@example.com",
 			name = null,
@@ -58,7 +60,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser falls back to email when both name and given_name are null`() {
-		val controller = UserController(jwtService, userActions)
+		val controller = UserController(jwtService, userActions, allowedEmails)
 		val oAuth2User = createMockOAuth2User(
 			email = "test@example.com",
 			name = null,
@@ -75,7 +77,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser throws when authentication is null`() {
-		val controller = UserController(jwtService, userActions)
+		val controller = UserController(jwtService, userActions, allowedEmails)
 		val securityContext = createMockSecurityContext(null)
 
 		assertThrows<org.springframework.security.access.AccessDeniedException> {
@@ -85,7 +87,7 @@ class UserControllerTests {
 
 	@Test
 	fun `getCurrentUser uses email as name when principal is not OAuth2User`() {
-		val controller = UserController(jwtService, userActions)
+		val controller = UserController(jwtService, userActions, allowedEmails)
 		val authentication = createMockAuthentication("simple@example.com", "simple@example.com")
 		val securityContext = createMockSecurityContext(authentication)
 
@@ -97,7 +99,7 @@ class UserControllerTests {
 
 	@Test
 	fun `successful token refresh does not log a refresh failure`() {
-		val controller = UserController(jwtService, userActions)
+		val controller = UserController(jwtService, userActions, allowedEmails)
 		val refreshToken = jwtService.generateRefreshToken("test@example.com")
 		val exchange = createRefreshExchange(refreshToken)
 
@@ -106,20 +108,20 @@ class UserControllerTests {
 		assertEquals(HttpStatus.OK, exchange.response.statusCode)
 		assertEquals(
 			listOf("Token refresh attempted", "Token refreshed successfully"),
-			userActions.latest().map { it.action }
+			userActions.latest("test@example.com").map { it.action }
 		)
 	}
 
 	@Test
 	fun `invalid refresh token logs failure and returns unauthorized`() {
-		val controller = UserController(jwtService, userActions)
+		val controller = UserController(jwtService, userActions, allowedEmails)
 		val exchange = createRefreshExchange("invalid-refresh-token")
 
 		controller.refreshTokens(exchange).block()
 
 		assertEquals(HttpStatus.UNAUTHORIZED, exchange.response.statusCode)
 		assertEquals(
-			listOf("Token refresh attempted", "Token refresh failed: refresh token expired"),
+			listOf("Token refresh failed: refresh token expired"),
 			userActions.latest().map { it.action }
 		)
 	}
@@ -127,15 +129,30 @@ class UserControllerTests {
 	@Test
 	fun `logout clears all activity logs`() {
 		userActions.clear()
-		userActions.record("Generated a cover letter")
-		userActions.record("Downloaded a PDF")
-		val controller = UserController(jwtService, userActions)
-		val exchange = MockServerWebExchange.from(MockServerHttpRequest.post("/api/auth/logout").build())
+		val principal = java.security.Principal { "test@example.com" }
+		userActions.record("Generated a cover letter", principal.name)
+		userActions.record("Downloaded a PDF", principal.name)
+		val controller = UserController(jwtService, userActions, allowedEmails)
+		val exchange = MockServerWebExchange.builder(MockServerHttpRequest.post("/api/auth/logout").build())
+			.principal(principal)
+			.build()
 
 		controller.logout(exchange).block()
 
 		assertEquals(HttpStatus.OK, exchange.response.statusCode)
-		assertTrue(userActions.latest().isEmpty())
+		assertTrue(userActions.latest(principal.name).isEmpty())
+	}
+
+	@Test
+	fun `login success does not issue tokens for an account outside the allowlist`() {
+		val controller = UserController(jwtService, userActions, allowedEmails)
+		val exchange = MockServerWebExchange.from(
+			MockServerHttpRequest.get("/api/auth/login-success?email=attacker@example.com").build()
+		)
+
+		controller.loginSuccess(exchange).block()
+
+		assertEquals(HttpStatus.UNAUTHORIZED, exchange.response.statusCode)
 	}
 
 	private fun createRefreshExchange(refreshToken: String): MockServerWebExchange {

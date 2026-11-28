@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.springframework.http.HttpCookie
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
@@ -12,6 +13,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -19,11 +21,17 @@ class JwtAuthenticationFilterTests {
 
     private lateinit var jwtService: JwtService
     private lateinit var converter: JwtAuthenticationConverter
+    private lateinit var allowedEmails: com.mosta.coveringletter.settings.AllowedEmailsService
+    @TempDir
+    lateinit var temporaryDirectory: Path
 
     @BeforeEach
     fun setup() {
         jwtService = JwtService(900, 604800, "", "").also { it.init() }
-        converter = JwtAuthenticationConverter(jwtService)
+        allowedEmails = com.mosta.coveringletter.settings.AllowedEmailsService(
+            "test@example.com,user1@example.com,user2@example.com"
+        ).also { it.envFile = temporaryDirectory.resolve(".env") }
+        converter = JwtAuthenticationConverter(jwtService, allowedEmails)
     }
 
     @Test
@@ -70,6 +78,16 @@ class JwtAuthenticationFilterTests {
         val exchange = createExchangeWithCookie(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, "")
 
         val result = converter.convert(exchange).block()
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `convert rejects an unexpired token when its account is removed from the allowlist`() {
+        val token = jwtService.generateAccessToken("user1@example.com")
+        allowedEmails.update("test@example.com,user2@example.com", "test@example.com")
+
+        val result = converter.convert(createExchangeWithCookie(JwtAuthenticationConverter.ACCESS_TOKEN_COOKIE, token)).block()
 
         assertNull(result)
     }

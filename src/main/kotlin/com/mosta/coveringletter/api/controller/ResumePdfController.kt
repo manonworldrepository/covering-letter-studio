@@ -10,6 +10,7 @@ import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import java.security.Principal
 
 @RestController
 class ResumePdfController(
@@ -22,7 +23,8 @@ class ResumePdfController(
 	)
 	fun downloadPdf(
 		@Valid @RequestBody request: TailoredResumePdfRequest,
-		response: ServerHttpResponse
+		response: ServerHttpResponse,
+		principal: Principal
 	): ByteArray {
 		val filename = TailoredResumeFilename.create(
 			request.applicantName,

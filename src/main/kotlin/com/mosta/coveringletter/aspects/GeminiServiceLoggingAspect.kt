@@ -15,7 +15,7 @@ class GeminiServiceLoggingAspect(
 	private val userActions: UserActionLogBuffer
 ) {
 
-	fun logModelFallback(model: String, attempt: Int, total: Int) {
+	fun logModelFallback(model: String, attempt: Int, total: Int, accountEmail: String? = null) {
 		logger.warn(
 			"Gemini model {} failed; trying fallback ({}/{}).",
 			model,
@@ -34,23 +34,23 @@ class GeminiServiceLoggingAspect(
 
 	// --- User-facing action log entries ---
 
-	fun logModelContacted(model: String) {
-		userActions.record("Contacting Gemini with model $model")
+	fun logModelContacted(model: String, accountEmail: String? = null) {
+		userActions.record("Contacting Gemini with model $model", accountEmail)
 	}
 
-	fun logModelReplied(model: String) {
-		userActions.record("Received a reply from Gemini using model $model")
+	fun logModelReplied(model: String, accountEmail: String? = null) {
+		userActions.record("Received a reply from Gemini using model $model", accountEmail)
 	}
 
-	fun logModelSwitched(model: String) {
-		userActions.record("Switched to Gemini model $model after a previous model failed")
+	fun logModelSwitched(model: String, accountEmail: String? = null) {
+		userActions.record("Switched to Gemini model $model after a previous model failed", accountEmail)
 	}
 
-	fun logModelFailed(model: String) {
-		userActions.record("Gemini model $model failed to respond; trying another model")
+	fun logModelFailed(model: String, accountEmail: String? = null) {
+		userActions.record("Gemini model $model failed to respond; trying another model", accountEmail)
 	}
 
-	fun logRetry(model: String, attempt: Int, maxRetries: Int, reason: String) {
+	fun logRetry(model: String, attempt: Int, maxRetries: Int, reason: String, accountEmail: String? = null) {
 		logger.warn(
 			"Gemini model {} request failed; retrying (attempt {}/{}) — {}.",
 			model,
@@ -58,14 +58,14 @@ class GeminiServiceLoggingAspect(
 			maxRetries,
 			reason
 		)
-		userActions.record("Retry $attempt/$maxRetries: $reason")
+		userActions.record("Retry $attempt/$maxRetries: $reason", accountEmail)
 	}
 
-	fun logCoverLetterGenerated(format: String) {
-		userActions.record(format)
+	fun logCoverLetterGenerated(format: String, accountEmail: String? = null) {
+		userActions.record(format, accountEmail)
 	}
 
-	fun logResumeTailored() {
-		userActions.record("Tailored a resume")
+	fun logResumeTailored(accountEmail: String? = null) {
+		userActions.record("Tailored a resume", accountEmail)
 	}
 }

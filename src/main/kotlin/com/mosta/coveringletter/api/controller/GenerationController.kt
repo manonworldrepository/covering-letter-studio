@@ -4,6 +4,7 @@ import com.mosta.coveringletter.api.request.GenerateLetterRequest
 import com.mosta.coveringletter.coverletter.CoverLetterGenerationService
 import com.mosta.coveringletter.coverletter.GeneratedCoverLetter
 import jakarta.validation.Valid
+import java.security.Principal
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.PostMapping
@@ -15,6 +16,6 @@ class GenerationController(
 	private val generationService: CoverLetterGenerationService
 ) {
 	@PostMapping("/api/generate", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-	fun generate(@Valid @ModelAttribute request: GenerateLetterRequest): Mono<GeneratedCoverLetter> =
-		generationService.generate(request.jobDescription, request.format)
+	fun generate(@Valid @ModelAttribute request: GenerateLetterRequest, principal: Principal): Mono<GeneratedCoverLetter> =
+		generationService.generate(request.jobDescription, request.format, principal.name)
 }

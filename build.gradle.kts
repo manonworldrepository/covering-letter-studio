@@ -52,3 +52,17 @@ kotlin {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+tasks.register<JavaExec>("migrateLegacyData") {
+    group = "application"
+    description = "Duplicate the shared legacy data archive into one account workspace."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.mosta.coveringletter.persistence.LegacyDataAccountMigrationCli")
+    doFirst {
+        val archive = providers.gradleProperty("archive").orNull
+            ?: throw GradleException("Set -Parchive to the downloaded data-backup.zip path.")
+        val ownerEmail = providers.gradleProperty("ownerEmail").orNull
+            ?: throw GradleException("Set -PownerEmail to the account that receives the data copy.")
+        args(archive, ownerEmail)
+    }
+}

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
+import java.security.Principal
 
 @RestController
 class PdfController(
@@ -24,7 +25,8 @@ class PdfController(
 	)
 	fun downloadPdf(
 		@Valid @RequestBody request: CoverLetterRequest,
-		response: ServerHttpResponse
+		response: ServerHttpResponse,
+		principal: Principal
 	): ByteArray {
 		val filename = try {
 			CoverLetterFilename.create(request.personName, request.companyName, request.jobTitle)

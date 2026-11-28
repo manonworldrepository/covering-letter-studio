@@ -72,6 +72,7 @@
     .settings-reset-section { border-top: 1px solid #e6e8ed; padding-top: 18px; }
     .settings-email-list { display: grid; gap: 8px; }
     .settings-email-row { display: flex; align-items: center; gap: 8px; }
+    .settings-email-row input[type="radio"] { width: auto; flex: 0 0 auto; margin: 0; }
     .settings-email-row input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #d5dae4; border-radius: 9px; font: inherit; }
     .settings-email-row button { width: auto; max-width: none; flex: 0 0 auto; padding: 8px 12px; }
     .settings-email-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
@@ -194,6 +195,13 @@
     .applied-jobs-table .actions-header { display: flex; justify-content: space-between; align-items: center; }
     .applied-jobs-table .btn-clear-all { width: auto; max-width: none; flex: 0 0 auto; font-size: 12px; padding: 4px 8px; background: #ad2938; color: #fff; border: 1px solid #8f1f2c; border-radius: 6px; cursor: pointer; font-weight: 600; }
     .applied-jobs-table .btn-clear-all:hover { background: #8f1f2c; }
+    .admin-workspace-grid { display: grid; gap: 16px; }
+    .admin-workspace-card { border: 1px solid #e6e8ed; border-radius: 10px; padding: 16px; }
+    .admin-workspace-card h2 { margin: 0 0 12px; font-size: 17px; overflow-wrap: anywhere; }
+    .admin-workspace-card h3 { margin: 14px 0 8px; font-size: 14px; }
+    .admin-workspace-files { display: grid; gap: 6px; }
+    .admin-workspace-files button { text-align: left; overflow-wrap: anywhere; }
+    .applied-jobs-table .col-owner { min-width: 170px; overflow-wrap: anywhere; }
     .user-info { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #fff; }
     .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.25); display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #fff; flex-shrink: 0; }
     .user-email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -238,6 +246,10 @@
         <button id="nav-applied-jobs" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
           Applied Jobs
+        </button>
+        <button id="nav-admin-data" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><path d="M16 11a3 3 0 1 0 0-6"/><path d="M18 14a5 5 0 0 1 3 5v1"/></svg>
+          Account Data
         </button>
         <button id="settings-open" type="button" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -547,6 +559,15 @@
         <p class="hint" id="applied-jobs-empty" hidden>No applied jobs yet. Generate a cover letter and click "Add to applied jobs" to start tracking.</p>
       </section>
     </section>
+
+    <section id="admin-data-page" hidden>
+      <div class="intro">
+        <h1>Account data</h1>
+        <p>Read-only access to each allowed account’s resumes and supporting documents.</p>
+      </div>
+      <div id="admin-data-status" class="status" role="status" aria-live="polite"></div>
+      <div id="admin-workspaces-list" class="admin-workspace-grid"></div>
+    </section>
   </main>
 
   <div class="modal-backdrop" id="settings-modal" hidden>
@@ -575,9 +596,9 @@
         <p class="hint" id="settings-current-model">Currently selected: loading...</p>
         <select id="settings-model"></select>
       </div>
-      <div class="field settings-email-section">
+      <div class="field settings-email-section" hidden>
         <h2>Allowed sign-in emails</h2>
-        <p class="hint">Only accounts in this list can sign in. Changes are saved with the rest of your settings. Removing all emails shows the setup screen at the next sign-in.</p>
+        <p class="hint">Only accounts in this list can sign in. Select one allowed account as the administrator; changes are saved with the rest of your settings.</p>
         <div id="settings-email-list" class="settings-email-list" aria-label="Allowed sign-in email addresses"></div>
         <div class="settings-email-actions">
           <button class="secondary" id="settings-add-email" type="button" disabled>Add email</button>
@@ -588,7 +609,7 @@
         <button class="primary" id="settings-save" type="button" disabled>Save settings</button>
       </div>
       <div class="status" id="settings-status" role="status" aria-live="polite"></div>
-      <div class="field settings-reset-section">
+      <div class="field settings-reset-section" hidden>
         <h2>Reset application settings</h2>
         <p class="hint">Clear the Gemini API key and allowed email addresses, then return to first-time setup.</p>
         <button class="danger" id="settings-reset-open" type="button">Reset application settings</button>
@@ -717,6 +738,8 @@
     let activeModel = "";
     let setupApiKeyConfigured = false;
     let setupModelConfigured = false;
+    let currentUserIsAdmin = false;
+    let currentUserEmail = "";
     let detectedJobTitle = "";
     let detectedApplicantName = "";
     let detectedCompanyName = "";
@@ -919,7 +942,7 @@
         title,
         meta: `${dateStr} · Extracted text`,
         extension: "pdf",
-        rawUrl: `/api/applied-jobs/${encodeURIComponent(job.id)}/pdf`,
+        rawUrl: currentUserIsAdmin ? "" : `/api/applied-jobs/${encodeURIComponent(job.id)}/pdf`,
         text
       });
     }
@@ -1102,6 +1125,12 @@
     async function loadUserInfo() {
       try {
         const user = await requestJson("/api/user/me");
+        currentUserEmail = user.email || "";
+        currentUserIsAdmin = user.isAdmin === true;
+        document.querySelector("#nav-admin-data").hidden = !currentUserIsAdmin;
+        document.querySelector(".settings-email-section").hidden = !currentUserIsAdmin;
+        document.querySelector(".settings-reset-section").hidden = !currentUserIsAdmin;
+        document.querySelector("#applied-jobs-export-all").hidden = currentUserIsAdmin;
         const userInfo = document.querySelector("#user-info");
         const userAvatar = document.querySelector("#user-avatar");
         const userEmail = document.querySelector("#user-email");
@@ -1242,6 +1271,12 @@
           }
         });
         label.append(radio, document.createTextNode(savedResume.filename));
+        if (savedResume.shared) {
+          const sharedBadge = document.createElement("span");
+          sharedBadge.className = "selected-badge";
+          sharedBadge.textContent = "Shared legacy";
+          item.appendChild(sharedBadge);
+        }
         const view = createViewDocumentButton(savedResume.filename, () => {
           openStoredDocumentViewer(`/api/resume/${encodeURIComponent(savedResume.id)}/view`);
         });
@@ -1301,6 +1336,12 @@
         });
         checkbox.dataset.documentId = supportingDocument.id;
         label.append(checkbox, document.createTextNode(supportingDocument.filename));
+        if (supportingDocument.shared) {
+          const sharedBadge = document.createElement("span");
+          sharedBadge.className = "selected-badge";
+          sharedBadge.textContent = "Shared legacy";
+          item.appendChild(sharedBadge);
+        }
         const view = createViewDocumentButton(supportingDocument.filename, () => {
           openStoredDocumentViewer(`/api/supporting-documents/${encodeURIComponent(supportingDocument.id)}/view`);
         });
@@ -1343,11 +1384,12 @@
       const list = document.querySelector("#resume-list");
       list.replaceChildren();
       const hasResumes = resume.resumes.length > 0;
-      document.querySelector("#setup-clear-resumes").hidden = !hasResumes;
+      const personalResumes = resume.resumes.filter((savedResume) => !savedResume.shared);
+      document.querySelector("#setup-clear-resumes").hidden = resume.resumes.length === 0;
       document.querySelector("#setup-clear-resumes").disabled = !hasResumes;
       document.querySelector("#clear-resumes").hidden = !hasResumes;
       document.querySelector("#clear-resumes").disabled = !hasResumes;
-      document.querySelector("#replace-resume-button").hidden = !hasResumes;
+      document.querySelector("#replace-resume-button").hidden = personalResumes.length > 0;
       resumeAvailable = resume.configured;
       if (resume.configured) {
         document.querySelector("#resume-form").hidden = true;
@@ -1381,6 +1423,12 @@
             }
           });
           label.append(radio, document.createTextNode(savedResume.filename));
+          if (savedResume.shared) {
+            const sharedBadge = document.createElement("span");
+            sharedBadge.className = "selected-badge";
+            sharedBadge.textContent = "Shared legacy";
+            item.appendChild(sharedBadge);
+          }
           if (savedResume.selected) {
             const badge = document.createElement("span");
             badge.className = "selected-badge";
@@ -1550,6 +1598,12 @@
         });
         checkbox.dataset.documentId = supportingDocument.id;
         label.append(checkbox, document.createTextNode(supportingDocument.filename));
+        if (supportingDocument.shared) {
+          const sharedBadge = document.createElement("span");
+          sharedBadge.className = "selected-badge";
+          sharedBadge.textContent = "Shared legacy";
+          item.appendChild(sharedBadge);
+        }
         if (supportingDocument.selected) {
           const badge = document.createElement("span");
           badge.className = "selected-badge";
@@ -1821,16 +1875,21 @@
       document.querySelectorAll(".modal-loading-overlay.active").forEach((el) => el.classList.remove("active"));
     }
 
-    function renderAllowedEmailFields(emails) {
+    function renderAllowedEmailFields(emails, adminEmail = "") {
       const list = document.querySelector("#settings-email-list");
       list.replaceChildren();
-      emails.forEach((email) => addAllowedEmailField(email));
+      emails.forEach((email, index) => addAllowedEmailField(email, adminEmail ? email.toLowerCase() === adminEmail.toLowerCase() : index === 0));
     }
 
-    function addAllowedEmailField(value = "") {
+    function addAllowedEmailField(value = "", isAdmin = false) {
       const list = document.querySelector("#settings-email-list");
       const row = document.createElement("div");
       row.className = "settings-email-row";
+      const admin = document.createElement("input");
+      admin.type = "radio";
+      admin.name = "settings-admin-email";
+      admin.checked = isAdmin || !list.querySelector('input[name="settings-admin-email"]:checked');
+      admin.setAttribute("aria-label", "Make this email the administrator");
       const input = document.createElement("input");
       input.type = "email";
       input.autocomplete = "email";
@@ -1843,18 +1902,25 @@
         status.classList.remove("error", "success");
         status.textContent = "";
       });
+      admin.addEventListener("change", () => {
+        const status = document.querySelector("#settings-email-status");
+        status.classList.remove("error", "success");
+        status.textContent = "";
+      });
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "secondary";
       remove.textContent = "Remove";
       remove.setAttribute("aria-label", "Remove allowed email");
       remove.addEventListener("click", () => {
+        const wasAdmin = admin.checked;
         row.remove();
+        if (wasAdmin) list.querySelector('input[name="settings-admin-email"]')?.click();
         const status = document.querySelector("#settings-email-status");
         status.classList.remove("error", "success");
         status.textContent = "";
       });
-      row.append(input, remove);
+      row.append(admin, input, remove);
       list.append(row);
       return input;
     }
@@ -1867,7 +1933,7 @@
       status.textContent = "Loading allowed email addresses...";
       try {
         const result = await requestJson("/api/settings/allowed-emails");
-        renderAllowedEmailFields(result.emails);
+        renderAllowedEmailFields(result.emails, result.adminEmail);
         status.textContent = "";
         addButton.disabled = false;
         return true;
@@ -1885,8 +1951,9 @@
     async function saveSettings(key, model, message, button, includeAllowedEmails = false) {
       const request = { apiKey: key, model };
       let emails = null;
+      let selectedAdminEmail = null;
       if (includeAllowedEmails) {
-        const inputs = [...document.querySelectorAll("#settings-email-list input")];
+        const inputs = [...document.querySelectorAll('#settings-email-list input[type="email"]')];
         const emailStatus = document.querySelector("#settings-email-status");
         emails = inputs.map((input) => input.value.trim());
         const invalidInput = inputs.find((input) => !input.checkValidity());
@@ -1896,7 +1963,15 @@
           emailStatus.classList.add("error");
           return false;
         }
+        const selectedAdminRow = document.querySelector('#settings-email-list input[name="settings-admin-email"]:checked')?.closest(".settings-email-row");
+        selectedAdminEmail = selectedAdminRow?.querySelector('input[type="email"]')?.value.trim() || null;
+        if (emails.length === 0 || !selectedAdminEmail || !emails.includes(selectedAdminEmail)) {
+          emailStatus.textContent = "Keep at least one allowed email and select one as the administrator.";
+          emailStatus.classList.add("error");
+          return false;
+        }
         request.allowedEmails = emails.join(",");
+        request.adminEmail = selectedAdminEmail;
         emailStatus.classList.remove("error", "success");
         emailStatus.textContent = "";
       }
@@ -1914,7 +1989,7 @@
         message.textContent = includeAllowedEmails ? "Settings and allowed email addresses saved." : "Settings saved.";
         if (includeAllowedEmails) {
           const normalizedEmails = [...new Set(emails.map((email) => email.toLowerCase()))];
-          renderAllowedEmailFields(normalizedEmails);
+          renderAllowedEmailFields(normalizedEmails, selectedAdminEmail);
           const emailStatus = document.querySelector("#settings-email-status");
           emailStatus.textContent = "Saved with settings.";
           emailStatus.classList.add("success");
@@ -2150,7 +2225,7 @@
       settingsModal.hidden = false;
       const saveButton = document.querySelector("#settings-save");
       saveButton.disabled = true;
-      const allowedEmailsLoaded = await loadAllowedEmails();
+      const allowedEmailsLoaded = !currentUserIsAdmin || await loadAllowedEmails();
       const currentKey = document.querySelector("#settings-current-key");
       currentKey.type = "password";
       document.querySelector("#settings-key-visibility").textContent = "Show";
@@ -2324,7 +2399,7 @@
         model,
         document.querySelector("#settings-status"),
         event.currentTarget,
-        true
+        currentUserIsAdmin
       )) {
         const currentKey = document.querySelector("#settings-current-key");
         document.querySelector("#settings-current-model").textContent = `Currently selected: ${model}`;
@@ -2667,10 +2742,14 @@
     });
 
     const appliedJobsPage = document.querySelector("#applied-jobs-page");
+    const adminDataPage = document.querySelector("#admin-data-page");
+    const adminWorkspacesList = document.querySelector("#admin-workspaces-list");
+    const adminDataStatus = document.querySelector("#admin-data-status");
     const resumeTailoringPage = document.querySelector("#resume-tailoring-page");
     const navCoverLetter = document.querySelector("#nav-cover-letter");
     const navResumeTailoring = document.querySelector("#nav-resume-tailoring");
     const navAppliedJobs = document.querySelector("#nav-applied-jobs");
+    const navAdminData = document.querySelector("#nav-admin-data");
     const appliedJobsTableWrap = document.querySelector("#applied-jobs-table-wrap");
     const appliedJobsLoading = document.querySelector("#applied-jobs-loading");
     const appliedJobsPagination = document.querySelector("#applied-jobs-pagination");
@@ -2729,9 +2808,11 @@
       workspace.hidden = page !== "cover-letter";
       resumeTailoringPage.hidden = page !== "resume-tailoring";
       appliedJobsPage.hidden = page !== "applied-jobs";
+      adminDataPage.hidden = page !== "admin-data";
       navCoverLetter.classList.toggle("active", page === "cover-letter");
       navResumeTailoring.classList.toggle("active", page === "resume-tailoring");
       navAppliedJobs.classList.toggle("active", page === "applied-jobs");
+      navAdminData.classList.toggle("active", page === "admin-data");
       if (page === "cover-letter") {
         refreshAppliedJobButtons("cover-letter");
         return;
@@ -2741,12 +2822,71 @@
         return;
       } else if (page === "applied-jobs") {
         loadAppliedJobs();
+      } else if (page === "admin-data" && currentUserIsAdmin) {
+        loadAdminWorkspaces();
       }
     }
 
     navCoverLetter.addEventListener("click", () => showPage("cover-letter"));
     navResumeTailoring.addEventListener("click", () => showPage("resume-tailoring"));
     navAppliedJobs.addEventListener("click", () => showPage("applied-jobs"));
+    navAdminData.addEventListener("click", () => {
+      if (currentUserIsAdmin) showPage("admin-data");
+    });
+
+    async function loadAdminWorkspaces() {
+      if (!currentUserIsAdmin) return;
+      adminDataStatus.textContent = "Loading account data...";
+      adminDataStatus.classList.remove("error");
+      adminWorkspacesList.replaceChildren();
+      try {
+        const accounts = await requestJson("/api/admin/workspaces");
+        if (accounts.length === 0) {
+          adminDataStatus.textContent = "No allowed user accounts are configured.";
+          return;
+        }
+        adminDataStatus.textContent = "";
+        accounts.forEach((account) => {
+          const card = document.createElement("section");
+          card.className = "admin-workspace-card";
+          const heading = document.createElement("h2");
+          heading.textContent = account.email;
+          card.appendChild(heading);
+          [
+            { label: "Resumes", documents: account.resumes, endpoint: "resumes" },
+            { label: "Supporting documents", documents: account.supportingDocuments, endpoint: "supporting-documents" }
+          ].forEach(({ label, documents, endpoint }) => {
+            const subheading = document.createElement("h3");
+            subheading.textContent = `${label} (${documents.length})`;
+            card.appendChild(subheading);
+            const fileList = document.createElement("div");
+            fileList.className = "admin-workspace-files";
+            if (documents.length === 0) {
+              const empty = document.createElement("p");
+              empty.className = "hint";
+              empty.textContent = `No ${label.toLowerCase()} saved.`;
+              fileList.appendChild(empty);
+            }
+            documents.forEach((document) => {
+              const button = document.createElement("button");
+              button.className = "secondary";
+              button.type = "button";
+              button.textContent = document.filename;
+              button.addEventListener("click", () => {
+                const url = `/api/admin/${endpoint}/${encodeURIComponent(document.id)}/view?email=${encodeURIComponent(account.email)}`;
+                openStoredDocumentViewer(url);
+              });
+              fileList.appendChild(button);
+            });
+            card.appendChild(fileList);
+          });
+          adminWorkspacesList.appendChild(card);
+        });
+      } catch (error) {
+        adminDataStatus.textContent = error.message || "Could not load account data.";
+        adminDataStatus.classList.add("error");
+      }
+    }
 
     appliedJobsSearch.addEventListener("keydown", (e) => {
       if (e.key === "Enter") loadAppliedJobsFromFirstPage();
@@ -2815,7 +2955,8 @@
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
       try {
-        const jobs = await requestJson(`/api/applied-jobs?${params.toString()}`);
+        const jobsEndpoint = currentUserIsAdmin ? "/api/admin/applied-jobs" : "/api/applied-jobs";
+        const jobs = await requestJson(`${jobsEndpoint}?${params.toString()}`);
         if (loadSequence !== appliedJobsLoadSequence) return;
         appliedJobsTableWrap.replaceChildren();
         if (jobs.length === 0) {
@@ -2825,6 +2966,9 @@
           return;
         }
         appliedJobsEmpty.hidden = true;
+        const removableJobs = currentUserIsAdmin
+          ? []
+          : jobs.filter((job) => job.shared || job.ownerEmail === currentUserEmail);
         const page = AppliedJobsPagination.getPage(jobs, appliedJobsCurrentPage, appliedJobsPageSize);
         appliedJobsCurrentPage = page.page;
         appliedJobsPageCount = page.pageCount;
@@ -2836,7 +2980,10 @@
         table.className = "applied-jobs-table";
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
-        ["Job Title", "Company", "Date Applied"].forEach((text) => {
+        const columnTitles = currentUserIsAdmin
+          ? ["Job Title", "Company", "User", "Date Applied"]
+          : ["Job Title", "Company", "Date Applied"];
+        columnTitles.forEach((text) => {
           const th = document.createElement("th");
           th.textContent = text;
           headerRow.appendChild(th);
@@ -2858,19 +3005,20 @@
           const hasDateFilter = (dateMode === "single" && appliedJobsDateFrom.value) ||
                                (dateMode === "range" && (appliedJobsDateRangeFrom.value || appliedJobsDateRangeTo.value));
           const isFiltered = search || hasDateFilter;
-          const count = jobs.length;
+          const count = removableJobs.length;
           if (isFiltered) {
             document.querySelector("#confirm-clear-all-title").textContent = "Clear filtered jobs";
             document.querySelector("#confirm-clear-all-message").textContent =
-              `Are you sure you want to delete the ${count} filtered job${count === 1 ? '' : 's'} currently shown? This action cannot be undone.`;
+              `Are you sure you want to delete your ${count} filtered job${count === 1 ? '' : 's'} currently shown? Shared legacy entries will be removed for everyone.`;
           } else {
             document.querySelector("#confirm-clear-all-title").textContent = "Clear all applied jobs";
             document.querySelector("#confirm-clear-all-message").textContent =
-              `Are you sure you want to delete all ${count} applied jobs? This action cannot be undone.`;
+              `Are you sure you want to delete all ${count} of your applied jobs? Shared legacy entries will be removed for everyone.`;
           }
           confirmClearAllModal.hidden = false;
         });
-        actionsHeaderDiv.appendChild(clearAllBtn);
+        clearAllBtn.hidden = removableJobs.length === 0;
+        if (!currentUserIsAdmin) actionsHeaderDiv.appendChild(clearAllBtn);
         actionsTh.appendChild(actionsHeaderDiv);
         headerRow.appendChild(actionsTh);
         thead.appendChild(headerRow);
@@ -2894,12 +3042,21 @@
           tdCompany.textContent = displayCompany;
           if (job.company.length > 15) tdCompany.title = job.company;
           tr.appendChild(tdCompany);
+          if (currentUserIsAdmin) {
+            const tdOwner = document.createElement("td");
+            tdOwner.className = "col-owner";
+            tdOwner.textContent = job.ownerEmail || "Shared legacy data";
+            tdOwner.title = tdOwner.textContent;
+            tr.appendChild(tdOwner);
+          }
           const tdDate = document.createElement("td");
           tdDate.className = "col-date";
           tdDate.tabIndex = 0;
           tdDate.textContent = dateStr;
           tr.appendChild(tdDate);
           const jobStatus = job.status || "PROGRESSING";
+          const canEditJob = !currentUserIsAdmin && !job.shared && job.ownerEmail === currentUserEmail;
+          const canDeleteJob = job.shared || canEditJob;
           const tdActions = document.createElement("td");
           tdActions.className = "col-actions";
           const statusBadge = document.createElement("span");
@@ -2919,42 +3076,48 @@
           exportBtn.textContent = "Export PDF";
           exportBtn.setAttribute("aria-label", `Export ${job.jobTitle} at ${job.company} as PDF`);
           exportBtn.addEventListener("click", () => downloadSingleJobPdf(job.id, exportBtn, "Export PDF"));
-          tdActions.appendChild(exportBtn);
-          const toggleStatusBtn = document.createElement("button");
-          const isRejected = jobStatus === "REJECTED";
-          toggleStatusBtn.className = `secondary btn-toggle-status ${isRejected ? 'mark-progressing' : 'mark-rejected'}`;
-          toggleStatusBtn.type = "button";
-          toggleStatusBtn.textContent = isRejected ? "Progressing" : "Rejected";
-          toggleStatusBtn.setAttribute("aria-label", `${isRejected ? 'Mark as progressing' : 'Mark as rejected'}: ${job.jobTitle} at ${job.company}`);
-          toggleStatusBtn.addEventListener("click", async () => {
-            try {
-              const newStatus = isRejected ? "PROGRESSING" : "REJECTED";
-              await fetch(`/api/applied-jobs/${job.id}/status?status=${newStatus}`, { method: "PATCH", credentials: "same-origin" });
-              await loadAppliedJobs();
-            } catch (error) {
-              console.error("Failed to update job status:", error);
-            }
-          });
-          tdActions.appendChild(toggleStatusBtn);
-          const removeBtn = document.createElement("button");
-          removeBtn.className = "secondary btn-remove";
-          removeBtn.type = "button";
-          removeBtn.textContent = "Remove";
-          removeBtn.setAttribute("aria-label", `Remove ${job.jobTitle} at ${job.company}`);
-          removeBtn.addEventListener("click", async () => {
-            try {
-              await fetch(`/api/applied-jobs/${job.id}`, { method: "DELETE", credentials: "same-origin" });
-              await loadAppliedJobs();
-            } catch (error) {
-              console.error("Failed to remove applied job:", error);
-            }
-          });
-          tdActions.appendChild(removeBtn);
+          if (!currentUserIsAdmin) tdActions.appendChild(exportBtn);
+          if (canEditJob) {
+            const toggleStatusBtn = document.createElement("button");
+            const isRejected = jobStatus === "REJECTED";
+            toggleStatusBtn.className = `secondary btn-toggle-status ${isRejected ? 'mark-progressing' : 'mark-rejected'}`;
+            toggleStatusBtn.type = "button";
+            toggleStatusBtn.textContent = isRejected ? "Progressing" : "Rejected";
+            toggleStatusBtn.setAttribute("aria-label", `${isRejected ? 'Mark as progressing' : 'Mark as rejected'}: ${job.jobTitle} at ${job.company}`);
+            toggleStatusBtn.addEventListener("click", async () => {
+              try {
+                const newStatus = isRejected ? "PROGRESSING" : "REJECTED";
+                await fetch(`/api/applied-jobs/${job.id}/status?status=${newStatus}`, { method: "PATCH", credentials: "same-origin" });
+                await loadAppliedJobs();
+              } catch (error) {
+                console.error("Failed to update job status:", error);
+              }
+            });
+            tdActions.appendChild(toggleStatusBtn);
+          }
+          if (canDeleteJob) {
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "secondary btn-remove";
+            removeBtn.type = "button";
+            removeBtn.textContent = "Remove";
+            removeBtn.setAttribute("aria-label", `Remove ${job.jobTitle} at ${job.company}`);
+            removeBtn.addEventListener("click", async () => {
+              try {
+                await fetch(`/api/applied-jobs/${job.id}`, { method: "DELETE", credentials: "same-origin" });
+                await loadAppliedJobs();
+              } catch (error) {
+                console.error("Failed to remove applied job:", error);
+              }
+            });
+            tdActions.appendChild(removeBtn);
+          }
           tr.appendChild(tdActions);
           tbody.appendChild(tr);
         });
         table.appendChild(tbody);
-        const columnClassMap = { 0: "col-title", 1: "col-company", 2: "col-date", 3: "col-actions" };
+        const columnClassMap = currentUserIsAdmin
+          ? { 0: "col-title", 1: "col-company", 2: "col-owner", 3: "col-date", 4: "col-actions" }
+          : { 0: "col-title", 1: "col-company", 2: "col-date", 3: "col-actions" };
         const theadRow = table.querySelector("thead tr");
         tbody.addEventListener("mouseover", (e) => {
           const td = e.target.closest("td");
@@ -2991,7 +3154,7 @@
         const tfoot = document.createElement("tfoot");
         const footRow = document.createElement("tr");
         const footCell = document.createElement("td");
-        footCell.colSpan = 4;
+        footCell.colSpan = currentUserIsAdmin ? 5 : 4;
         footCell.textContent = `${jobs.length} job${jobs.length === 1 ? "" : "s"}`;
         footRow.appendChild(footCell);
         tfoot.appendChild(footRow);

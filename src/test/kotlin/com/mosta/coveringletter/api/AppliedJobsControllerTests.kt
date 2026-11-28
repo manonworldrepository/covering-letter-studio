@@ -17,8 +17,11 @@ import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.mock.http.server.reactive.MockServerHttpResponse
 import org.springframework.web.server.ResponseStatusException
 import java.nio.file.Path
+import java.time.LocalDate
 
 class AppliedJobsControllerTests {
+
+	private val principal = java.security.Principal { "test@example.com" }
 
     @TempDir
     lateinit var temporaryDirectory: Path
@@ -297,4 +300,37 @@ class AppliedJobsControllerTests {
 
         assertEquals(AppliedJobStatus.PROGRESSING, job.status)
     }
+
+	private fun AppliedJobsController.add(request: AddAppliedJobRequest) = add(request, principal)
+
+	private fun AppliedJobsController.list(
+		search: String = "",
+		sortBy: String = "date",
+		sortOrder: String = "desc",
+		dateFrom: LocalDate? = null,
+		dateTo: LocalDate? = null
+	) = list(search, sortBy, sortOrder, dateFrom, dateTo, principal)
+
+	private fun AppliedJobsController.delete(id: String) = delete(id, principal)
+
+	private fun AppliedJobsController.updateStatus(id: String, status: String) = updateStatus(id, status, principal)
+
+	private fun AppliedJobsController.deleteAll(
+		search: String = "",
+		dateFrom: LocalDate? = null,
+		dateTo: LocalDate? = null,
+		ids: List<String>? = null
+	) = deleteAll(search, dateFrom, dateTo, ids, principal)
+
+	private fun AppliedJobsController.downloadSingleJobPdf(id: String, response: ServerHttpResponse) =
+		downloadSingleJobPdf(id, response, principal)
+
+	private fun AppliedJobsController.downloadJobListPdf(
+		search: String,
+		sortBy: String,
+		sortOrder: String,
+		dateFrom: LocalDate?,
+		dateTo: LocalDate?,
+		response: ServerHttpResponse
+	) = downloadJobListPdf(search, sortBy, sortOrder, dateFrom, dateTo, response, principal)
 }

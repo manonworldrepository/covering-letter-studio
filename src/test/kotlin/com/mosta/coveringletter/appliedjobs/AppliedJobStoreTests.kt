@@ -1,5 +1,7 @@
 package com.mosta.coveringletter.appliedjobs
 
+import com.mosta.coveringletter.persistence.AccountDataDirectories
+
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.nio.file.Files
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -409,6 +412,63 @@ class AppliedJobStoreTests {
         assertEquals(1, jobs.size)
         assertEquals("Valid Corp", jobs.single().company)
     }
+
+	@Test
+	fun `users see shared legacy jobs and only their own private jobs`() {
+		val store = store()
+		val shared = store.add("Legacy Corp", "Shared Role", "Legacy description")
+		val alice = store.add("Alice Corp", "Alice Role", "Alice description", "alice@example.com")
+		val bob = store.add("Bob Corp", "Bob Role", "Bob description", "bob@example.com")
+
+		assertEquals(setOf(shared.id, alice.id), store.list(accountEmail = "alice@example.com").map { it.id }.toSet())
+		assertEquals(setOf(shared.id, bob.id), store.list(accountEmail = "bob@example.com").map { it.id }.toSet())
+		assertEquals("alice@example.com", store.listAllForAdmin(listOf("alice@example.com", "bob@example.com")).single { it.id == alice.id }.ownerEmail)
+		assertEquals("Shared legacy data", store.listAllForAdmin(listOf("alice@example.com", "bob@example.com")).single { it.id == shared.id }.ownerEmail)
+	}
+
+	@Test
+	fun `any user can delete shared legacy jobs but cannot delete another account's private jobs`() {
+		val store = store()
+		val shared = store.add("Legacy Corp", "Shared Role", "Legacy description")
+		val alice = store.add("Alice Corp", "Alice Role", "Alice description", "alice@example.com")
+
+		assertNull(store.updateStatus(shared.id, AppliedJobStatus.REJECTED, "alice@example.com"))
+		assertTrue(store.delete(shared.id, "alice@example.com"))
+		assertFalse(store.delete(alice.id, "bob@example.com"))
+		assertFalse(store.list(accountEmail = "alice@example.com").any { it.id == shared.id })
+		assertTrue(store.list(accountEmail = "alice@example.com").any { it.id == alice.id })
+	}
+
+	@Test
+	fun `clearing applications deletes shared legacy jobs for all users`() {
+		val store = store()
+		val shared = store.add("Legacy Corp", "Shared Role", "Legacy description")
+		val alice = store.add("Alice Corp", "Alice Role", "Alice description", "alice@example.com")
+		val bob = store.add("Bob Corp", "Bob Role", "Bob description", "bob@example.com")
+
+		assertEquals(2, store.deleteAll(store.list(accountEmail = "alice@example.com").map { it.id }, "alice@example.com"))
+
+		assertTrue(store.list(accountEmail = "alice@example.com").isEmpty())
+		assertEquals(listOf(bob.id), store.list(accountEmail = "bob@example.com").map { it.id })
+		assertFalse(store.list().any { it.id == shared.id })
+	}
+
+	@Test
+	fun `deleting shared legacy application removes migration copies`() {
+		val store = store()
+		val shared = store.add("Legacy Corp", "Shared Role", "Legacy description")
+		val accountDirectory = AccountDataDirectories(temporaryDirectory).forEmail("info@example.com")
+		val sharedFile = temporaryDirectory.resolve("applied-jobs/${shared.id}.txt")
+		val copiedFile = accountDirectory.resolve("applied-jobs/${shared.id}.txt")
+		Files.createDirectories(copiedFile.parent)
+		Files.copy(sharedFile, copiedFile)
+
+		assertNull(store.updateStatus(shared.id, AppliedJobStatus.REJECTED, "alice@example.com"))
+		assertTrue(store.delete(shared.id, "alice@example.com"))
+
+		assertTrue(store.list(accountEmail = "bob@example.com").isEmpty())
+		assertFalse(Files.exists(copiedFile))
+	}
 
     private fun store() = AppliedJobStore(temporaryDirectory.toString())
 }

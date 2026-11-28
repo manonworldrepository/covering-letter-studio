@@ -16,6 +16,22 @@ class GeminiCoverLetterService(
 		resume: String,
 		supportingDocuments: String,
 		format: GenerationFormat
+	): Mono<GeneratedCoverLetter> = generateInternal(jobDescription, resume, supportingDocuments, format, null)
+
+	override fun generateForAccount(
+		jobDescription: String,
+		resume: String,
+		supportingDocuments: String,
+		format: GenerationFormat,
+		accountEmail: String
+	): Mono<GeneratedCoverLetter> = generateInternal(jobDescription, resume, supportingDocuments, format, accountEmail)
+
+	private fun generateInternal(
+		jobDescription: String,
+		resume: String,
+		supportingDocuments: String,
+		format: GenerationFormat,
+		accountEmail: String?
 	): Mono<GeneratedCoverLetter> {
 		val currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH))
 		val formatInstructions = when (format) {
@@ -67,7 +83,7 @@ class GeminiCoverLetterService(
 			</Supporting documents>
 		""".trimIndent()
 
-		return geminiGenerationClient.generate(prompt)
+		return geminiGenerationClient.generate(prompt, accountEmail)
 			.map { GeneratedCoverLetter(it.content, it.jobTitle, it.applicantName, it.companyName) }
 	}
 }

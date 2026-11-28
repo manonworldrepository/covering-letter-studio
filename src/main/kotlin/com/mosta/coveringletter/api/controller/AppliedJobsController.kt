@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDate
+import java.security.Principal
 
 @RestController
 class AppliedJobsController(
@@ -27,9 +28,9 @@ class AppliedJobsController(
     private val pdfGenerator: AppliedJobsPdfGenerator
 ) {
     @PostMapping("/api/applied-jobs", consumes = [MediaType.APPLICATION_JSON_VALUE])
-    fun add(@Valid @RequestBody request: AddAppliedJobRequest) =
+    fun add(@Valid @RequestBody request: AddAppliedJobRequest, principal: Principal) =
         try {
-            store.add(request.company, request.jobTitle, request.jobDescription)
+            store.add(request.company, request.jobTitle, request.jobDescription, principal.name)
         } catch (exception: DuplicateAppliedJobException) {
             throw ResponseStatusException(HttpStatus.CONFLICT, exception.message)
         }
@@ -40,22 +41,23 @@ class AppliedJobsController(
         @RequestParam(value = "sortBy", defaultValue = "date") sortBy: String,
         @RequestParam(value = "sortOrder", defaultValue = "desc") sortOrder: String,
         @RequestParam(value = "dateFrom", required = false) dateFrom: LocalDate?,
-        @RequestParam(value = "dateTo", required = false) dateTo: LocalDate?
-    ) = store.list(search, sortBy, sortOrder, dateFrom, dateTo)
+        @RequestParam(value = "dateTo", required = false) dateTo: LocalDate?,
+        principal: Principal
+    ) = store.list(search, sortBy, sortOrder, dateFrom, dateTo, principal.name)
 
     @DeleteMapping("/api/applied-jobs/{id}")
-    fun delete(@PathVariable id: String) {
-        store.delete(id)
+    fun delete(@PathVariable id: String, principal: Principal) {
+        store.delete(id, principal.name)
     }
 
     @PatchMapping("/api/applied-jobs/{id}/status")
-    fun updateStatus(@PathVariable id: String, @RequestParam status: String) {
+    fun updateStatus(@PathVariable id: String, @RequestParam status: String, principal: Principal) {
         val jobStatus = try {
             AppliedJobStatus.valueOf(status.uppercase())
         } catch (e: IllegalArgumentException) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: $status")
         }
-        store.updateStatus(id, jobStatus)
+        store.updateStatus(id, jobStatus, principal.name)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Applied job not found")
     }
 
@@ -64,20 +66,21 @@ class AppliedJobsController(
         @RequestParam(value = "search", defaultValue = "") search: String,
         @RequestParam(value = "dateFrom", required = false) dateFrom: LocalDate?,
         @RequestParam(value = "dateTo", required = false) dateTo: LocalDate?,
-        @RequestParam(value = "ids", required = false) ids: List<String>? = null
+        @RequestParam(value = "ids", required = false) ids: List<String>? = null,
+        principal: Principal
     ): Map<String, Int> {
         val targetIds = if (!ids.isNullOrEmpty()) {
             ids
         } else {
-            store.list(search = search, dateFrom = dateFrom, dateTo = dateTo).map { it.id }
+            store.list(search = search, dateFrom = dateFrom, dateTo = dateTo, accountEmail = principal.name).map { it.id }
         }
-        val count = store.deleteAll(targetIds)
+        val count = store.deleteAll(targetIds, principal.name)
         return mapOf("deleted" to count)
     }
 
     @GetMapping("/api/applied-jobs/{id}/pdf", produces = [MediaType.APPLICATION_PDF_VALUE])
-    fun downloadSingleJobPdf(@PathVariable id: String, response: ServerHttpResponse): ByteArray {
-        val jobs = store.list()
+    fun downloadSingleJobPdf(@PathVariable id: String, response: ServerHttpResponse, principal: Principal): ByteArray {
+        val jobs = store.list(accountEmail = principal.name)
         val job = jobs.find { it.id == id }
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Applied job not found")
         val pdf = pdfGenerator.createSingleJob(job)
@@ -96,9 +99,10 @@ class AppliedJobsController(
         @RequestParam(value = "sortOrder", defaultValue = "desc") sortOrder: String,
         @RequestParam(value = "dateFrom", required = false) dateFrom: LocalDate?,
         @RequestParam(value = "dateTo", required = false) dateTo: LocalDate?,
-        response: ServerHttpResponse
+        response: ServerHttpResponse,
+        principal: Principal
     ): ByteArray {
-        val jobs = store.list(search, sortBy, sortOrder, dateFrom, dateTo)
+        val jobs = store.list(search, sortBy, sortOrder, dateFrom, dateTo, principal.name)
         if (jobs.isEmpty()) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "No jobs to export")
         }

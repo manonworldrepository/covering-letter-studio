@@ -2,6 +2,8 @@ package com.mosta.coveringletter.coverletter
 
 import org.springframework.ai.mcp.annotation.McpTool
 import org.springframework.ai.mcp.annotation.McpToolParam
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.stereotype.Component
 import reactor.core.publisher.Mono
 
@@ -25,5 +27,11 @@ class CoverLetterMcpTools(
 		)
 		format: String? = null
 	): Mono<GeneratedCoverLetter> =
-		generationService.generate(jobDescription, format)
+		ReactiveSecurityContextHolder.getContext()
+			.switchIfEmpty(Mono.error(AccessDeniedException("Authentication is required to generate a cover letter.")))
+			.flatMap { context ->
+				val email = context.authentication?.name
+					?: return@flatMap Mono.error(AccessDeniedException("Authentication is required to generate a cover letter."))
+				generationService.generate(jobDescription, format, email)
+			}
 }

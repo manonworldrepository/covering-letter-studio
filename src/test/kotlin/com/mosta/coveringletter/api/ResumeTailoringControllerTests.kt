@@ -20,6 +20,7 @@ import reactor.core.publisher.Mono
 import java.nio.file.Path
 
 class ResumeTailoringControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 	@TempDir
 	lateinit var temporaryDirectory: Path
 
@@ -66,4 +67,6 @@ class ResumeTailoringControllerTests {
 			return Mono.just(GeneratedResume("Tailored resume content", "Forward Deployed Engineer", "John Doe", "Acme"))
 		}
 	}
+
+	private fun ResumeTailoringController.tailorResume(request: TailorResumeRequest) = tailorResume(request, principal)
 }

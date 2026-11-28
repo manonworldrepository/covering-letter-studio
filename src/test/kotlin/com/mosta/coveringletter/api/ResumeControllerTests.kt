@@ -14,6 +14,7 @@ import org.springframework.http.MediaType
 import java.nio.file.Path
 
 class ResumeControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 
 	@TempDir
 	lateinit var temporaryDirectory: Path
@@ -56,4 +57,8 @@ class ResumeControllerTests {
 		assertTrue(response.headers.getFirst("Content-Disposition")?.contains("inline") == true)
 		assertEquals(bytes.size, response.body?.size)
 	}
+
+	private fun ResumeController.viewResume(id: String) = viewResume(id, principal)
+
+	private fun ResumeController.getResumeRaw(id: String) = getResumeRaw(id, principal)
 }

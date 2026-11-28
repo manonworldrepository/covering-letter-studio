@@ -12,6 +12,7 @@ import org.springframework.mock.http.server.reactive.MockServerHttpResponse
 import org.springframework.web.server.ResponseStatusException
 
 class PdfControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 
     private val pdfGenerator = CoverLetterPdfGenerator()
     private val controller = PdfController(pdfGenerator)
@@ -110,4 +111,7 @@ class PdfControllerTests {
         val disposition = response.headers.getContentDisposition().toString()
         assertTrue(disposition.contains("attachment"))
     }
+
+	private fun PdfController.downloadPdf(request: CoverLetterRequest, response: MockServerHttpResponse) =
+		downloadPdf(request, response, principal)
 }

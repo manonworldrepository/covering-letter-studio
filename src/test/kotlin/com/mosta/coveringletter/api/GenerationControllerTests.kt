@@ -21,6 +21,7 @@ import reactor.core.publisher.Mono
 import java.nio.file.Path
 
 class GenerationControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 
 	@TempDir
 	lateinit var temporaryDirectory: Path
@@ -89,4 +90,6 @@ class GenerationControllerTests {
 			)
 		}
 	}
+
+	private fun GenerationController.generate(request: GenerateLetterRequest) = generate(request, principal)
 }

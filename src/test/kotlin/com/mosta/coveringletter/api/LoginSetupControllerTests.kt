@@ -38,7 +38,10 @@ class LoginSetupControllerTests {
 
 		assertEquals(true, result.configured)
 		assertEquals("login.html", page.filename)
-		assertEquals("ALLOWED_EMAILS=owner@gmail.com,admin@gmail.com", temporaryDirectory.resolve(".env").toFile().readText().trim())
+		assertEquals(
+			listOf("ALLOWED_EMAILS=owner@gmail.com,admin@gmail.com", "ADMIN_EMAIL=owner@gmail.com"),
+			Files.readAllLines(temporaryDirectory.resolve(".env"))
+		)
 	}
 
 	@Test
@@ -70,6 +73,7 @@ class LoginSetupControllerTests {
 		val controller = controller()
 		controller.saveAllowedEmails(AllowedEmailsSetupRequest("owner@gmail.com"))
 		Files.writeString(temporaryDirectory.resolve(".env"), "GEMINI_API_KEY=keep-this\n")
+		Files.deleteIfExists(temporaryDirectory.resolve(".account-access"))
 
 		val page = controller.loginPage(MockServerHttpResponse())
 		val status = controller.setupStatus(MockServerHttpResponse())

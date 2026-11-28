@@ -18,6 +18,8 @@
     input:focus-visible, button:focus-visible { outline: 3px solid #3158d555; outline-offset: 2px; }
     .email-fields { display: grid; gap: 10px; }
     .email-row { display: flex; align-items: center; gap: 8px; }
+    .email-row input[type="radio"] { width: auto; margin: 0; }
+    .email-row .email-input { flex: 1; }
     .email-row button { width: auto; flex: 0 0 auto; }
     .secondary { border: 1px solid #cbd3e1; background: #fff; color: #172033; }
     .secondary:hover { background: #f2f5fb; }
@@ -36,9 +38,9 @@
   <main>
     <div class="logo" aria-hidden="true">📝</div>
     <h1>Set up allowed accounts</h1>
-    <p>Choose the Google account email address or addresses permitted to sign in to this app. This one-time setup saves them to the local <code>.env</code> file.</p>
+    <p>Choose the Google accounts permitted to sign in. Select exactly one account as the administrator; the first address is selected by default.</p>
     <form id="setup-form">
-      <label>Allowed email addresses</label>
+    <label>Allowed email addresses and administrator</label>
       <div id="email-fields" class="email-fields"></div>
       <div class="actions">
         <button class="secondary" id="add-email" type="button">Add email</button>
@@ -58,7 +60,13 @@
     function addEmailField(value = '') {
       const row = document.createElement('div');
       row.className = 'email-row';
+      const admin = document.createElement('input');
+      admin.type = 'radio';
+      admin.name = 'adminEmail';
+      admin.setAttribute('aria-label', 'Make this email the administrator');
+      admin.checked = !emailFields.querySelector('input[name="adminEmail"]:checked');
       const input = document.createElement('input');
+      input.className = 'email-input';
       input.type = 'email';
       input.name = 'emails';
       input.autocomplete = 'email';
@@ -72,8 +80,12 @@
       remove.className = 'secondary';
       remove.textContent = 'Remove';
       remove.setAttribute('aria-label', 'Remove email field');
-      remove.addEventListener('click', () => row.remove());
-      row.append(input, remove);
+      remove.addEventListener('click', () => {
+        const wasAdmin = admin.checked;
+        row.remove();
+        if (wasAdmin) emailFields.querySelector('input[name="adminEmail"]')?.click();
+      });
+      row.append(admin, input, remove);
       emailFields.append(row);
       input.focus();
     }
@@ -88,11 +100,19 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const emails = Array.from(emailFields.querySelectorAll('input'))
+        .filter((input) => input.type === 'email')
         .map((input) => input.value.trim())
         .filter(Boolean);
+      const adminRow = emailFields.querySelector('input[name="adminEmail"]:checked')?.closest('.email-row');
+      const adminEmail = adminRow?.querySelector('input[type="email"]')?.value.trim();
       if (emails.length === 0) {
         status.className = 'status error';
         status.textContent = 'Add at least one allowed email address.';
+        return;
+      }
+      if (!adminEmail || !emails.includes(adminEmail)) {
+        status.className = 'status error';
+        status.textContent = 'Select one of the allowed email addresses as the administrator.';
         return;
       }
       button.disabled = true;
@@ -103,7 +123,7 @@
         const response = await fetch('/api/setup/allowed-emails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ emails: emails.join(',') })
+          body: JSON.stringify({ emails: emails.join(','), adminEmail })
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Could not save allowed accounts.');

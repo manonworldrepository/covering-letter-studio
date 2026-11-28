@@ -156,6 +156,53 @@ class ResumeStoreTests {
 		assertEquals(HttpStatus.NOT_FOUND, rawException.statusCode)
 	}
 
+	@Test
+	fun `each account sees shared legacy resumes and only its own private resumes`() {
+		val store = store()
+		val shared = store.saveBytes("Legacy Resume.pdf", pdfGenerator.create("Shared legacy resume."))
+		val alice = store.saveBytes("Alice Resume.pdf", pdfGenerator.create("Alice private resume."), "alice@example.com")
+
+		assertEquals(setOf(shared.resumes.single().id, alice.resumes.last { !it.shared }.id), store.status("alice@example.com").resumes.map { it.id }.toSet())
+		assertEquals(setOf(shared.resumes.single().id), store.status("bob@example.com").resumes.map { it.id }.toSet())
+		assertTrue(store.status("bob@example.com").resumes.single().shared)
+	}
+
+	@Test
+	fun `any account can delete shared resumes but cannot delete another account's private resume`() {
+		val store = store()
+		val shared = store.saveBytes("Legacy Resume.pdf", pdfGenerator.create("Shared legacy resume."))
+		val alice = store.saveBytes("Alice Resume.pdf", pdfGenerator.create("Alice private resume."), "alice@example.com")
+		val aliceId = alice.resumes.first { !it.shared }.id
+
+		assertEquals(shared.resumes.single().id, store.delete(shared.resumes.single().id, "alice@example.com").id)
+		val otherAccountException = assertThrows(ResponseStatusException::class.java) {
+			store.delete(aliceId, "bob@example.com")
+		}
+		assertEquals(HttpStatus.NOT_FOUND, otherAccountException.statusCode)
+		store.clear("alice@example.com")
+
+		assertTrue(store.status("alice@example.com").resumes.isEmpty())
+		assertTrue(store.status("bob@example.com").resumes.isEmpty())
+	}
+
+	@Test
+	fun `deleting shared legacy resume removes its migration copy from every account`() {
+		val store = store()
+		val shared = store.saveBytes("Legacy Resume.pdf", pdfGenerator.create("Shared legacy resume."))
+		val id = shared.resumes.single().id
+		val accountDirectory = com.mosta.coveringletter.persistence.AccountDataDirectories(temporaryDirectory.resolve("data"))
+			.forEmail("owner@example.com")
+		val rootFile = temporaryDirectory.resolve("data/resumes/${id}__Legacy Resume.pdf")
+		val copiedFile = accountDirectory.resolve("resumes/${id}__Legacy Resume.pdf")
+		Files.createDirectories(copiedFile.parent)
+		Files.copy(rootFile, copiedFile)
+
+		store.delete(id, "alice@example.com")
+
+		assertTrue(store.status("bob@example.com").resumes.isEmpty())
+		assertFalse(Files.exists(copiedFile))
+	}
+
 	private fun store() = ResumeStore(
 		DocumentTextExtractor(),
 		temporaryDirectory.resolve("data").toString()

@@ -14,6 +14,7 @@ import org.springframework.http.MediaType
 import java.nio.file.Path
 
 class SupportingDocumentsControllerTests {
+	private val principal = java.security.Principal { "owner@example.com" }
 
 	@TempDir
 	lateinit var temporaryDirectory: Path
@@ -54,4 +55,8 @@ class SupportingDocumentsControllerTests {
 		assertTrue(response.headers.getFirst("Content-Disposition")?.contains("inline") == true)
 		assertEquals(bytes.size, response.body?.size)
 	}
+
+	private fun SupportingDocumentsController.viewSupportingDocument(id: String) = viewSupportingDocument(id, principal)
+
+	private fun SupportingDocumentsController.getSupportingDocumentRaw(id: String) = getSupportingDocumentRaw(id, principal)
 }

@@ -6,6 +6,7 @@ import com.mosta.coveringletter.api.response.DocumentViewResponse
 import com.mosta.coveringletter.resume.ResumeStatus
 import com.mosta.coveringletter.resume.ResumeStore
 import jakarta.validation.Valid
+import java.security.Principal
 import org.springframework.http.MediaType
 import org.springframework.http.codec.multipart.FilePart
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -23,30 +24,30 @@ class ResumeController(
 	private val resumeStore: ResumeStore
 ) {
 	@GetMapping("/api/resume")
-	fun getResumeStatus() = resumeStore.status()
+	fun getResumeStatus(principal: Principal) = resumeStore.status(principal.name)
 
 	@PostMapping("/api/resume", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-	fun saveResume(@Valid @ModelAttribute request: ResumeUploadRequest): Mono<ResumeStatus> =
-		resumeStore.save(Flux.fromIterable(request.resume))
+	fun saveResume(@Valid @ModelAttribute request: ResumeUploadRequest, principal: Principal): Mono<ResumeStatus> =
+		resumeStore.save(Flux.fromIterable(request.resume), principal.name)
 
 	@PostMapping("/api/resume/select", consumes = [MediaType.APPLICATION_JSON_VALUE])
-	fun selectResume(@Valid @RequestBody request: ResumeSelectionRequest): ResumeStatus =
-		resumeStore.select(request.id)
+	fun selectResume(@Valid @RequestBody request: ResumeSelectionRequest, principal: Principal): ResumeStatus =
+		resumeStore.select(request.id, principal.name)
 
 	@DeleteMapping("/api/resume")
-	fun clearResumes() = resumeStore.clear()
+	fun clearResumes(principal: Principal) = resumeStore.clear(principal.name)
 
 	@GetMapping("/api/resume/{id}/view")
-	fun viewResume(@PathVariable id: String): DocumentViewResponse =
-		resumeStore.getDocumentView(id)
+	fun viewResume(@PathVariable id: String, principal: Principal): DocumentViewResponse =
+		resumeStore.getDocumentView(id, principal.name)
 
 	@GetMapping("/api/resume/{id}/raw")
-	fun getResumeRaw(@PathVariable id: String): org.springframework.http.ResponseEntity<ByteArray> {
-		val (filename, bytes) = resumeStore.getDocumentBytes(id)
+	fun getResumeRaw(@PathVariable id: String, principal: Principal): org.springframework.http.ResponseEntity<ByteArray> {
+		val (filename, bytes) = resumeStore.getDocumentBytes(id, principal.name)
 		return DocumentResponseHelper.createInlineResponseEntity(filename, bytes)
 	}
 
 	@DeleteMapping("/api/resume/{id}")
-	fun deleteResume(@PathVariable id: String) =
-		resumeStore.delete(id)
+	fun deleteResume(@PathVariable id: String, principal: Principal) =
+		resumeStore.delete(id, principal.name)
 }

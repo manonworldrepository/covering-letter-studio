@@ -6,5 +6,7 @@ import jakarta.validation.constraints.Size
 data class AllowedEmailsSetupRequest(
 	@field:NotBlank(message = "Enter at least one email address.")
 	@field:Size(max = 4096, message = "Email addresses must be 4,096 characters or fewer.")
-	val emails: String
+	val emails: String,
+	@field:Size(max = 320, message = "Choose an allowed email address as the admin.")
+	val adminEmail: String? = null
 )

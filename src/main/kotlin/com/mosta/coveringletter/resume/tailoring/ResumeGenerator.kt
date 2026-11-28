@@ -8,4 +8,11 @@ interface ResumeGenerator {
 		resume: String,
 		supportingDocuments: String
 	): Mono<GeneratedResume>
+
+	fun generateForAccount(
+		jobDescription: String,
+		resume: String,
+		supportingDocuments: String,
+		accountEmail: String
+	): Mono<GeneratedResume> = generate(jobDescription, resume, supportingDocuments)
 }

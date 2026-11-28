@@ -12,5 +12,7 @@ data class AppSettingsRequest(
 	@field:Pattern(regexp = "[A-Za-z0-9._-]+", message = "Select a valid Gemini model.")
 	val model: String,
 	@field:Size(max = 4096, message = "Allowed email addresses must be 4,096 characters or fewer.")
-	val allowedEmails: String? = null
+	val allowedEmails: String? = null,
+	@field:Size(max = 320, message = "Choose an allowed email address as the admin.")
+	val adminEmail: String? = null
 )

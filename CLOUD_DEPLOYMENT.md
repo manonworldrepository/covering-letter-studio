@@ -46,25 +46,27 @@ gcloud run deploy coveringletter `
   --platform managed `
   --region us-central1 `
   --allow-unauthenticated `
-  --set-env-vars "GEMINI_API_KEY=your-api-key-here,GEMINI_MODEL=gemini-3.1-flash-lite,GOOGLE_CLIENT_ID=your-client-id,GOOGLE_CLIENT_SECRET=your-client-secret,ALLOWED_EMAILS=your.email@gmail.com,CLOUD_STORAGE_BUCKET=PROJECT_ID-coveringletter-data,JWT_PRIVATE_KEY_BASE64=base64-encoded-private-key,JWT_PUBLIC_KEY_BASE64=base64-encoded-public-key" `
+  --max-instances 1 `
+  --set-env-vars "GOOGLE_CLIENT_ID=your-client-id,GOOGLE_CLIENT_SECRET=your-client-secret,ALLOWED_EMAILS=your.email@gmail.com,CLOUD_STORAGE_BUCKET=PROJECT_ID-coveringletter-data,JWT_PRIVATE_KEY_BASE64=base64-encoded-private-key,JWT_PUBLIC_KEY_BASE64=base64-encoded-public-key" `
   --memory 512Mi `
-  --cpu 1 `
-  --max-instances 2
+  --cpu 1
 ```
 
 > **Important:** `--set-env-vars` replaces the service's complete environment-variable set. Pass all variables in one comma-separated assignment, as above. To change only some variables later, use `--update-env-vars` so existing values are preserved.
 >
 > `ALLOWED_EMAILS` accepts comma-separated addresses. When setting multiple addresses directly with `gcloud`, escape commas within that value (for example, `ALLOWED_EMAILS=you@example.com\,admin@example.com`). The GitHub Actions workflow handles this escaping for its `ALLOWED_EMAILS` secret.
 >
-> `ALLOWED_EMAILS` may be omitted on a fresh service to use the first-run setup screen. For a durable allowlist on Cloud Run, configure the environment variable or the GitHub Actions secret; setup-screen changes are written to the container-local `.env` file and do not survive instance replacement.
+> `ALLOWED_EMAILS` may be omitted on a fresh service to use the first-run setup screen. The first configured address becomes administrator by default; the administrator can reassign the role in **Settings**. Account-list and Gemini settings are saved in `.data` and persisted in `data-backup.zip` when Cloud Storage sync is enabled.
 >
-> The Settings form saves the Gemini API key, model, and allowed-email list together. In-app changes are container-local and do not update the Cloud Run service's environment variables or GitHub Actions secrets. The confirmed **Reset application settings** action clears local Gemini-key and allowed-email settings while preserving the selected model and local Google OAuth credentials; it does not remove Cloud Run environment variables or deployment secrets, which must be changed separately if a reset should persist across instance replacement.
+> Each user's Gemini API key and model are private account settings, not shared Cloud Run secrets. Do not configure a shared `GEMINI_API_KEY` for the application; users set their own keys after signing in.
+>
+> The deployment workflow limits the service to one instance because the app stores data in a file-backed `.data` directory synchronized as one archive. Do not raise this limit without replacing the archive sync with multi-writer-safe storage.
 
 ### Security Note
 
-The `--allow-unauthenticated` flag makes the service publicly accessible. For a personal app with sensitive data (resumes, API keys), use one of these instead:
+The `--allow-unauthenticated` flag allows network access to the Cloud Run service; application pages and APIs still require Google Sign-In and an allowed account. The administrator can view all users' resumes, supporting documents, and applications, so only allow trusted addresses. You can add IAM protection as an extra outer gate:
 
-**Option 1: IAM-protected service (Recommended)**
+**Optional: IAM-protected service**
 
 ```powershell
 gcloud run deploy coveringletter `
@@ -72,30 +74,26 @@ gcloud run deploy coveringletter `
   --platform managed `
   --region us-central1 `
   --no-allow-unauthenticated `
-  --update-env-vars GEMINI_MODEL="gemini-3.1-flash-lite" `
+  --max-instances 1 `
   --memory 512Mi
 ```
 
-Then access the service by authenticating with `gcloud auth print-identity-token` or by setting up IAM policies for your Google account.
-
-**Option 2: API Key Header**
-
-Add a simple API key check in the app by setting an environment variable `APP_API_KEY` and checking it in a Spring filter.
+Then grant Cloud Run Invoker to the Google accounts that should reach the sign-in page and authenticate with `gcloud auth print-identity-token` or a suitable browser/IAM integration.
 
 ## Step 4: Configure Environment Variables
 
-The app requires these environment variables on Cloud Run:
+Configure these environment variables on Cloud Run:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GEMINI_API_KEY` | Yes | Your Google Gemini API key |
-| `GEMINI_MODEL` | No | Model ID (default: `gemini-3.1-flash-lite`) |
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth2 client ID for Sign-In |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth2 client secret |
-| `ALLOWED_EMAILS` | No | Comma-separated Google account email addresses permitted to sign in; if unset on a fresh service, the first-run setup screen collects them |
+| `ALLOWED_EMAILS` | No | Initial comma-separated Google account allowlist; if unset on a fresh service, the first-run setup screen collects it |
 | `CLOUD_STORAGE_BUCKET` | Yes | Cloud Storage bucket name for data persistence |
 | `JWT_PRIVATE_KEY_BASE64` | Yes | Base64-encoded RSA private key for JWT signing (see below) |
 | `JWT_PUBLIC_KEY_BASE64` | Yes | Base64-encoded RSA public key for JWT verification (see below) |
+
+Each user sets their own Gemini API key and model inside the app. Allowed accounts and administrator assignment are persisted in `.data/.account-access`; account files are persisted under `.data/accounts/`.
 
 ### JWT Key Pair Generation (Required for Cloud Run)
 
@@ -152,7 +150,7 @@ gcloud run services update coveringletter `
 
 ## Data Persistence with Cloud Storage
 
-✅ **Cloud Storage sync is built in.** The app automatically syncs the `.data` directory to Google Cloud Storage on startup and shutdown, so your data survives container restarts (scale-to-zero).
+✅ **Cloud Storage sync is built in.** The app automatically syncs the `.data` directory to Google Cloud Storage on startup and shutdown, so account data survives container restarts (scale-to-zero). Uploads use the object generation read at startup as a precondition, preventing a stale snapshot from overwriting a newer archive.
 
 ### Setup Cloud Storage Bucket
 
@@ -185,10 +183,37 @@ gcloud storage buckets add-iam-policy-binding gs://YOUR_PROJECT_ID-coveringlette
 
 ### How It Works
 
-- **On startup**: The app downloads `data-backup.zip` from Cloud Storage and extracts it to `.data/`
-- **On shutdown**: The app zips the entire `.data/` directory and uploads it to Cloud Storage
+- **On startup**: The app downloads `data-backup.zip` from Cloud Storage and extracts it to `.data/`, recording the object's generation
+- **On shutdown**: The app zips the entire `.data/` directory and uploads it only if the Cloud Storage object still has the generation read at startup
 - **First deploy**: No data exists in Cloud Storage — the app starts with an empty `.data/` directory
 - **Local development**: Cloud Storage sync is disabled by default (only active on the `cloud` profile)
+
+If the archive generation changed while an instance was running, its shutdown upload is rejected instead of overwriting newer account data. Keep the Cloud Run maximum at one instance while using this file-backed storage design.
+
+### Assigning the existing Cloud Run data to an account
+
+Existing resumes, supporting documents, and applied jobs remain in the shared legacy workspace so all accounts can see them. Any signed-in user can delete a shared legacy item; that deletion removes it for all accounts. Private account records remain deletable only by their owner. To also place an independent copy of the current Cloud Run data under `info@manonworld.de` without adding that address as a special case in application code, use the one-time archive migration task below. Run it only after the new account-aware revision is deployed and any older revisions have drained; an old revision does not have the generation guard and could upload a stale archive.
+
+The task preserves the shared files, duplicates their contents into the requested `accounts/<encoded-email>/` workspace, and refuses to overwrite an existing account directory. If a shared item is deleted later, the app removes both the shared file and any matching migration copy. The task does not expose or print document contents.
+
+```powershell
+$bucket = 'YOUR_PROJECT_ID-coveringletter-data'
+$archive = 'build\data-backup.zip'
+$generation = gcloud storage objects describe "gs://$bucket/data-backup.zip" --format='value(generation)'
+if (-not $generation) { throw 'The Cloud Storage data-backup.zip object was not found.' }
+
+gcloud storage cp "gs://$bucket/data-backup.zip" $archive
+if ($LASTEXITCODE -ne 0) { throw 'Could not download the current data archive.' }
+gcloud storage cp $archive "gs://$bucket/data-backup-before-account-migration-$generation.zip" --if-generation-match=0
+if ($LASTEXITCODE -ne 0) { throw 'Could not create the generation-named Cloud Storage backup.' }
+
+.\gradlew.bat migrateLegacyData "-Parchive=$archive" '-PownerEmail=info@manonworld.de'
+if ($LASTEXITCODE -ne 0) { throw 'The account archive migration failed.' }
+gcloud storage cp $archive "gs://$bucket/data-backup.zip" "--if-generation-match=$generation"
+if ($LASTEXITCODE -ne 0) { throw 'The archive changed since download; keep the local backup and repeat from the newest generation.' }
+```
+
+The generation precondition makes the final upload fail rather than replace any archive that changed after download. The app's account paths are email-derived and generic; the email above is only the destination argument for this one-time data operation.
 
 ### Cloud Storage Free Tier
 
@@ -427,7 +452,6 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 | `WIF_PROVIDER` | Full Workload Identity Provider resource name | `projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
 | `GOOGLE_CLIENT_ID` | Google OAuth2 client ID | `123456789-abc.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret | `GOCSPX-abc123...` |
-| `GEMINI_API_KEY` | Your Google Gemini API key | `AIza...` |
 | `ALLOWED_EMAILS` | Optional comma-separated allowed addresses; when omitted, an existing Cloud Run value is preserved, or first-run setup can configure accounts on a fresh service | `you@example.com,admin@example.com` |
 | `CLOUD_STORAGE_BUCKET` | Cloud Storage bucket name | `my-project-coveringletter-data` |
 | `JWT_PRIVATE_KEY_BASE64` | Base64-encoded RSA private key | (see JWT Key Pair Generation) |
@@ -435,7 +459,7 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 
 #### 6. Configure environment variables on Cloud Run
 
-The workflow updates its managed environment variables automatically on each deployment. If the optional `ALLOWED_EMAILS` secret is set, it updates the Cloud Run allowlist; if it is empty, the current Cloud Run value is preserved. On a fresh service without an allowlist, use the first-run setup screen before signing in. Settings changes and resets made in the app do not modify these deployment-managed values; configure the service environment or GitHub Actions secrets when changes must persist across deployments.
+The workflow updates its managed environment variables automatically on each deployment and configures a one-instance maximum for the file-backed archive storage. If the optional `ALLOWED_EMAILS` secret is set, it supplies the initial Cloud Run allowlist; in-app administrator changes are persisted in the `.data` archive. On a fresh service without an allowlist, use the first-run setup screen before signing in.
 
 ### First deployment
 

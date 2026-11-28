@@ -12,7 +12,7 @@ class GenerationInputService(
 	private val resumeStore: ResumeStore,
 	private val supportingDocumentStore: SupportingDocumentStore
 ) {
-	fun load(jobDescription: String): Mono<GenerationInput> {
+	fun load(jobDescription: String, accountEmail: String? = null): Mono<GenerationInput> {
 		if (jobDescription.isBlank()) {
 			return Mono.error(ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter the job description."))
 		}
@@ -25,7 +25,7 @@ class GenerationInputService(
 			)
 		}
 
-		return Mono.zip(resumeStore.extractStored(), supportingDocumentStore.extractAll())
+		return Mono.zip(resumeStore.extractStored(accountEmail), supportingDocumentStore.extractAll(accountEmail))
 			.map { contents ->
 				val resumeContent = contents.t1
 				val supportingContent = contents.t2

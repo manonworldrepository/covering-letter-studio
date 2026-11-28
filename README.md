@@ -4,7 +4,7 @@
 
 A green badge means the latest `master` commit was deployed to Cloud Run and the serving revision was verified against its image digest.
 
-Cover Letter Studio is a single-user, localhost-only application that uses Google Gemini to draft a tailored cover letter from a job description, a saved resume, and optional supporting documents. Review and edit the draft, then download it as a PDF.
+Cover Letter Studio is a multi-account application that uses Google Gemini to draft tailored cover letters and resumes from a job description, a saved resume, and optional supporting documents. Local development binds to `127.0.0.1`; Cloud Run can host the app for multiple Google Sign-In accounts. Each account has private resumes, supporting documents, applied jobs, Gemini settings, and activity logs.
 
 ## Requirements
 
@@ -15,27 +15,28 @@ Cover Letter Studio is a single-user, localhost-only application that uses Googl
 
 ## Google Sign-In configuration
 
-On first launch, if no allowed emails are configured, a one-time setup screen appears before Google Sign-In. Enter one Google account email address per field; the addresses are normalized and saved as `ALLOWED_EMAILS` in the root `.env` file, and the setup screen will not appear again. If `ALLOWED_EMAILS` is already set in the environment or `.env`, setup is skipped. Sign-in is restricted to this list; the app does not automatically allow every Gmail account. Signed-in users can review, add, or remove allowed addresses in **Settings**; the single **Save settings** button saves the Gemini API key, model, and email list together. Removing all email addresses and saving them reopens first-run setup the next time the user signs in. Only registered users can access this management feature.
+On first launch, if no allowed emails are configured, a one-time setup screen appears before Google Sign-In. Enter one Google account email address per field and select exactly one as administrator; the first address is selected by default. If `ALLOWED_EMAILS` is already set in the environment or root `.env`, setup is skipped and the first configured address is the default administrator unless `ADMIN_EMAIL` is set. Sign-in is restricted to the configured list; the app does not automatically allow every Gmail account.
 
-**Reset application settings** is available in **Settings** and requires confirmation. It clears the saved Gemini API key and allowed-email list, preserves the selected Gemini model and Google OAuth credentials, clears other local environment-file entries, signs the user out, and returns to the email setup screen. It does not delete uploaded documents or applied-job records.
+Only the administrator can edit the allowed-account list or reassign the administrator from **Settings**. The Settings form saves the administrator's personal Gemini key/model and account changes together, and it cannot save without at least one allowed address and an administrator. The administrator can view every account's resumes, supporting documents, and applied jobs; the all-applications grid labels each row with its owner. Cross-account private data is read-only to the admin view, but shared legacy records can be deleted by any user.
 
-For Cloud Run, configure `ALLOWED_EMAILS` as a service environment variable. Settings changes made in the app are written to container-local `.env` files and do not update the Cloud Run service configuration; they are not persistent across instance replacement. Update the Cloud Run environment configuration when you need changes to survive a restart or new revision. Resetting settings in the app likewise does not remove values configured as Cloud Run environment variables or GitHub Actions secrets.
+Existing legacy resumes, supporting documents, and applied jobs remain visible to all accounts as shared data. Any user can delete a shared legacy record; that deletion removes it for everyone. New uploads and applications are saved privately and remain deletable only by their owner. Each account has its own document selections, so selecting a shared legacy document does not change another user's selections. On Cloud Run, the existing shared dataset can also be copied into an owner's account workspace with the one-time migration task in `CLOUD_DEPLOYMENT.md`; the application does not special-case any email address.
 
-Create a Google OAuth client for your own app and provide its `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the root `.env` file or as environment variables. For local development, add `http://localhost:8080/login/oauth2/code/google` as an authorized redirect URI for that client. The callback URI is generated from the current host, so the same setup works with a Cloud Run URL when that URL is registered with the OAuth client.
+**Reset application settings** is available to the administrator in **Settings** and requires confirmation. It clears the administrator's saved Gemini API key and the global allowed-account/admin list, preserves the selected Gemini model and Google OAuth credentials, signs out the administrator, and returns to first-run account setup. It does not delete resumes, supporting documents, or applied jobs.
+
+Create a Google OAuth client for your app and provide `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the root `.env` file or as environment variables. For local development, add `http://localhost:8080/login/oauth2/code/google` as an authorized redirect URI for that client. The callback URI is generated from the current host, so the same setup works with a Cloud Run URL when that URL is registered with the OAuth client. Gemini keys and model choices are saved in each user's `.data/accounts/<encoded-email>/.env`, not in a shared account setting.
 
 ## Start the application
 
-Run commands from the project root. On first launch, the setup wizard asks for a Gemini API key and a model available to that key, then guides you through adding and selecting a required resume, optionally adding and selecting supporting documents, and choosing whether to generate a complete cover letter or a short motivation note. Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`), the app's default model, is recommended and preselected when available. After reviewing a draft, choose **Start a new application** to clear it and enter another job description while keeping your saved documents and selections. Saving the settings creates or updates the root `.env` file. You can also create `.env` before starting:
+Run commands from the project root. After sign-in, each user sets a Gemini API key and model in their own setup/settings and adds a resume; supporting documents are optional. Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`) is the default model. To allow sign-in, you can configure Google OAuth and an initial allowlist in the root `.env` before starting:
 
 ```dotenv
-GEMINI_API_KEY=your-api-key
-GEMINI_MODEL=gemini-3.1-flash-lite
 GOOGLE_CLIENT_ID=your-oauth-client-id
 GOOGLE_CLIENT_SECRET=your-oauth-client-secret
 ALLOWED_EMAILS=your.email@gmail.com
+ADMIN_EMAIL=your.email@gmail.com
 ```
 
-Keep `.env` private; it is excluded from Git. When both values exist, the app opens directly to the workspace. Change them later from **Settings** in the application.
+`ADMIN_EMAIL` is optional; when omitted, the first address in `ALLOWED_EMAILS` becomes administrator. Keep `.env` private; it is excluded from Git. In-app changes persist in `.data` alongside each account's data.
 
 ### Spring Boot with Gradle
 
@@ -132,14 +133,14 @@ The Gradle wrapper downloads Gradle and project dependencies on first use, so an
 
 ## Use the application
 
-1. Upload one or more PDF or DOCX resumes. Choose one saved resume as the source for each generated letter; remove individual resumes or clear all saved resumes from the Your resumes section.
-2. Optionally save up to five supporting PDF or DOCX documents. Select which documents should contribute to generation, and remove individual files or clear all saved files from the Supporting documents section.
+1. Upload one or more PDF or DOCX resumes. Choose one saved resume as the source for each generated letter; remove your own resumes or delete shared legacy resumes for all accounts.
+2. Optionally save up to five supporting PDF or DOCX documents in your account. Select which documents should contribute to generation; remove your own documents or delete shared legacy documents for all accounts. Selections remain private to your account.
 3. Paste the job description and choose whether to generate a complete covering letter or a short motivation message for an application form. Both options use the selected resume and supporting documents; Gemini identifies the applicant’s full name from the resume and the job title from the description. Make sure the resume contains the applicant’s name.
-4. Review and edit the draft. Download the complete covering letter as a PDF, or copy either draft to paste into an application form. The PDF filename combines the title-cased applicant name, detected job title, and current date, separated by underscores.
+4. Review and edit the draft. Download the complete covering letter as a PDF, or copy either draft to paste into an application form. PDF filenames include the applicant's first and last names, a shortened job title when needed, and a `_Cover_Letter` or `_Resume` suffix.
 
-The app is configured for single-user local use and binds to `127.0.0.1`. The saved resume and supporting documents are stored under `.data`, which is excluded from Git. Extracted document text and the job description are sent to Google Gemini for generation. Only text-based PDFs are supported; scanned/image-only documents require OCR and cannot currently be extracted. Each file can be up to 10 MB, with extracted document text limited to 100,000 characters total.
+The app binds to `127.0.0.1` by default. Per-account data and the shared legacy workspace are stored under `.data`, which is excluded from Git. Extracted document text and the job description are sent to Google Gemini for generation. Only text-based PDFs are supported; scanned/image-only documents require OCR and cannot currently be extracted. Each file can be up to 10 MB, with extracted document text limited to 100,000 characters total.
 
-The app also exposes an MCP Streamable HTTP server at `http://127.0.0.1:8080/mcp`. It provides a `generate_cover_letter` tool that uses the same selected resume, supporting documents, and saved Gemini settings as the web app. Connect an MCP client to this endpoint to generate a covering letter or motivation message. The MCP server is unauthenticated, so keep the app bound to localhost; it sends the supplied job description and selected document text to Gemini through Gemini's API.
+The app also exposes an MCP Streamable HTTP server at `http://127.0.0.1:8080/mcp`. It provides a `generate_cover_letter` tool that uses the authenticated account's selected resume, supporting documents, and Gemini settings. MCP calls require an authenticated app session; they are not an unauthenticated route. The supplied job description and selected document text are sent to Gemini through Gemini's API.
 
 The resizable **User activity** panel shows actions including the selected Gemini model when a request is sent and when a reply arrives. It does not show technical application logs. If Gemini reports that a model is busy or another Gemini error occurs, use **Settings** to select another available model.
 

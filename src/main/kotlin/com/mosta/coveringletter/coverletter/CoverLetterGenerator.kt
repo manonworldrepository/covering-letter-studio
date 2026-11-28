@@ -9,4 +9,12 @@ interface CoverLetterGenerator {
 		supportingDocuments: String,
 		format: GenerationFormat
 	): Mono<GeneratedCoverLetter>
+
+	fun generateForAccount(
+		jobDescription: String,
+		resume: String,
+		supportingDocuments: String,
+		format: GenerationFormat,
+		accountEmail: String
+	): Mono<GeneratedCoverLetter> = generate(jobDescription, resume, supportingDocuments, format)
 }

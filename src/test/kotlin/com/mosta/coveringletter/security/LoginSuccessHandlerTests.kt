@@ -95,7 +95,7 @@ class LoginSuccessHandlerTests {
 
 		handler.onAuthenticationSuccess(exchange, authentication).block()
 
-		val logs = userActions.latest()
+		val logs = userActions.latest("person@gmail.com")
 		assertTrue(logs.any { it.action.contains("Session refreshed") })
 	}
 
@@ -115,7 +115,7 @@ class LoginSuccessHandlerTests {
 		return SecurityConfig(
 			userActions,
 			jwtService,
-			JwtAuthenticationConverter(jwtService),
+			JwtAuthenticationConverter(jwtService, allowedEmailsService),
 			allowedEmailsService
 		)
 	}

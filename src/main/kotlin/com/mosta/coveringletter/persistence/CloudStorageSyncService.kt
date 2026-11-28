@@ -1,13 +1,10 @@
 package com.mosta.coveringletter.persistence
 
-import com.google.cloud.storage.Storage
-import com.google.cloud.storage.StorageOptions
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.ContextClosedEvent
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -26,27 +23,15 @@ import java.util.zip.ZipOutputStream
 @Component
 class CloudStorageSyncService(
 	@Value("\${coverletter.storage.directory:.data}") private val storageDirectory: String,
-	@Value("\${coverletter.cloud-storage.bucket:}") private val gcsBucket: String,
-	@Value("\${coverletter.cloud-storage.enabled:false}") private val enabled: Boolean
+	private val archiveClient: CloudStorageArchiveClient
 ) {
 
 	private val dataDir = File(storageDirectory).absoluteFile
-
-	private val storage: Storage? = run {
-		if (!enabled || gcsBucket.isBlank()) {
-			null
-		} else {
-			try {
-				StorageOptions.getDefaultInstance().service
-			} catch (e: Exception) {
-				null
-			}
-		}
-	}
+	private var generationAtStartup: Long? = null
 
 	@EventListener
 	fun onReady(event: ApplicationReadyEvent) {
-		if (storage == null) return
+		if (!archiveClient.enabled) return
 		try {
 			downloadFromGcs()
 		} catch (e: Exception) {
@@ -56,7 +41,7 @@ class CloudStorageSyncService(
 
 	@EventListener
 	fun onShutdown(event: ContextClosedEvent) {
-		if (storage == null) return
+		if (!archiveClient.enabled) return
 		try {
 			uploadToGcs()
 		} catch (e: Exception) {
@@ -64,12 +49,10 @@ class CloudStorageSyncService(
 		}
 	}
 
-	private fun downloadFromGcs() {
-		val blob = storage?.get(gcsBucket, DATA_ARCHIVE) ?: return
-		val bytes = ByteArrayOutputStream().use { baos ->
-			blob.downloadTo(baos)
-			baos.toByteArray()
-		}
+	internal fun downloadFromGcs() {
+		val archive = archiveClient.downloadArchive() ?: return
+		generationAtStartup = archive.generation
+		val bytes = archive.bytes
 		if (bytes.isEmpty()) return
 
 		dataDir.mkdirs()
@@ -81,7 +64,7 @@ class CloudStorageSyncService(
 					file.mkdirs()
 				} else {
 					file.parentFile?.mkdirs()
-					zis.copyTo(file.outputStream())
+					file.outputStream().use { output -> zis.copyTo(output) }
 				}
 				zis.closeEntry()
 				entry = zis.nextEntry
@@ -89,11 +72,10 @@ class CloudStorageSyncService(
 		}
 	}
 
-	private fun uploadToGcs() {
+	internal fun uploadToGcs() {
 		if (!dataDir.exists()) return
-		val s = storage ?: return
 
-		val bytes = ByteArrayOutputStream().use { baos ->
+		val bytes = java.io.ByteArrayOutputStream().use { baos ->
 			ZipOutputStream(baos).use { zos ->
 				val files = dataDir.listFiles() ?: return@use
 				files.forEach { file ->
@@ -103,11 +85,7 @@ class CloudStorageSyncService(
 			baos.toByteArray()
 		}
 
-		val blobInfo = com.google.cloud.storage.BlobInfo.newBuilder(gcsBucket, DATA_ARCHIVE)
-			.setContentType("application/zip")
-			.build()
-
-		s.create(blobInfo, bytes)
+		generationAtStartup = archiveClient.uploadArchive(bytes, generationAtStartup)
 	}
 
 	private fun addFileToZip(zos: ZipOutputStream, file: File, path: String) {
@@ -121,9 +99,5 @@ class CloudStorageSyncService(
 			file.inputStream().use { it.copyTo(zos) }
 			zos.closeEntry()
 		}
-	}
-
-	companion object {
-		private const val DATA_ARCHIVE = "data-backup.zip"
 	}
 }

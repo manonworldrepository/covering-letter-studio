@@ -4,12 +4,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.stereotype.Component
+import com.mosta.coveringletter.settings.AllowedEmailsService
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 
 @Component
 class JwtAuthenticationConverter(
-    private val jwtService: JwtService
+	private val jwtService: JwtService,
+	private val allowedEmails: AllowedEmailsService
 ) {
 
     companion object {
@@ -28,6 +30,7 @@ class JwtAuthenticationConverter(
         val token = tokenFromHeader ?: exchange.request.cookies[ACCESS_TOKEN_COOKIE]?.firstOrNull()?.value
             ?: return Mono.empty()
         return jwtService.validateAccessToken(token)
+			.filter(allowedEmails::allows)
             .map { email ->
                 // Must include authorities to be considered "authenticated" by Spring Security
                 UsernamePasswordAuthenticationToken(email, null, listOf(SimpleGrantedAuthority("ROLE_USER")))
